@@ -28,6 +28,8 @@ type receiptMark struct {
 	// with others (column titles, a row's label).
 	X0 int `json:"x0,omitempty"`
 	X1 int `json:"x1,omitempty"`
+	// Font is the font a line was drawn in (receiptFonts), for the designer.
+	Font string `json:"font,omitempty"`
 }
 
 // Text parts: one per receiptTexts wording.

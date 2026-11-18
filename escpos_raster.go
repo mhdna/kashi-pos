@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 
 	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
@@ -40,6 +41,12 @@ type receiptCanvas struct {
 	// pendingWords are element words about to be drawn; the next time each is
 	// drawn, where it lands is marked (column titles share a row).
 	pendingWords []pendingWord
+	// fontKey, when set, is the font (receiptFonts) a line is set in instead
+	// of the look's own; lastFont and lastBold are the font the last text was
+	// drawn in, for the designer.
+	fontKey  string
+	lastFont string
+	lastBold bool
 }
 
 func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
@@ -465,12 +472,52 @@ func (c *receiptCanvas) bodyFactor() float64 {
 }
 
 func (c *receiptCanvas) faceRole(size float64, role fontRole) (font.Face, error) {
-	key := fmt.Sprintf("%.2f:%d", size, role)
+	key := fmt.Sprintf("%.2f:%d:%s", size, role, c.fontKey)
 	if face := c.faces[key]; face != nil {
 		return face, nil
 	}
+	fontData, scale := c.fontDataFor(role)
+	parsed, err := parseReceiptFont(fontData)
+	if err != nil {
+		return nil, fmt.Errorf("parse receipt font: %w", err)
+	}
+	face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: size * scale * 2.6, DPI: 72, Hinting: font.HintingFull})
+	if err != nil {
+		return nil, fmt.Errorf("create receipt font: %w", err)
+	}
+	c.faces[key] = face
+	return face, nil
+}
+
+// parsedReceiptFonts keeps each font file parsed once.
+var parsedReceiptFonts sync.Map
+
+func parseReceiptFont(data []byte) (*opentype.Font, error) {
+	if len(data) == 0 {
+		return nil, fmt.Errorf("no font")
+	}
+	if f, ok := parsedReceiptFonts.Load(&data[0]); ok {
+		return f.(*opentype.Font), nil
+	}
+	f, err := opentype.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	parsedReceiptFonts.Store(&data[0], f)
+	return f, nil
+}
+
+// fontDataFor is the font file a role draws in and its size scale: the
+// line's own font when one is set, else the look's.
+func (c *receiptCanvas) fontDataFor(role fontRole) ([]byte, float64) {
 	title := role == roleTitle || role == roleTitleBold
 	bold := role == roleBodyBold || role == roleTitleBold || role == roleName
+	if f, ok := receiptFontByKey(c.fontKey); ok {
+		if bold {
+			return f.Bold, f.Scale
+		}
+		return f.Regular, f.Scale
+	}
 	scale := c.bodyFactor()
 	var fontData []byte
 	if fonts := c.style.Fonts; fonts != nil {
@@ -511,16 +558,7 @@ func (c *receiptCanvas) faceRole(size float64, role fontRole) (font.Face, error)
 			}
 		}
 	}
-	parsed, err := opentype.Parse(fontData)
-	if err != nil {
-		return nil, fmt.Errorf("parse receipt font: %w", err)
-	}
-	face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: size * scale * 2.6, DPI: 72, Hinting: font.HintingFull})
-	if err != nil {
-		return nil, fmt.Errorf("create receipt font: %w", err)
-	}
-	c.faces[key] = face
-	return face, nil
+	return fontData, scale
 }
 
 func (c *receiptCanvas) text(x, y int, value string, size float64, bold, title bool) (int, error) {
@@ -532,6 +570,9 @@ func (c *receiptCanvas) text(x, y int, value string, size float64, bold, title b
 var receiptTextDrawn func(value string, y int)
 
 func (c *receiptCanvas) textRole(x, y int, value string, size float64, role fontRole, ink image.Image) (int, error) {
+	if key := c.pendingFont(value); key != "" {
+		defer c.useFont(key)()
+	}
 	face, err := c.faceRole(size, role)
 	if err != nil {
 		return y, err
@@ -540,12 +581,14 @@ func (c *receiptCanvas) textRole(x, y int, value string, size float64, role font
 	if receiptTextDrawn != nil {
 		receiptTextDrawn(value, y)
 	}
+	data, _ := c.fontDataFor(role)
+	c.lastFont, c.lastBold = receiptFontKeyOf(data)
 	drawer := font.Drawer{Dst: c.img, Src: ink, Face: face, Dot: fixed.P(x, y+metrics.Ascent.Ceil())}
 	drawer.DrawString(value)
 	c.markPendingWord(value, x, y, y+metrics.Height.Ceil(), size, role, font.MeasureString(face, value).Ceil())
 	title := role == roleTitle || role == roleTitleBold
 	bold := role == roleBodyBold || role == roleTitleBold || role == roleName
-	if c.style.Fonts == nil && bold && ((title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza")) {
+	if c.style.Fonts == nil && c.fontKey == "" && bold && ((title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza")) {
 		drawer.Dot = fixed.P(x+1, y+metrics.Ascent.Ceil())
 		drawer.DrawString(value)
 	}
@@ -557,6 +600,9 @@ func (c *receiptCanvas) measure(value string, size float64, bold, title bool) (i
 }
 
 func (c *receiptCanvas) measureRole(value string, size float64, role fontRole) (int, error) {
+	if key := c.pendingFont(value); key != "" {
+		defer c.useFont(key)()
+	}
 	face, err := c.faceRole(size, role)
 	if err != nil {
 		return 0, err
@@ -807,6 +853,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	)
 
 	label := c.data.Texts.socialsTitle()
+	defer c.useFont(c.data.Texts.element("socials_title").Font)()
 	labelSize, labelBold := c.elementStyle("socials_title", c.data.BodySize-1, true)
 	labelWidth, err := c.measure(label, labelSize, labelBold, false)
 	if err != nil {
@@ -817,8 +864,14 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	if startX < c.margin {
 		startX = c.margin
 	}
-	if _, err = c.text(startX, y, label, labelSize, labelBold, false); err != nil {
+	labelBottom, err := c.text(startX, y, label, labelSize, labelBold, false)
+	if err != nil {
 		return y, err
+	}
+	if labelBottom > y {
+		c.markLine("socials_title", label, y, labelBottom, labelSize, "left")
+		m := &c.marks[len(c.marks)-1]
+		m.X0, m.X1 = startX, startX+labelWidth
 	}
 
 	x := startX + labelWidth + labelGap

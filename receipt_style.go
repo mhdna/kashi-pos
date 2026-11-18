@@ -103,6 +103,7 @@ func (c *receiptCanvas) drawMeta(y int) int {
 	top := y
 	defer func() { c.markGroup("meta", top, y) }()
 	for _, pair := range pairs {
+		restore := c.useFont(t.element(pair.key).Font)
 		size, bold := c.elementStyle(pair.key, c.data.BodySize-1, false)
 		role := roleBody
 		if bold {
@@ -119,6 +120,7 @@ func (c *receiptCanvas) drawMeta(y int) int {
 			y, _ = c.left(y, pair.label+": "+pair.value, size, bold)
 		}
 		c.markLine(pair.key, pair.label, lineTop, y, size, "left")
+		restore()
 		y += c.gap(8)
 	}
 	// Room before the rule under the block, as there is above the first line.
@@ -149,11 +151,11 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) (bottom int) {
 		h := c.lineHeight(size, roleBodyBold)
 		top := y + 4
 		c.fillRect(c.margin, top, right, top+h+2*pad, color.Black)
-		c.textRole(c.margin+pad, top+pad, c.data.Texts.word("total", "TOTAL"), size, roleBodyBold, image.White)
+		c.textRole(c.margin+pad, top+pad, c.word("total", "TOTAL"), size, roleBodyBold, image.White)
 		c.rightRole(right-pad, top+pad, amount, size, roleBodyBold, image.White)
 		y = top + h + 2*pad + 8
 		if second[0] != "" {
-			y, _ = c.twoCol(y, second[0], second[1], 10, true)
+			y = c.row(y, "equivalent", second[0], second[0], second[1], 10, true)
 			y += 8
 		}
 		return y
@@ -166,11 +168,11 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) (bottom int) {
 		if c.style.Fonts != nil {
 			labelRole = roleTitleBold
 		}
-		c.textRole(c.margin, y, c.data.Texts.word("total", "TOTAL"), size, labelRole, image.Black)
+		c.textRole(c.margin, y, c.word("total", "TOTAL"), size, labelRole, image.Black)
 		y, _ = c.rightRole(right, y, amount, size, roleBodyBold, image.Black)
 		y += c.gap(8)
 		if second[0] != "" {
-			y, _ = c.twoCol(y, second[0], second[1], 10, true)
+			y = c.row(y, "equivalent", second[0], second[0], second[1], 10, true)
 			y += 8
 		}
 		return c.ruleLine(y) + 4
@@ -181,10 +183,10 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) (bottom int) {
 	// No rule above the box: the box itself sets the total apart.
 	boxTop := y + 10
 	y = boxTop + 16
-	y, _ = c.twoCol(y, c.data.Texts.word("total", "TOTAL"), amount, 13, true)
+	y, _ = c.twoCol(y, c.word("total", "TOTAL"), amount, 13, true)
 	y += 8
 	if second[0] != "" {
-		y, _ = c.twoCol(y, second[0], second[1], 10, true)
+		y = c.row(y, "equivalent", second[0], second[0], second[1], 10, true)
 		y += 8
 	}
 	y += 14

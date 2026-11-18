@@ -318,6 +318,14 @@ sell at their typed price and show no chip. The cart sends the line's
   solid or double, 1 to 4 thick, square or rounded (`decor`,
   `receipt_decor.go`). The parts under the totals print in `order`. Nothing set
   is the look exactly as before.
+- ==Fonts==: any line that can change size, the column titles and TOTAL can
+  also take a `font` from `receiptFonts` (`receipt_fonts.go`): the looks' own
+  fonts plus 16 extra open-licence families (sans, serif, mono, display,
+  script; Latin only, in `assets/fonts/extra`). A part's `font` sets all its
+  lines, a line's own wins, a banner's sets its title. Words on a row (column
+  titles, TOTAL) find their font through `pendingFont` when measured and
+  drawn. Every line mark says which font it was drawn in, so central types
+  over it in the same letters (it serves the files from `ReceiptFontFile`).
 - ==Banners== (`banners`, `receipt_banner.go`, up to 4) are display lettering
   the till draws in black and white so they print crisp: ribbon, burst, stamp,
   frame, ornament or stars, a title and a line under it, in the looks' own

@@ -74,6 +74,10 @@ type DesignerLine struct {
 	// (a column title among others); else the line spans the paper.
 	Left  int `json:"left,omitempty"`
 	Right int `json:"right,omitempty"`
+	// Font and Bold are what the line is drawn in (a receiptFonts key), so
+	// the designer types over it in the same letters.
+	Font string `json:"font,omitempty"`
+	Bold bool   `json:"bold,omitempty"`
 }
 
 // DesignerPreview is the drawn receipt (PNG, as the printer prints it),
@@ -170,7 +174,7 @@ func designerLines(marks []receiptMark) []DesignerLine {
 			// The title's words, without the sample code printed after them.
 			text = strings.TrimSuffix(text, " "+sampleReferralCode)
 		}
-		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left], Left: m.X0, Right: m.X1})
+		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left], Left: m.X0, Right: m.X1, Font: m.Font, Bold: m.Bold})
 	}
 	return out
 }
@@ -195,10 +199,11 @@ func DesignerCatalog() map[string]any {
 		"elements":       receiptElements,
 		"date_formats":   formats,
 		"can": map[string]int{
-			"text": canText, "case": canCase, "size": canSize, "bold": canBold, "align": canAlign, "hide": canHide,
+			"text": canText, "case": canCase, "size": canSize, "bold": canBold, "align": canAlign, "hide": canHide, "font": canFont,
 		},
 		"line_styles":    receiptLineStyles,
 		"banner_styles":  receiptBannerStyles,
+		"fonts":          receiptFonts,
 		"banner_presets": receiptBannerPresets,
 		"footer_order":   receiptFooterOrder,
 		"size_min":       receiptElementMinSize,

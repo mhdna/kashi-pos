@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-18: The other currency's total ignored its size and weight
+
+**Symptom:** in the Receipt Designer, making the "LBP equivalent" line bigger or not bold changed nothing on the printed receipt.
+
+**Cause:** the picture receipt drew that line with a fixed size and bold, without reading the line's own settings, unlike the rows above it.
+
+**Fix:** it's drawn as a styled row (`row`) in all three total styles (`receipt_style.go`), so size, weight and now font apply. Test: `TestReceiptEquivalentStyled` in `receipt_fonts_test.go`.
+
 ## 2026-11-18: The calculator's cards changed height when one went away
 
 **Symptom:** the payment method cards and the On Account and Coupon cards weren't the same height, and taking a payment method away made the others grow or shrink.
