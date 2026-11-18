@@ -95,7 +95,9 @@ describe("RewardsButton", () => {
     await openDialog();
     // Short cards: the size, then one line; the details are in the title.
     expect(find("deal-students")?.textContent).toContain("15%");
-    expect(find("deal-students")?.textContent).toContain("Students 15%");
+    // The name big on top (its size left out of it), the size under it.
+    expect(find("deal-students")?.querySelector(".reward-line")?.textContent).toBe("Students");
+    expect(find("deal-students")?.querySelector(".reward-size")?.textContent).toBe("15%");
     expect(find("deal-students")?.getAttribute("title")).toBe("15% off the whole invoice");
     expect(find("deal-staff")?.textContent).toContain("$5");
     expect(find("auto-auto")?.querySelector(".reward-size")?.textContent).toBe("15%");

@@ -33,7 +33,7 @@
               @click="togglePick(d.uid, !picked.includes(d.uid))"
             >
               <span class="reward-top">
-                <span class="reward-size">{{ dealSize(d) }}</span>
+                <span class="reward-line">{{ dealTitle(d) }}</span>
                 <k-icon
                   :icon="picked.includes(d.uid) ? 'mdi-check-circle' : 'mdi-circle-outline'"
                   size="22"
@@ -41,7 +41,7 @@
                   :data-test="`pick-${d.uid}`"
                 />
               </span>
-              <span class="reward-line">{{ d.name }}</span>
+              <span class="reward-size">{{ dealSize(d) }}</span>
             </button>
 
             <button
@@ -54,10 +54,10 @@
               @click="openCode"
             >
               <span class="reward-top">
-                <span class="reward-size">{{ rewardPercent }}%</span>
+                <span class="reward-line" data-test="referral-foot">{{ modelValue || "Referral code" }}</span>
                 <k-icon :icon="modelValue ? 'mdi-check-circle' : 'mdi-account-multiple'" size="22" class="reward-state-icon" />
               </span>
-              <span class="reward-line" data-test="referral-foot">{{ modelValue || "Referral code" }}</span>
+              <span class="reward-size">{{ rewardPercent }}%</span>
             </button>
 
           </div>
@@ -73,7 +73,7 @@
               :data-test="`auto-${d.uid}`"
             >
               <span class="reward-top">
-                <span class="reward-size">{{ dealSize(d) }}</span>
+                <span class="reward-line">{{ dealWhen(d) }}</span>
                 <k-icon
                   v-if="d.name === appliedName"
                   icon="mdi-check-circle"
@@ -83,7 +83,7 @@
                 />
                 <k-icon v-else icon="mdi-lock-outline" size="20" class="reward-state-icon" />
               </span>
-              <span class="reward-line">{{ dealWhen(d) }}</span>
+              <span class="reward-size">{{ dealSize(d) }}</span>
             </div>
           </div>
         </k-card-text>
@@ -139,7 +139,7 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { CheckReferralCode, GetReferralInfo, ListRewardDeals } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { normalizeReferralCode, referralCodeHint } from "@/lib/referralCode";
-import { dealSize, dealTerms, dealWhen, rewardsActiveCount, type RewardDeal } from "@/lib/rewards";
+import { dealSize, dealTerms, dealTitle, dealWhen, rewardsActiveCount, type RewardDeal } from "@/lib/rewards";
 
 // The sale's rewards: the deals the cashier picks (a student discount), the
 // referral code a new customer gives, and, for reference, the deals that
@@ -366,10 +366,11 @@ defineExpose({ loadInfo });
   gap: 8px;
 }
 
+/* The name is what the cashier looks for; the size reads under it. */
 .reward-size {
-  font-size: 1.7rem;
-  font-weight: 700;
-  line-height: 1.1;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(var(--k-theme-on-surface), 0.7);
 }
 
 .reward-state-icon {
@@ -386,7 +387,10 @@ defineExpose({ loadInfo });
 }
 
 .reward-line {
-  font-weight: 500;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

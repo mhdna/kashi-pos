@@ -21,6 +21,14 @@ export function dealSize(d: RewardDeal): string {
   return d.kind === "amount" ? dollars(d.amount) : `${d.percent}%`;
 }
 
+// dealTitle is a deal's name without the size the card already shows:
+// "Students 15%" reads "Students"; a name that is only the size stays.
+export function dealTitle(d: RewardDeal): string {
+  const size = dealSize(d);
+  const title = d.name.split(size).join(" ").replace(/\s+/g, " ").trim();
+  return title || d.name;
+}
+
 // dealWhen is a deal's condition in a few words: "Whole invoice", "$50 and up".
 export function dealWhen(d: RewardDeal): string {
   return d.minTotal > 0 ? `${dollars(d.minTotal)} and up` : "Whole invoice";

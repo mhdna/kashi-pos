@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dealSize, dealTerms, dealWhen, rewardsActiveCount, type RewardDeal } from "./rewards";
+import { dealSize, dealTerms, dealTitle, dealWhen, rewardsActiveCount, type RewardDeal } from "./rewards";
 
 const deal = (over: Partial<RewardDeal>): RewardDeal => ({ uid: "x", name: "X", kind: "percent", percent: 15, amount: 0, minTotal: 0, cashierPicks: false, ...over });
 
@@ -36,5 +36,16 @@ describe("dealWhen", () => {
     expect(dealWhen(deal({}))).toBe("Whole invoice");
     expect(dealWhen(deal({ minTotal: 5000 }))).toBe("$50 and up");
     expect(dealWhen(deal({ minTotal: 4999 }))).toBe("$49.99 and up");
+  });
+});
+
+describe("dealTitle", () => {
+  it("drops the size the card shows from the name", () => {
+    expect(dealTitle(deal({ name: "Students 15%" }))).toBe("Students");
+    expect(dealTitle(deal({ name: "15% Students" }))).toBe("Students");
+    expect(dealTitle(deal({ name: "Staff", kind: "amount", amount: 500 }))).toBe("Staff");
+    expect(dealTitle(deal({ name: "Staff $5", kind: "amount", amount: 500 }))).toBe("Staff");
+    expect(dealTitle(deal({ name: "15%" }))).toBe("15%");
+    expect(dealTitle(deal({ name: "VIP 20%", percent: 15 }))).toBe("VIP 20%");
   });
 });
