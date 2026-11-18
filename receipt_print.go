@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 import "strings"
 
 type printReceiptData struct {
@@ -46,6 +48,9 @@ type printReceiptData struct {
 	// means the default.
 	Theme  string
 	Layout string
+	// Now, when set, is the date the receipt prints (previews pin it); else
+	// the clock's.
+	Now time.Time
 }
 
 // receiptCurrency carries the fields a receipt needs to display an amount

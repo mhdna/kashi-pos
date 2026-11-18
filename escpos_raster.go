@@ -745,13 +745,12 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	iconsLeft := x
 	rowBottom := y
 	for _, item := range items {
-		iconBytes := socialPlatformIconBytes(item.platform)
-		if len(iconBytes) > 0 {
-			icon, decodeErr := png.Decode(bytes.NewReader(iconBytes))
-			if decodeErr != nil {
-				return y, fmt.Errorf("decode %s icon: %w", item.platform, decodeErr)
-			}
-			xdraw.CatmullRom.Scale(c.img, image.Rect(x, y, x+iconSize, y+iconSize), icon, icon.Bounds(), xdraw.Over, nil)
+		icon, iconErr := scaledSocialIcon(item.platform, iconSize)
+		if iconErr != nil {
+			return y, iconErr
+		}
+		if icon != nil {
+			draw.Draw(c.img, image.Rect(x, y, x+iconSize, y+iconSize), icon, image.Point{}, draw.Over)
 		}
 		x += iconSize + gap
 		if y+iconSize > rowBottom {

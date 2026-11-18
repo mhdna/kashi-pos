@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"image/png"
 	"strings"
+	"time"
 )
 
 // The renderer as central uses it (its copy of these files, package
@@ -92,7 +93,7 @@ func RenderDesignerPreview(in DesignerInput) (DesignerPreview, error) {
 			data.ReferralNote = data.Texts.referralNote(percent)
 		}
 	}
-	png, marks, err := renderReceiptPreviewMarked(data, in.Theme, in.Layout)
+	png, marks, err := renderDesignerPNG(data, in.Theme, in.Layout)
 	if err != nil {
 		return DesignerPreview{}, err
 	}
@@ -170,4 +171,19 @@ func pngDims(data []byte) (int, int) {
 		return 0, 0
 	}
 	return cfg.Width, cfg.Height
+}
+
+// renderDesignerPNG draws a preview with fast compression: it's drawn again
+// on every change, and the best compression was a third of its time.
+func renderDesignerPNG(data printReceiptData, theme, layout string) ([]byte, []receiptMark, error) {
+	data.Theme, data.Layout = theme, layout
+	// The sample's date, given with the receipt: central draws previews for
+	// several people at once, so nothing global is changed.
+	data.Now = time.Date(2026, 10, 19, 14, 30, 0, 0, time.UTC)
+	img, marks, err := renderReceiptRasterMarked(data)
+	if err != nil {
+		return nil, nil, err
+	}
+	out, err := encodeBilevelPNGLevel(img, png.BestSpeed)
+	return out, marks, err
 }

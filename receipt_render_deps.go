@@ -7,9 +7,15 @@ package main
 // it to draw the Receipt Designer's live receipt (make receipt-renderer).
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
+	"image"
+	"image/png"
 	"strings"
+	"sync"
+
+	xdraw "golang.org/x/image/draw"
 )
 
 //go:embed assets/fonts/Belleza-Regular.ttf
@@ -159,4 +165,36 @@ func absInt64(value int64) int64 {
 		return -value
 	}
 	return value
+}
+
+// Social icons, decoded and scaled once per size: every receipt with socials
+// draws them, and decoding and scaling them each time was most of a
+// receipt's drawing time.
+var (
+	socialIconMu    sync.Mutex
+	socialIconCache = map[string]*image.RGBA{}
+)
+
+// scaledSocialIcon is a platform's icon at size pixels, or nil for a
+// platform without one.
+func scaledSocialIcon(platform string, size int) (*image.RGBA, error) {
+	key := fmt.Sprintf("%s:%d", platform, size)
+	socialIconMu.Lock()
+	defer socialIconMu.Unlock()
+	if icon, ok := socialIconCache[key]; ok {
+		return icon, nil
+	}
+	raw := socialPlatformIconBytes(platform)
+	if len(raw) == 0 {
+		socialIconCache[key] = nil
+		return nil, nil
+	}
+	src, err := png.Decode(bytes.NewReader(raw))
+	if err != nil {
+		return nil, fmt.Errorf("decode %s icon: %w", platform, err)
+	}
+	icon := image.NewRGBA(image.Rect(0, 0, size, size))
+	xdraw.CatmullRom.Scale(icon, icon.Bounds(), src, src.Bounds(), xdraw.Over, nil)
+	socialIconCache[key] = icon
+	return icon, nil
 }

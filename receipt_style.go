@@ -91,7 +91,7 @@ func (c *receiptCanvas) drawMeta(y int) int {
 	all := [][3]string{
 		{"meta_customer", "Customer", fallbackReceiptValue(c.data.Customer, receiptWalkInLabel)},
 		{"meta_salesperson", "Salesperson", formatReceiptSalesperson(c.data.Salesperson)},
-		{"meta_date", "Date", receiptNow().Format(t.dateLayout())},
+		{"meta_date", "Date", c.now().Format(t.dateLayout())},
 	}
 	var pairs [][2]string
 	for _, p := range all {

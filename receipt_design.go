@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"time"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -443,4 +444,12 @@ func (t receiptTexts) extraHeight() int {
 		extra += int(float64(80+6*receiptTextLen(e.Text)) * grow)
 	}
 	return extra
+}
+
+// now is the receipt's date: the one it was given, else the clock's.
+func (c *receiptCanvas) now() time.Time {
+	if !c.data.Now.IsZero() {
+		return c.data.Now
+	}
+	return receiptNow()
 }
