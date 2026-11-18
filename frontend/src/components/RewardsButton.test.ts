@@ -61,6 +61,12 @@ async function openDialog() {
   await flushPromises();
 }
 
+async function openCode() {
+  await openDialog();
+  find("rewards-referral")!.click();
+  await flushPromises();
+}
+
 async function type(text: string) {
   const input = find("referral-input")?.querySelector("input") ?? (find("referral-input") as HTMLInputElement | null);
   if (!input) throw new Error("no input");
@@ -87,19 +93,20 @@ describe("RewardsButton", () => {
     expect(find("rewards-open")).not.toBeNull();
     expect(document.body.textContent).toContain("Rewards");
     await openDialog();
-    expect(find("deal-students")?.textContent).toContain("Students 15%");
-    expect(find("deal-students")?.textContent).toContain("15% off the whole invoice");
-    expect(find("deal-staff")?.textContent).toContain("$5 off the whole invoice");
-    expect(find("rewards-referral")).not.toBeNull();
-    // Each deal is a card with its size up top; the automatic one is there
-    // for reference: no switch, nothing to tap.
+    // Short cards: the size, then one line; the details are in the title.
     expect(find("deal-students")?.textContent).toContain("15%");
+    expect(find("deal-students")?.textContent).toContain("Students 15%");
+    expect(find("deal-students")?.getAttribute("title")).toBe("15% off the whole invoice");
     expect(find("deal-staff")?.textContent).toContain("$5");
-    expect(find("auto-auto")?.textContent).toContain("15% off invoices of $100 or more");
-    expect(find("auto-auto")?.textContent).toContain("Applies by itself");
+    expect(find("auto-auto")?.querySelector(".reward-size")?.textContent).toBe("15%");
+    expect(find("auto-auto")?.querySelector(".reward-line")?.textContent).toBe("$100 and up");
     expect(find("auto-auto")?.tagName).not.toBe("BUTTON");
     expect(find("auto-auto")?.querySelector("input, button")).toBeNull();
-    expect(find("rewards-automatic")?.textContent).toContain("Only kashi or an admin changes them");
+    // The referral code is a card like the deals, its entry behind it.
+    expect(find("rewards-referral")?.classList.contains("reward-card")).toBe(true);
+    expect(find("rewards-referral")?.textContent).toContain("Referral code");
+    expect(find("referral-input")).toBeNull();
+    expect(find("rewards-automatic")?.textContent).toBe("Locked ones apply by themselves. Set in kashi.");
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
 
@@ -108,7 +115,6 @@ describe("RewardsButton", () => {
     expect(find("rewards-badge")).toBeNull();
     await openDialog();
     expect(find("deal-students")?.getAttribute("aria-checked")).toBe("false");
-    expect(find("deal-students")?.textContent).toContain("Tap to turn on");
     find("deal-students")!.click();
     await flushPromises();
     expect(w.emitted("update:picked")?.at(-1)).toEqual([["students"]]);
@@ -116,7 +122,6 @@ describe("RewardsButton", () => {
     expect(find("rewards-open")!.className).toContain("rewards-on");
     expect(find("deal-students")?.getAttribute("aria-checked")).toBe("true");
     expect(find("deal-students")?.className).toContain("reward-card--on");
-    expect(find("deal-students")?.textContent).toContain("On for this sale");
     find("deal-students")!.click();
     await flushPromises();
     expect(w.emitted("update:picked")?.at(-1)).toEqual([[]]);
@@ -129,7 +134,7 @@ describe("RewardsButton", () => {
     await mountButton({ appliedName: "15% off $100" });
     expect(find("rewards-badge")?.textContent).toBe("1");
     await openDialog();
-    expect(find("auto-applied")?.textContent).toBe("On this sale");
+    expect(find("auto-applied")).not.toBeNull();
     expect(find("auto-auto")?.className).toContain("reward-card--applied");
     expect(find("rewards-now")?.textContent).toContain("15% off $100");
   });
@@ -167,7 +172,7 @@ describe("RewardsButton", () => {
 
   it("explains the reward and catches a typo without asking the backend", async () => {
     await mountButton();
-    await openDialog();
+    await openCode();
     expect(document.body.textContent).toContain("15% off their next visit");
     await type("K7M4QA");
     expect(find("referral-message")?.textContent).toMatch(/typo/);
@@ -179,12 +184,18 @@ describe("RewardsButton", () => {
   it("adds a code the backend accepts, normalized, and can remove it", async () => {
     checkCode.mockResolvedValue({ code: "K7M4QH", ownerName: "Rami" } as never);
     const w = await mountButton();
-    await openDialog();
+    await openCode();
     await type("k7m-4qh");
     find("referral-add")!.click();
     await flushPromises();
     expect(checkCode).toHaveBeenCalledWith("K7M4QH", 7);
     expect(w.emitted("update:modelValue")?.at(-1)).toEqual(["K7M4QH"]);
+    // The card shows the code and is on; its dialog closed.
+    expect(find("referral-input")).toBeNull();
+    expect(find("referral-foot")?.textContent).toBe("K7M4QH");
+    expect(find("rewards-referral")?.className).toContain("reward-card--on");
+    find("rewards-referral")!.click();
+    await flushPromises();
     expect(find("referral-current")?.textContent).toContain("Sent by Rami");
     find("referral-remove")!.click();
     await flushPromises();
@@ -194,7 +205,7 @@ describe("RewardsButton", () => {
   it("shows the backend's refusal and keeps no code", async () => {
     checkCode.mockRejectedValue("A referral code is only for a new customer's first purchase");
     const w = await mountButton();
-    await openDialog();
+    await openCode();
     await type("K7M4QH");
     find("referral-add")!.click();
     await flushPromises();
@@ -220,9 +231,11 @@ describe("RewardsButton cards, the reported set", () => {
     await mountButton({ appliedName: "15% above $100" });
     await openDialog();
     const cards = [...document.body.querySelectorAll(".reward-card")].map((c) => c.getAttribute("data-test"));
-    expect(cards).toEqual(["deal-s", "auto-t50", "auto-t100", "auto-t150", "rewards-referral"]);
+    expect(cards).toEqual(["deal-s", "rewards-referral", "auto-t50", "auto-t100", "auto-t150"]);
     expect(find("auto-t100")?.className).toContain("reward-card--applied");
     expect(find("auto-t50")?.className).not.toContain("reward-card--applied");
-    expect(find("auto-t150")?.textContent).toContain("20% off invoices of $150 or more");
+    expect(find("auto-t150")?.querySelector(".reward-size")?.textContent).toBe("20%");
+    expect(find("auto-t150")?.querySelector(".reward-line")?.textContent).toBe("$150 and up");
+    expect(find("auto-t150")?.getAttribute("title")).toBe("20% off invoices of $150 or more");
   });
 });

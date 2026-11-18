@@ -21,6 +21,11 @@ export function dealSize(d: RewardDeal): string {
   return d.kind === "amount" ? dollars(d.amount) : `${d.percent}%`;
 }
 
+// dealWhen is a deal's condition in a few words: "Whole invoice", "$50 and up".
+export function dealWhen(d: RewardDeal): string {
+  return d.minTotal > 0 ? `${dollars(d.minTotal)} and up` : "Whole invoice";
+}
+
 // dealTerms is what a deal takes off and when: "15% off the whole invoice",
 // "$5 off invoices of $100 or more".
 export function dealTerms(d: RewardDeal): string {
