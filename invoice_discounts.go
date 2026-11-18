@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	db "kashi-pos/db/sqlc"
@@ -40,6 +43,9 @@ type syncedInvoiceDiscount struct {
 	ValidFrom *time.Time `json:"valid_from"`
 	ValidTo   *time.Time `json:"valid_to"`
 	Applies   bool       `json:"applies"`
+	// CashierPicks: the rule counts only when the cashier picks it for the
+	// sale (the Rewards button), like a student discount.
+	CashierPicks bool `json:"cashier_picks"`
 }
 
 func applySyncedInvoiceDiscount(ctx context.Context, q *db.Queries, item syncedInvoiceDiscount) error {
@@ -53,6 +59,7 @@ func applySyncedInvoiceDiscount(ctx context.Context, q *db.Queries, item syncedI
 		Uid: item.UID, Name: item.Name, MinTotal: item.MinTotal, Kind: item.Kind,
 		Percent: item.Percent, Amount: item.Amount,
 		ValidFrom: rfc3339OrEmpty(item.ValidFrom), ValidTo: rfc3339OrEmpty(item.ValidTo),
+		CashierPicks: boolToInt64(item.CashierPicks),
 	})
 }
 
@@ -64,14 +71,18 @@ func rfc3339OrEmpty(t *time.Time) string {
 }
 
 // bestInvoiceDiscount picks, among the rules in force at now whose minimum
-// the total reaches, the one that takes the most off it.
-func bestInvoiceDiscount(rules []db.InvoiceDiscount, total int64, now time.Time, roundingMode string) invoiceDiscount {
+// the total reaches, the one that takes the most off it. A rule the cashier
+// picks counts only when picked holds its uid.
+func bestInvoiceDiscount(rules []db.InvoiceDiscount, total int64, now time.Time, roundingMode string, picked ...string) invoiceDiscount {
 	var best invoiceDiscount
 	if total <= 0 {
 		return best
 	}
 	for _, r := range rules {
 		if total < r.MinTotal || !invoiceDiscountInForce(r, now) {
+			continue
+		}
+		if r.CashierPicks != 0 && !slices.Contains(picked, r.Uid) {
 			continue
 		}
 		var cents int64
@@ -149,13 +160,14 @@ func spreadInvoiceDiscount(products []pricedInvoiceProduct, cents int64) []price
 // its lines and its discounted subtotal. The buyer's referral reward
 // competes with the rules: it wins only when it takes off more, so a tie
 // keeps the reward for a later sale.
-func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundingMode string, clientID int64) error {
+// picked are the uids of the rules the cashier picked for the sale.
+func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundingMode string, clientID int64, picked []string) error {
 	rules, err := q.ListInvoiceDiscounts(a.ctx)
 	if err != nil {
 		return fmt.Errorf("load invoice discounts: %w", err)
 	}
 	now := time.Now()
-	best := bestInvoiceDiscount(rules, totals.DiscountedSubtotal, now, roundingMode)
+	best := bestInvoiceDiscount(rules, totals.DiscountedSubtotal, now, roundingMode, picked...)
 	reward, ok, err := usableReferralReward(a.ctx, q, clientID, now)
 	if err != nil {
 		return fmt.Errorf("load referral reward: %w", err)
@@ -187,4 +199,67 @@ func returnedInvoiceDiscount(line db.InvoiceProduct, alreadyReturned, qty int64)
 		return line.InvoiceDiscount - perUnit*alreadyReturned
 	}
 	return perUnit * qty
+}
+
+// parsePickedDiscounts reads the picked invoice discounts the screen sends: a
+// JSON list of uids, "" for none; each uid once.
+func parsePickedDiscounts(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	var uids []string
+	if err := json.Unmarshal([]byte(raw), &uids); err != nil {
+		return nil, fmt.Errorf("picked discounts: %w", err)
+	}
+	var out []string
+	for _, uid := range uids {
+		if uid = strings.TrimSpace(uid); uid != "" && !slices.Contains(out, uid) {
+			out = append(out, uid)
+		}
+	}
+	return out, nil
+}
+
+// RewardDeal is an invoice discount as the Rewards button lists it.
+type RewardDeal struct {
+	UID      string `json:"uid"`
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	Percent  int64  `json:"percent"`
+	Amount   int64  `json:"amount"`
+	MinTotal int64  `json:"minTotal"`
+	// CashierPicks: the cashier turns it on for a sale; otherwise it applies
+	// by itself once the total reaches MinTotal (shown for reference, only
+	// central changes it).
+	CashierPicks bool `json:"cashierPicks"`
+}
+
+// ListRewardDeals is every invoice discount in force at this branch now,
+// the ones the cashier picks first.
+func (a *App) ListRewardDeals() ([]RewardDeal, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	rules, err := a.store.ListInvoiceDiscounts(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	out := []RewardDeal{}
+	for _, r := range rules {
+		if !invoiceDiscountInForce(r, now) {
+			continue
+		}
+		out = append(out, RewardDeal{UID: r.Uid, Name: r.Name, Kind: r.Kind, Percent: r.Percent, Amount: r.Amount, MinTotal: r.MinTotal, CashierPicks: r.CashierPicks != 0})
+	}
+	slices.SortStableFunc(out, func(x, y RewardDeal) int {
+		if x.CashierPicks != y.CashierPicks {
+			if x.CashierPicks {
+				return -1
+			}
+			return 1
+		}
+		return 0
+	})
+	return out, nil
 }

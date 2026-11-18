@@ -28,7 +28,13 @@
                   />
                 </div>
                 <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
-                <ReferralCodeButton v-if="pageMode === 'sale'" v-model="referralCode" :client-id="client.id" />
+                <RewardsButton
+                  v-if="pageMode === 'sale'"
+                  v-model="referralCode"
+                  v-model:picked="pickedDeals"
+                  :client-id="client.id"
+                  :applied-name="quote?.invoiceDiscountName ?? ''"
+                />
                 <k-dialog v-model="noteDialog" max-width="760">
                   <k-card>
                     <k-card-title>Add a note</k-card-title>
@@ -267,6 +273,7 @@
             :quote-error="quoteError"
             :items-json="cartItemsJson"
             :client-id="client.id"
+            :picks-json="pageMode === 'sale' ? pickedDealsJson : ''"
             :rounding-mode="roundingMode"
             :rounding-currency="roundingCurrency"
             :split-primary-currency="splitPrimaryCurrency"
@@ -435,7 +442,7 @@ import {
   HoldInvoice,
   ResumeHoldInvoice,
   VoidInvoice,
-  CheckoutInvoice,
+  CheckoutInvoicePicked,
   CheckoutExchangeInvoice,
   CheckOversell,
   SettleInvoicePayments,
@@ -444,7 +451,7 @@ import {
   GetOpenShift,
   OpenShift,
   WriteToScreen,
-  QuoteInvoiceTotal,
+  QuoteInvoiceTotalPicked,
   QuoteExchangeTotal,
   GetUnknownProduct,
   RefreshCartPricing,
@@ -461,7 +468,7 @@ import InvoiceItems from "@/components/InvoiceItems.vue";
 import type { DealLine } from "@/lib/deals";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
-import ReferralCodeButton from "@/components/ReferralCodeButton.vue";
+import RewardsButton from "@/components/RewardsButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ProductSearchKeyboard from "@/components/ProductSearchKeyboard.vue";
@@ -574,6 +581,10 @@ const invoiceNotes = ref("");
 const noteDialog = ref(false);
 // The code of the client who sent this new customer (ReferralCodeButton).
 const referralCode = ref("");
+// The invoice discounts the cashier picked for this sale (RewardsButton);
+// the quote, the payment check and checkout all take them.
+const pickedDeals = ref<string[]>([]);
+const pickedDealsJson = computed(() => (pickedDeals.value.length ? JSON.stringify(pickedDeals.value) : ""));
 const noteDraft = ref("");
 // The sale an exchange returns items from; its code names a held exchange.
 const exchangeState = ref<{ originalInvoiceId: number; originalInvoiceCode?: string } | null>(null);
@@ -941,7 +952,7 @@ async function refreshQuote() {
     return;
   }
   try {
-    const result = await QuoteInvoiceTotal(itemsJson, client.id);
+    const result = await QuoteInvoiceTotalPicked(itemsJson, client.id, pickedDealsJson.value);
     if (token !== quoteRequestToken) return;
     quote.value = {
       grandTotalCents: Number(result.grandTotalCents),
@@ -974,8 +985,10 @@ function quoteErrorMessage(e: unknown): string {
 watch(
   [
     () => invoiceItems.value?.items,
-    // The buyer's referral reward is part of the price.
+    // The buyer's referral reward is part of the price, and so are the
+    // deals the cashier picked.
     () => client.id,
+    pickedDealsJson,
     roundingMode,
     roundingCurrency,
     taxRate,
@@ -1063,6 +1076,7 @@ function clearInvoice() {
   }
   invoiceNotes.value = "";
   referralCode.value = "";
+  pickedDeals.value = [];
   noteDraft.value = "";
   noteDialog.value = false;
   unknownPicturedFor.value = "";
@@ -1672,7 +1686,7 @@ async function onCheckout() {
           invoiceNotes.value,
           printReturnReceipts.value,
         )
-      : await CheckoutInvoice(
+      : await CheckoutInvoicePicked(
           json,
           paymentsJSON,
           clientID,
@@ -1683,6 +1697,7 @@ async function onCheckout() {
           receiptPrinter.value,
           invoiceNotes.value,
           referralCode.value,
+          pickedDealsJson.value,
         );
     snackbar.text = isExchange
       ? exchangeDoneMessage(result?.invoiceCode ?? "", Boolean(result?.receiptPrinted), result?.receiptError)

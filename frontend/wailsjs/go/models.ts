@@ -1179,6 +1179,30 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class RewardDeal {
+	    uid: string;
+	    name: string;
+	    kind: string;
+	    percent: number;
+	    amount: number;
+	    minTotal: number;
+	    cashierPicks: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new RewardDeal(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uid = source["uid"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.percent = source["percent"];
+	        this.amount = source["amount"];
+	        this.minTotal = source["minTotal"];
+	        this.cashierPicks = source["cashierPicks"];
+	    }
+	}
 	export class SalespersonProductSale {
 	    salespersonId: number;
 	    salespersonName: string;

@@ -241,11 +241,22 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 
 // referralCode is the code of the client who sent this new customer, or empty.
 func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes, referralCode string) (map[string]any, error) {
+	return a.CheckoutInvoicePicked(itemsJSON, paymentsJSON, clientID, storeName, branch, phone, salesperson, receiptPrinter, notes, referralCode, "")
+}
+
+// CheckoutInvoicePicked is CheckoutInvoice with the invoice discounts the
+// cashier picked (picksJSON, a JSON list of uids; "" for none). The quote
+// takes the same list, so it charges what was shown.
+func (a *App) CheckoutInvoicePicked(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes, referralCode, picksJSON string) (map[string]any, error) {
+	picked, err := parsePickedDiscounts(picksJSON)
+	if err != nil {
+		return nil, fmt.Errorf("invoice creation failed: %w", err)
+	}
 	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
-	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef, ReferralCode: referralCode})
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef, ReferralCode: referralCode, PickedDiscounts: picked})
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}

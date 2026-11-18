@@ -278,6 +278,22 @@ sell at their typed price and show no chip. The cart sends the line's
 - Central's rules (on or off, percent, minimum spend, days, cap) live in kashi
   (`referral_program` on the till holds what it needs).
 
+## The Rewards button
+
+- One button in the cart header, **Rewards**, holds a sale's rewards: the deals
+  ==the cashier picks== (an invoice discount central marks `cashier_picks`, like
+  "Students 15%"), the referral code, and the invoice discounts that ==apply by
+  themselves==, listed for reference only (central or an admin changes them).
+  The number by it counts what is on; it turns orange then.
+- A picked deal is an ordinary invoice discount that counts only when its uid
+  is in the sale's picks: it keeps its minimum and dates, and ==competes== with
+  the automatic ones and the referral reward, the biggest winning
+  (`bestInvoiceDiscount`). The picks go to the quote, the payment check and
+  checkout alike (`QuoteInvoiceTotalPicked`, `QuotePaymentStatusPicked`,
+  `CheckoutInvoicePicked`); `TestPickedDiscountsRandomized` checks they agree.
+- A new sale starts with nothing picked; a deal central takes away drops out
+  of the picks.
+
 ## Receipt wording
 
 - Central's Receipt Designer sets `settings.receipt_texts` (JSON, `receipt_texts.go`):
