@@ -44,6 +44,12 @@ describe("InlineKeyboard caps", () => {
     expect(w.props("modelValue")).toBe("K7M4QH");
   });
 
+  it("puts C and backspace at the keyboard's right edge", () => {
+    expect(keyboard("caps").find(".inline-keyboard-actions").classes()).toContain("inline-keyboard-actions--end");
+    wrapper!.unmount();
+    expect(keyboard("text").find(".inline-keyboard-actions").classes()).not.toContain("inline-keyboard-actions--end");
+  });
+
   it("the text keyboard is as it was", async () => {
     const w = keyboard("text");
     const labels = w.findAll(".inline-keyboard-key").map((k) => k.text().trim());

@@ -18,7 +18,7 @@
         {{ shift || caps ? letter : letter.toLowerCase() }}
       </k-btn>
     </div>
-    <div class="inline-keyboard-actions">
+    <div class="inline-keyboard-actions" :class="{ 'inline-keyboard-actions--end': caps }">
       <template v-if="input">
         <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret left" @click="move(-1)">
           <k-icon icon="mdi-chevron-left" size="28" />
@@ -181,6 +181,11 @@ function move(step: number) {
   gap: 4px;
   justify-content: center;
   font-size: var(--kashi-font-size-lg);
+}
+
+/* The code keyboard has only C and backspace: they sit at its right edge. */
+.inline-keyboard-actions--end {
+  justify-content: flex-end;
 }
 
 .inline-keyboard-actions > .k-btn {
