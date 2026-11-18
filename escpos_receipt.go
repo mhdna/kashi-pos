@@ -53,15 +53,15 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	}
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "Sold by:", fallbackReceiptValue(data.Salesperson, "Not specified"), columns)
-	writeESCPosLine(&out, "Customer:", fallbackReceiptValue(data.Customer, receiptWalkInLabel), columns)
+	writeESCPosLine(&out, data.Texts.word("meta_customer", "Customer")+":", fallbackReceiptValue(data.Customer, receiptWalkInLabel), columns)
 	if data.RegisterName != "" {
 		writeESCPosLine(&out, "Register:", data.RegisterName, columns)
 	}
 	if strings.TrimSpace(data.Notes) != "" {
-		writeESCPosText(&out, "Note: "+strings.TrimSpace(data.Notes))
+		writeESCPosText(&out, data.Texts.word("note_label", "Note")+": "+strings.TrimSpace(data.Notes))
 	}
 	out.WriteString(separator + "\n")
-	writeESCPosLine(&out, "ITEM", "TOTAL", columns)
+	writeESCPosLine(&out, data.Texts.word("col_item", "ITEM"), data.Texts.word("col_total", "TOTAL"), columns)
 	out.WriteString(separator + "\n")
 
 	var subtotal, totalDiscount float64
@@ -89,19 +89,24 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	invoiceDisc := float64(data.InvoiceDiscount.Cents) / 100
 	rounding := grandTotal - (subtotal - totalDiscount - invoiceDisc) - tax
 	out.WriteString(separator + "\n")
-	writeESCPosLine(&out, "Subtotal", fmt.Sprintf("$%.2f", subtotal), columns)
-	writeESCPosLine(&out, "Discount", fmt.Sprintf("-$%.2f", totalDiscount), columns)
+	if !data.Texts.elementHidden("subtotal") {
+		writeESCPosLine(&out, data.Texts.word("subtotal", "Subtotal"), fmt.Sprintf("$%.2f", subtotal), columns)
+	}
+	writeESCPosLine(&out, data.Texts.word("discount", "Discount"), fmt.Sprintf("-$%.2f", totalDiscount), columns)
 	if data.InvoiceDiscount.Cents > 0 {
 		writeESCPosLine(&out, sanitizeESCPos(invoiceDiscountLabel(data.InvoiceDiscount)), fmt.Sprintf("-$%.2f", invoiceDisc), columns)
 	}
 	if math.Abs(rounding) > 0.005 {
-		writeESCPosLine(&out, "Rounding", fmt.Sprintf("$%.2f", rounding), columns)
+		writeESCPosLine(&out, data.Texts.word("rounding", "Rounding"), fmt.Sprintf("$%.2f", rounding), columns)
 	}
 	out.WriteString(separator + "\n")
-	writeESCPosBoldLine(&out, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), columns)
+	writeESCPosBoldLine(&out, data.Texts.word("total", "TOTAL"), fmt.Sprintf("$%.2f", grandTotal), columns)
 	if currency := data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {
 		if roundedUnits, err := roundCurrencyUnitsFromCents(data.GrandTotalCents, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, data.RoundingMode); err == nil {
-			writeESCPosLine(&out, currency.Code+" equivalent", fmt.Sprintf("%s %s", formatInt(roundedUnits), currency.Symbol), columns)
+			if !data.Texts.elementHidden("equivalent") {
+				label := strings.ReplaceAll(data.Texts.word("equivalent", "{currency} equivalent"), "{currency}", currency.Code)
+				writeESCPosLine(&out, sanitizeESCPos(label), fmt.Sprintf("%s %s", formatInt(roundedUnits), currency.Symbol), columns)
+			}
 		}
 	}
 	if !data.Texts.hidden(receiptSectionPayments) {

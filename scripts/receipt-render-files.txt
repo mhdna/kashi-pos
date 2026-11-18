@@ -10,3 +10,4 @@ escpos_receipt.go
 money.go
 shift_report_print.go
 receipt_render_deps.go
+receipt_design.go

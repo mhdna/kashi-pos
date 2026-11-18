@@ -288,6 +288,17 @@ sell at their typed price and show no chip. The cart sends the line's
   look in five ==modes== (sale, referral, client, exchange, return) and writes
   where each part landed (`receipt_marks.go`) into the catalog. Central lays its
   editable text over those bands and closes a band when a part is left out.
+- Beyond those, ==every line is an element== (`receipt_design.go`): store name,
+  branch, phone, invoice title per kind, website, the customer, salesperson and
+  date labels, the column titles, every totals label, the payment, policy,
+  referral, socials and thank-you lines. Each can take its own words, capitals
+  (upper, lower, First Letters), size, bold, alignment and be left out, as far
+  as `receiptElements` allows for it; `date_format` picks the date. All of it
+  lives in `receipt_texts.elements`; nothing set prints exactly as before
+  (checked against every preview picture).
+- The renderer builds on its own (`scripts/receipt-render-files.txt`,
+  `TestReceiptRendererBuildsAlone`): central copies it to draw the designer's
+  live receipt with the same code.
 - That only holds if leaving a part out prints ==exactly the receipt with its
   band cut==: `TestReceiptMarksHidingCutsTheBand` checks it pixel for pixel on
   every look. A hidden thank-you line takes the room under it along.
