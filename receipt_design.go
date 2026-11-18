@@ -594,9 +594,13 @@ func (c *receiptCanvas) markLine(key, text string, top, bottom int, size float64
 	if bottom <= top {
 		return
 	}
+	scale := c.bodyFactor()
+	if f, ok := receiptFontByKey(c.fontKey); ok {
+		scale = f.Scale
+	}
 	c.marks = append(c.marks, receiptMark{
 		Kind: "line", Part: key, Top: top, Bottom: bottom, Text: text,
-		SizePx: size * c.bodyFactor() * 2.6, Left: alignCode(align),
+		SizePx: size * scale * 2.6, Left: alignCode(align),
 		Font: c.lastFont, Bold: c.lastBold,
 	})
 }
@@ -652,6 +656,9 @@ func (c *receiptCanvas) markPendingWord(value string, x, top, bottom int, size f
 		scale := c.bodyFactor()
 		if role == roleTitle || role == roleTitleBold {
 			scale = c.titleFactor()
+		}
+		if f, ok := receiptFontByKey(c.fontKey); ok {
+			scale = f.Scale
 		}
 		c.marks = append(c.marks, receiptMark{
 			Kind: "line", Part: p.key, Top: top, Bottom: bottom, Text: p.word,
