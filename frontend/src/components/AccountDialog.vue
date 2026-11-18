@@ -7,7 +7,7 @@
       </k-card-title>
       <k-card-text>
         <div class="text-body-2 text-medium-emphasis mb-3">
-          Choose the customer who will pay later. The invoice total will be added to their account.
+          Choose customer
         </div>
         <k-text-field
           v-model="search"
