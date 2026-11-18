@@ -262,7 +262,8 @@ sell at their typed price and show no chip. The cart sends the line's
   character==, so the till catches any one wrong character or two swapped
   neighbours before looking anything up (`referrals.go`, `lib/referralCode.ts`).
 - The receipt prints the customer's code with a line saying what it gets them,
-  only while central has referrals on.
+  only while central has referrals on at this branch (central switches them on
+  per branch and feeds each branch its own `enabled`).
 - **The friend's sale:** the cashier types the code with the Referral button
   in the cart header. The till takes it only for a customer (not the walk-in)
   with ==no earlier sale here==, holding no reward, using someone else's code.
