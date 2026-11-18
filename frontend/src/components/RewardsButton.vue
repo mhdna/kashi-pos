@@ -10,7 +10,7 @@
       data-test="rewards-open"
       @click="open"
     >
-      <k-icon icon="mdi-gift-outline" size="20" class="flex-shrink-0" />
+      <k-icon icon="mdi-gift" size="22" class="flex-shrink-0" />
       <span v-if="activeCount > 0" class="rewards-badge" data-test="rewards-badge">{{ activeCount }}</span>
     </k-btn>
     <k-dialog v-model="dialog" max-width="780">
@@ -290,7 +290,7 @@ defineExpose({ loadInfo });
 }
 
 .rewards-btn.rewards-on {
-  color: rgb(245, 127, 23);
+  color: rgb(46, 125, 50);
 }
 
 .rewards-badge {
@@ -302,7 +302,7 @@ defineExpose({ loadInfo });
   font-weight: 700;
   line-height: 16px;
   text-align: center;
-  color: rgb(245, 127, 23);
+  color: rgb(46, 125, 50);
 }
 
 .rewards-body {
