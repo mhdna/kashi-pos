@@ -62,7 +62,7 @@
 
           </div>
 
-          <div v-if="automatic.length" class="rewards-heading" data-test="rewards-automatic">Apply by themselves, set in kashi</div>
+          <div v-if="automatic.length" class="rewards-heading" data-test="rewards-automatic">Locked</div>
           <div v-if="automatic.length" class="rewards-grid" data-test="rewards-automatic-grid">
             <div
               v-for="d in automatic"

@@ -106,7 +106,7 @@ describe("RewardsButton", () => {
     expect(find("rewards-referral")?.classList.contains("reward-card")).toBe(true);
     expect(find("rewards-referral")?.textContent).toContain("Referral code");
     expect(find("referral-input")).toBeNull();
-    expect(find("rewards-automatic")?.textContent).toBe("Apply by themselves, set in kashi");
+    expect(find("rewards-automatic")?.textContent).toBe("Locked");
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
 
