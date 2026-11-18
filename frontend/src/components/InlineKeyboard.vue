@@ -1,44 +1,49 @@
 <template>
   <!-- mousedown.prevent keeps the field focused, with its caret and
        selection where they were, while a key is pressed. -->
-  <div class="inline-keyboard" @mousedown.prevent>
-    <div
-      v-for="(row, rowIndex) in visibleRows"
-      :key="rowIndex"
-      class="inline-keyboard-row"
-    >
-      <k-btn
-        v-for="letter in row"
-        :key="letter"
-        class="inline-keyboard-key"
-        size="small"
-        variant="tonal"
-        @click="append(letter)"
+  <div class="inline-keyboard" :class="{ 'inline-keyboard--side': caps }" @mousedown.prevent>
+    <div class="inline-keyboard-keys">
+      <div
+        v-for="(row, rowIndex) in visibleRows"
+        :key="rowIndex"
+        class="inline-keyboard-row"
       >
-        {{ shift || caps ? letter : letter.toLowerCase() }}
-      </k-btn>
-    </div>
-    <div class="inline-keyboard-actions" :class="{ 'inline-keyboard-actions--end': caps }">
-      <template v-if="input">
-        <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret left" @click="move(-1)">
-          <k-icon icon="mdi-chevron-left" size="28" />
+        <k-btn
+          v-for="letter in row"
+          :key="letter"
+          class="inline-keyboard-key"
+          size="small"
+          variant="tonal"
+          @click="append(letter)"
+        >
+          {{ shift || caps ? letter : letter.toLowerCase() }}
         </k-btn>
-        <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret right" @click="move(1)">
-          <k-icon icon="mdi-chevron-right" size="28" />
-        </k-btn>
-      </template>
-      <template v-if="layout === 'note'">
-        <k-btn size="small" variant="text" @click="append('.')">.</k-btn>
-        <k-btn size="small" variant="text" @click="append(',')">,</k-btn>
-      </template>
-      <template v-if="!caps">
+      </div>
+      <div v-if="!caps" class="inline-keyboard-actions">
+        <template v-if="input">
+          <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret left" @click="move(-1)">
+            <k-icon icon="mdi-chevron-left" size="28" />
+          </k-btn>
+          <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret right" @click="move(1)">
+            <k-icon icon="mdi-chevron-right" size="28" />
+          </k-btn>
+        </template>
+        <template v-if="layout === 'note'">
+          <k-btn size="small" variant="text" @click="append('.')">.</k-btn>
+          <k-btn size="small" variant="text" @click="append(',')">,</k-btn>
+        </template>
         <k-btn size="small" variant="text" @click="append('-')">-</k-btn>
         <k-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
           Space
         </k-btn>
-      </template>
+        <k-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</k-btn>
+        <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" aria-label="Backspace"><k-icon icon="mdi-backspace-outline" size="20" /></k-btn>
+      </div>
+    </div>
+    <!-- The code keyboard keeps its two keys in a column at its right. -->
+    <div v-if="caps" class="inline-keyboard-side" data-test="keyboard-side">
+      <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" aria-label="Backspace"><k-icon icon="mdi-backspace-outline" size="24" /></k-btn>
       <k-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</k-btn>
-      <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" aria-label="Backspace"><k-icon icon="mdi-backspace-outline" size="20" /></k-btn>
     </div>
   </div>
 </template>
@@ -149,6 +154,31 @@ function move(step: number) {
 .inline-keyboard {
   width: 100%;
 }
+
+/* The code keyboard: its rows, and a column of backspace over C at its right. */
+.inline-keyboard--side {
+  display: flex;
+  gap: 4px;
+}
+
+.inline-keyboard--side .inline-keyboard-keys {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.inline-keyboard-side {
+  display: flex;
+  flex: 0 0 96px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inline-keyboard-side > .k-btn {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 48px;
+  font-size: var(--kashi-font-size-2xl);
+}
 .inline-keyboard-clear,
 .inline-keyboard-backspace {
   background-color: rgba(var(--k-theme-on-surface), 0.1);
@@ -181,11 +211,6 @@ function move(step: number) {
   gap: 4px;
   justify-content: center;
   font-size: var(--kashi-font-size-lg);
-}
-
-/* The code keyboard has only C and backspace: they sit at its right edge. */
-.inline-keyboard-actions--end {
-  justify-content: flex-end;
 }
 
 .inline-keyboard-actions > .k-btn {

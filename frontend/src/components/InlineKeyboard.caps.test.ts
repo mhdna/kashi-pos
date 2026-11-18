@@ -44,10 +44,18 @@ describe("InlineKeyboard caps", () => {
     expect(w.props("modelValue")).toBe("K7M4QH");
   });
 
-  it("puts C and backspace at the keyboard's right edge", () => {
-    expect(keyboard("caps").find(".inline-keyboard-actions").classes()).toContain("inline-keyboard-actions--end");
+  it("the reported case: backspace and C in a column at the keyboard's right", async () => {
+    const w = keyboard("caps", "K7");
+    const side = w.find('[data-test="keyboard-side"]');
+    expect(side.exists()).toBe(true);
+    expect(side.findAll("button").map((b) => b.attributes("aria-label") ?? b.text().trim())).toEqual(["Backspace", "C"]);
+    expect(w.find(".inline-keyboard-actions").exists()).toBe(false);
+    await side.find('[aria-label="Backspace"]').trigger("click");
+    expect(w.props("modelValue")).toBe("K");
+    await side.findAll("button")[1]!.trigger("click");
+    expect(w.props("modelValue")).toBe("");
     wrapper!.unmount();
-    expect(keyboard("text").find(".inline-keyboard-actions").classes()).not.toContain("inline-keyboard-actions--end");
+    expect(keyboard("text").find('[data-test="keyboard-side"]').exists()).toBe(false);
   });
 
   it("the text keyboard is as it was", async () => {
