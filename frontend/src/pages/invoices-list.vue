@@ -209,7 +209,6 @@
           </dl>
 
           <section class="invoice-detail-section mb-4">
-            <div class="section-label">Settlement</div>
             <div v-if="selected.payments?.length" class="settlement-list">
               <div v-for="payment in selected.payments" :key="`${payment.accountId}-${payment.amount}`" class="settlement-row">
                 <span>{{ settlementAccountName(payment) }}</span>
