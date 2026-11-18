@@ -174,7 +174,7 @@ describe("RewardsButton", () => {
   it("explains the reward and catches a typo without asking the backend", async () => {
     await mountButton();
     await openCode();
-    expect(document.body.textContent).toContain("15% off their next visit");
+    expect(document.body.textContent).toContain("Client referral code");
     await type("K7M4QA");
     expect(find("referral-message")?.textContent).toMatch(/typo/);
     find("referral-add")!.click();

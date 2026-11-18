@@ -97,7 +97,7 @@
       <k-card>
         <k-card-title>Referral code</k-card-title>
         <k-card-text>
-          <p class="rewards-explain">The client who sent this new customer gets {{ rewardPercent }}% off their next visit.</p>
+          <p class="rewards-explain">Client referral code</p>
           <div v-if="modelValue" class="reward-referral-current" data-test="referral-current">
             <div>
               <div class="reward-line">{{ modelValue }}</div>
