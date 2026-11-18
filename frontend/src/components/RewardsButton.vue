@@ -355,10 +355,6 @@ defineExpose({ loadInfo });
   border-color: transparent;
 }
 
-.reward-card--applied .reward-size {
-  color: rgb(46, 125, 50);
-}
-
 .reward-top {
   display: flex;
   align-items: center;
@@ -370,7 +366,7 @@ defineExpose({ loadInfo });
 .reward-size {
   font-size: 1.05rem;
   font-weight: 600;
-  color: rgba(var(--k-theme-on-surface), 0.7);
+  color: rgb(var(--k-theme-error));
 }
 
 .reward-state-icon {
