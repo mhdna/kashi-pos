@@ -58,6 +58,8 @@ export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string,arg10:string):Promise<Record<string, any>>;
 
+export function CheckoutInvoicePicked(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string,arg10:string,arg11:string):Promise<Record<string, any>>;
+
 export function ChooseDatabase():Promise<string>;
 
 export function ClearScreen(arg1:string):Promise<void>;
@@ -330,6 +332,8 @@ export function ListProductsPage(arg1:number,arg2:number,arg3:string):Promise<ma
 
 export function ListQuickAccessProducts():Promise<Array<Record<string, any>>>;
 
+export function ListRewardDeals():Promise<Array<main.RewardDeal>>;
+
 export function ListRoles():Promise<Array<Record<string, any>>>;
 
 export function ListSalespersonProductSales(arg1:string,arg2:string):Promise<Array<main.SalespersonProductSale>>;
@@ -372,7 +376,11 @@ export function QuoteExchangeTotal(arg1:string,arg2:number):Promise<main.Exchang
 
 export function QuoteInvoiceTotal(arg1:string,arg2:number):Promise<main.InvoiceQuote>;
 
+export function QuoteInvoiceTotalPicked(arg1:string,arg2:number,arg3:string):Promise<main.InvoiceQuote>;
+
 export function QuotePaymentStatus(arg1:string,arg2:string,arg3:number):Promise<main.PaymentStatus>;
+
+export function QuotePaymentStatusPicked(arg1:string,arg2:string,arg3:number,arg4:string):Promise<main.PaymentStatus>;
 
 export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<main.PaymentStatus>;
 

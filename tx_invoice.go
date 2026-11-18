@@ -71,6 +71,9 @@ type SalesInvoiceParams struct {
 	// UnknownSessionRef is the picture session of a cart holding "Unknown
 	// item" lines, sent to central with the sale (see unknown_items.go).
 	UnknownSessionRef string `json:"unknownSessionRef,omitempty"`
+	// PickedDiscounts are the invoice discounts the cashier picked for the
+	// sale (uids), from the Rewards button.
+	PickedDiscounts []string `json:"pickedDiscounts,omitempty"`
 	// ReferralCode is the code of the client who sent this new customer
 	// (referrals.go); empty when none.
 	ReferralCode string `json:"referralCode,omitempty"`
@@ -105,8 +108,9 @@ type invoiceTotals struct {
 	InvoiceDiscount invoiceDiscount
 }
 
-// clientID is the buyer (0 for none), for their referral reward.
-func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool, clientID int64) (invoiceTotals, error) {
+// clientID is the buyer (0 for none), for their referral reward; picked are
+// the invoice discounts the cashier picked for the sale.
+func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool, clientID int64, picked ...string) (invoiceTotals, error) {
 	var totals invoiceTotals
 	listPricing, err := loadActivePricing(a.ctx, q)
 	if err != nil {
@@ -117,7 +121,7 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 		return totals, err
 	}
 	totals.Products, totals.DiscountedSubtotal = products, discountedSubtotal
-	if err := a.applyInvoiceDiscount(q, &totals, roundingMode, clientID); err != nil {
+	if err := a.applyInvoiceDiscount(q, &totals, roundingMode, clientID, picked); err != nil {
 		return totals, err
 	}
 	products, discountedSubtotal = totals.Products, totals.DiscountedSubtotal
@@ -243,7 +247,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)
 		}
-		totals, err := a.priceInvoiceTotals(q, inventoryID, items, settings, roundingMode, customPricingEnabled, perUnitPricingEnabled, clientID)
+		totals, err := a.priceInvoiceTotals(q, inventoryID, items, settings, roundingMode, customPricingEnabled, perUnitPricingEnabled, clientID, params.PickedDiscounts...)
 		if err != nil {
 			return err
 		}

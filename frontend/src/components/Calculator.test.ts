@@ -12,7 +12,7 @@ vi.mock("../../wailsjs/go/main/App", () => ({
   ListCurrencies: vi.fn(),
   ListCouponTypes: vi.fn(),
   ListPaymentMethods: vi.fn(),
-  QuotePaymentStatus: vi.fn(),
+  QuotePaymentStatusPicked: vi.fn(),
   QuoteSettlementPaymentStatus: vi.fn(),
   QuoteExchangePaymentStatus: vi.fn(),
 }));
@@ -31,7 +31,7 @@ import {
   ListCurrencies,
   ListPaymentMethods,
   QuoteExchangePaymentStatus,
-  QuotePaymentStatus,
+  QuotePaymentStatusPicked,
   QuoteSettlementPaymentStatus,
 } from "../../wailsjs/go/main/App";
 import Calculator from "./Calculator.vue";
@@ -50,7 +50,7 @@ beforeEach(() => {
     { code: "LBP", symbol: "LL", unitsPerUsd: 90000, cashRoundingUnit: 10000, isActive: true, isDefault: false },
   ] as any);
   vi.mocked(ListCouponTypes).mockResolvedValue([] as any);
-  vi.mocked(QuotePaymentStatus).mockResolvedValue(READY as any);
+  vi.mocked(QuotePaymentStatusPicked).mockResolvedValue(READY as any);
   vi.mocked(QuoteExchangePaymentStatus).mockResolvedValue(READY as any);
   vi.mocked(QuoteSettlementPaymentStatus).mockResolvedValue(READY as any);
 });
@@ -111,7 +111,7 @@ describe.each(Object.keys(MODES) as (keyof typeof MODES)[])("Calculator in %s mo
     const w = await mountCalculator(mode);
     await pay(w, "Cash LL", "200000");
     const quote =
-      mode === "sale" ? QuotePaymentStatus : mode === "exchange" ? QuoteExchangePaymentStatus : QuoteSettlementPaymentStatus;
+      mode === "sale" ? QuotePaymentStatusPicked : mode === "exchange" ? QuoteExchangePaymentStatus : QuoteSettlementPaymentStatus;
     const calls = vi.mocked(quote).mock.calls;
     const lastPayments = JSON.parse(String(calls[calls.length - 1]!.find((arg) => typeof arg === "string" && arg.includes("accountId"))));
     expect(lastPayments.at(-1)).toMatchObject({ accountId: 2, amountUnits: 200000 });
@@ -138,7 +138,7 @@ describe("Calculator shows the invoice total only when the big number is not it"
 
   it("part paid: the card shows what is left and the label keeps the total", async () => {
     const w = await mountCalculator("sale");
-    vi.mocked(QuotePaymentStatus).mockResolvedValue({ ...READY, diffCents: -1156, isPaidInFull: false, checkoutReady: false } as any);
+    vi.mocked(QuotePaymentStatusPicked).mockResolvedValue({ ...READY, diffCents: -1156, isPaidInFull: false, checkoutReady: false } as any);
     await pay(w, "Cash $$", "30");
     expect(w.vm.diff).toBeCloseTo(-11.56, 5);
     expect(total().text()).toBe("Total $41.56");
@@ -217,5 +217,27 @@ describe("Calculator + and - keys", () => {
     document.body.querySelector<HTMLElement>(".calculator-display-clear")!.click();
     await flushPromises();
     expect(key("keypad-minus").getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+// A sale's payment check is priced with the deals the cashier picked, so the
+// calculator never says "paid" on a total checkout wouldn't charge.
+describe("Calculator passes the picked deals to the payment check", () => {
+  it("sends them, and asks again when they change", async () => {
+    wrapper = mount(Calculator, {
+      props: { totalCents: 4156, roundingMode: "half_up", roundingCurrency: "LBP", overchangeConfirmationEnabled: true, ...MODES.sale, picksJson: '["students"]' },
+      global: { plugins: [ui] },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await pay(wrapper as VueWrapper<any>, "Cash $$", "40");
+    const calls = vi.mocked(QuotePaymentStatusPicked).mock.calls;
+    expect(calls.at(-1)![3]).toBe('["students"]');
+    const before = calls.length;
+    await wrapper.setProps({ picksJson: "" });
+    await new Promise((r) => setTimeout(r, 400));
+    await flushPromises();
+    expect(vi.mocked(QuotePaymentStatusPicked).mock.calls.length).toBeGreaterThan(before);
+    expect(vi.mocked(QuotePaymentStatusPicked).mock.calls.at(-1)![3]).toBe("");
   });
 });

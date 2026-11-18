@@ -64,7 +64,17 @@ type LineQuote struct {
 // recomputing tax/rounding in the frontend.
 // clientID is the buyer picked (0 for none), whose referral reward counts.
 func (a *App) QuoteInvoiceTotal(itemsJSON string, clientID int64) (InvoiceQuote, error) {
+	return a.QuoteInvoiceTotalPicked(itemsJSON, clientID, "")
+}
+
+// QuoteInvoiceTotalPicked is QuoteInvoiceTotal with the invoice discounts
+// the cashier picked (picksJSON, a JSON list of uids; "" for none).
+func (a *App) QuoteInvoiceTotalPicked(itemsJSON string, clientID int64, picksJSON string) (InvoiceQuote, error) {
 	var quote InvoiceQuote
+	picked, err := parsePickedDiscounts(picksJSON)
+	if err != nil {
+		return quote, err
+	}
 	if a.store == nil {
 		return quote, fmt.Errorf("database not initialized")
 	}
@@ -76,7 +86,7 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string, clientID int64) (InvoiceQuote,
 	if err != nil {
 		return quote, err
 	}
-	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled, clientID)
+	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled, clientID, picked...)
 	if err != nil {
 		return quote, err
 	}
@@ -140,7 +150,17 @@ type PaymentStatus struct {
 // evaluates a proposed set of payments against it using the same
 // sufficiency check checkout will apply.
 func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string, clientID int64) (PaymentStatus, error) {
+	return a.QuotePaymentStatusPicked(itemsJSON, paymentsJSON, clientID, "")
+}
+
+// QuotePaymentStatusPicked is QuotePaymentStatus with the invoice discounts
+// the cashier picked.
+func (a *App) QuotePaymentStatusPicked(itemsJSON, paymentsJSON string, clientID int64, picksJSON string) (PaymentStatus, error) {
 	var status PaymentStatus
+	picked, err := parsePickedDiscounts(picksJSON)
+	if err != nil {
+		return status, err
+	}
 	if a.store == nil {
 		return status, fmt.Errorf("database not initialized")
 	}
@@ -156,7 +176,7 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string, clientID int64)
 	if err != nil {
 		return status, err
 	}
-	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled, clientID)
+	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled, clientID, picked...)
 	if err != nil {
 		return status, err
 	}

@@ -114,6 +114,10 @@ export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 
   return window['go']['main']['App']['CheckoutInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 }
 
+export function CheckoutInvoicePicked(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11) {
+  return window['go']['main']['App']['CheckoutInvoicePicked'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
+}
+
 export function ChooseDatabase() {
   return window['go']['main']['App']['ChooseDatabase']();
 }
@@ -658,6 +662,10 @@ export function ListQuickAccessProducts() {
   return window['go']['main']['App']['ListQuickAccessProducts']();
 }
 
+export function ListRewardDeals() {
+  return window['go']['main']['App']['ListRewardDeals']();
+}
+
 export function ListRoles() {
   return window['go']['main']['App']['ListRoles']();
 }
@@ -742,8 +750,16 @@ export function QuoteInvoiceTotal(arg1, arg2) {
   return window['go']['main']['App']['QuoteInvoiceTotal'](arg1, arg2);
 }
 
+export function QuoteInvoiceTotalPicked(arg1, arg2, arg3) {
+  return window['go']['main']['App']['QuoteInvoiceTotalPicked'](arg1, arg2, arg3);
+}
+
 export function QuotePaymentStatus(arg1, arg2, arg3) {
   return window['go']['main']['App']['QuotePaymentStatus'](arg1, arg2, arg3);
+}
+
+export function QuotePaymentStatusPicked(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['QuotePaymentStatusPicked'](arg1, arg2, arg3, arg4);
 }
 
 export function QuoteSettlementPaymentStatus(arg1, arg2) {

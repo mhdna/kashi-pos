@@ -19,7 +19,7 @@ func (q *Queries) DeleteInvoiceDiscount(ctx context.Context, uid string) error {
 }
 
 const listInvoiceDiscounts = `-- name: ListInvoiceDiscounts :many
-SELECT uid, name, min_total, kind, percent, amount, valid_from, valid_to FROM invoice_discounts ORDER BY min_total, uid
+SELECT uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks FROM invoice_discounts ORDER BY min_total, uid
 `
 
 func (q *Queries) ListInvoiceDiscounts(ctx context.Context) ([]InvoiceDiscount, error) {
@@ -40,6 +40,7 @@ func (q *Queries) ListInvoiceDiscounts(ctx context.Context) ([]InvoiceDiscount, 
 			&i.Amount,
 			&i.ValidFrom,
 			&i.ValidTo,
+			&i.CashierPicks,
 		); err != nil {
 			return nil, err
 		}
@@ -70,23 +71,25 @@ func (q *Queries) SetInvoiceDiscount(ctx context.Context, arg SetInvoiceDiscount
 }
 
 const upsertInvoiceDiscount = `-- name: UpsertInvoiceDiscount :exec
-INSERT INTO invoice_discounts (uid, name, min_total, kind, percent, amount, valid_from, valid_to)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_discounts (uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name, min_total = excluded.min_total, kind = excluded.kind,
     percent = excluded.percent, amount = excluded.amount,
-    valid_from = excluded.valid_from, valid_to = excluded.valid_to
+    valid_from = excluded.valid_from, valid_to = excluded.valid_to,
+    cashier_picks = excluded.cashier_picks
 `
 
 type UpsertInvoiceDiscountParams struct {
-	Uid       string `json:"uid"`
-	Name      string `json:"name"`
-	MinTotal  int64  `json:"minTotal"`
-	Kind      string `json:"kind"`
-	Percent   int64  `json:"percent"`
-	Amount    int64  `json:"amount"`
-	ValidFrom string `json:"validFrom"`
-	ValidTo   string `json:"validTo"`
+	Uid          string `json:"uid"`
+	Name         string `json:"name"`
+	MinTotal     int64  `json:"minTotal"`
+	Kind         string `json:"kind"`
+	Percent      int64  `json:"percent"`
+	Amount       int64  `json:"amount"`
+	ValidFrom    string `json:"validFrom"`
+	ValidTo      string `json:"validTo"`
+	CashierPicks int64  `json:"cashierPicks"`
 }
 
 func (q *Queries) UpsertInvoiceDiscount(ctx context.Context, arg UpsertInvoiceDiscountParams) error {
@@ -99,6 +102,7 @@ func (q *Queries) UpsertInvoiceDiscount(ctx context.Context, arg UpsertInvoiceDi
 		arg.Amount,
 		arg.ValidFrom,
 		arg.ValidTo,
+		arg.CashierPicks,
 	)
 	return err
 }
