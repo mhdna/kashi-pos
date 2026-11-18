@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"image/png"
@@ -24,11 +26,14 @@ func TestGenerateReceiptPreviews(t *testing.T) {
 	}
 	base := sampleSocials(printReceiptData{ReceiptWidth: 80, TitleSize: 21, BodySize: 11, BodyFont: "Printer Font A", Font: "Belleza"})
 	type previewMode struct {
-		Mode   string        `json:"mode"`
-		File   string        `json:"file"`
-		Width  int           `json:"width"`
-		Height int           `json:"height"`
-		Parts  []receiptMark `json:"parts"`
+		Mode string `json:"mode"`
+		File string `json:"file"`
+		// Version changes with the picture, so central asks for a new one
+		// instead of a copy the browser kept under the same name.
+		Version string        `json:"version"`
+		Width   int           `json:"width"`
+		Height  int           `json:"height"`
+		Parts   []receiptMark `json:"parts"`
 	}
 	type previewLayout struct {
 		receiptLayoutInfo
@@ -57,7 +62,8 @@ func TestGenerateReceiptPreviews(t *testing.T) {
 					t.Fatal(err)
 				}
 				w, h := pngSize(t, data)
-				item.Modes = append(item.Modes, previewMode{Mode: mode, File: name, Width: w, Height: h, Parts: marks})
+				sum := sha256.Sum256(data)
+				item.Modes = append(item.Modes, previewMode{Mode: mode, File: name, Version: hex.EncodeToString(sum[:])[:10], Width: w, Height: h, Parts: marks})
 				if mode == receiptModeSale {
 					item.Preview = name
 				}
