@@ -966,6 +966,10 @@ export function SetReceiptLook(arg1, arg2) {
   return window['go']['main']['App']['SetReceiptLook'](arg1, arg2);
 }
 
+export function SetReceiptTexts(arg1) {
+  return window['go']['main']['App']['SetReceiptTexts'](arg1);
+}
+
 export function SetReleaseStuckKeys(arg1) {
   return window['go']['main']['App']['SetReleaseStuckKeys'](arg1);
 }

@@ -62,3 +62,7 @@ UPDATE settings SET product_search_hidden_fields = ?;
 -- Narrow like UpdateTheme: the settings page and central's update_settings
 -- command both set the printed invoice's theme and layout on their own.
 UPDATE settings SET receipt_theme = ?, receipt_layout = ?;
+
+-- name: SetReceiptTexts :exec
+-- Narrow like SetReceiptLook: only central's update_settings sets it.
+UPDATE settings SET receipt_texts = ?;

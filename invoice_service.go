@@ -1013,7 +1013,8 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		})
 	}
 	receiptPayments = aggregateReceiptPayments(receiptPayments)
-	referralCode, referralNote := a.receiptReferral(clientID)
+	texts := a.receiptTexts()
+	referralCode, referralNote := a.receiptReferral(clientID, texts)
 	theme, layout := a.receiptLook()
 	return printReceiptToPrinter(printReceiptData{
 		Theme:            theme,
@@ -1050,13 +1051,23 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		InvoiceDiscount:  invoiceDisc,
 		ReferralCode:     referralCode,
 		ReferralNote:     referralNote,
+		Texts:            texts,
 	})
+}
+
+// receiptTexts is the branch's receipt wording, or the defaults.
+func (a *App) receiptTexts() receiptTexts {
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return receiptTexts{}
+	}
+	return parseReceiptTexts(settings.ReceiptTexts)
 }
 
 // receiptReferral is the customer's referral code and the line under it,
 // or nothing (referrals.go). A failed lookup prints no code rather than no
 // receipt.
-func (a *App) receiptReferral(clientID int64) (code, note string) {
+func (a *App) receiptReferral(clientID int64, texts receiptTexts) (code, note string) {
 	if clientID <= 0 {
 		return "", ""
 	}
@@ -1068,7 +1079,7 @@ func (a *App) receiptReferral(clientID int64) (code, note string) {
 	if err != nil {
 		return "", ""
 	}
-	return referralReceiptNote(program, client)
+	return referralReceiptNote(program, client, texts)
 }
 
 func formatInt(value int64) string {

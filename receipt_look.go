@@ -70,6 +70,7 @@ func (a *App) PreviewReceiptLook(theme, layout string) (string, error) {
 			base.Website = settings.Website
 			base.SocialPlatforms = decodeSocialPlatforms(settings.SocialPlatforms)
 			base.SocialHandles = decodeSocialHandles(settings.SocialHandles)
+			base.Texts = parseReceiptTexts(settings.ReceiptTexts)
 		}
 	}
 	data, err := renderReceiptPreview(sampleReceiptData(base), theme, layout)

@@ -286,9 +286,11 @@ func (a *App) GetReferralInfo(clientID int64) (ReferralInfo, error) {
 
 // referralReceiptNote is the receipt's lines about the customer's code, or
 // nothing when referrals are off or the customer has none.
-func referralReceiptNote(program db.ReferralProgram, client db.Client) (code, note string) {
-	if program.Enabled == 0 || program.RewardPercent <= 0 || client.ReferralCode == "" || isWalkInClient(client) {
+// The wording is the branch's (receipt_texts.go), and the branch can leave
+// the block out.
+func referralReceiptNote(program db.ReferralProgram, client db.Client, texts receiptTexts) (code, note string) {
+	if program.Enabled == 0 || program.RewardPercent <= 0 || client.ReferralCode == "" || isWalkInClient(client) || texts.hidden(receiptSectionReferral) {
 		return "", ""
 	}
-	return client.ReferralCode, fmt.Sprintf("Give this code to a friend. When they shop with us for the first time, you get %d%% off your next visit.", program.RewardPercent)
+	return client.ReferralCode, texts.referralNote(program.RewardPercent)
 }
