@@ -142,7 +142,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		writeESCPosText(&out, "")
 	}
 	if len(data.SocialPlatforms) > 0 && !data.Texts.hidden(receiptSectionSocials) {
-		writeESCPosCentered(&out, "Follow us:", columns, true)
+		writeESCPosCentered(&out, sanitizeESCPos(data.Texts.socialsTitle()), columns, true)
 		socialLines := formatSocialFooterLines(data.SocialPlatforms, data.SocialHandles)
 		for _, line := range socialLines {
 			writeESCPosCentered(&out, line, columns, false)

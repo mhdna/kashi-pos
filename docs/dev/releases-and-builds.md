@@ -13,7 +13,7 @@
 | `make publish-all` | Same, and every active till of that flavor is set to it. |
 | `make publish-all-force` | Same, and tills install it right away, even mid-shift, after a one-minute countdown. |
 | `make publish-compact…` | The same for the compact flavor. |
-| `make receipt-previews` | Regenerate the receipt look images central's settings pages show; commit them in central. |
+| `make receipt-previews` | Regenerate the receipt images central's Receipt Designer shows (every look in every mode, with where each part is); commit them in central. |
 
 ## What the release commands print
 

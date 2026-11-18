@@ -56,26 +56,26 @@ func sampleTextsReceipt(texts receiptTexts) printReceiptData {
 // wording replaces each default; a hidden part is gone.
 func TestESCPosReceiptTexts(t *testing.T) {
 	plain := string(buildESCPosReceipt(sampleTextsReceipt(receiptTexts{})))
-	for _, want := range []string{"PAYMENT DETAILS", "EXCHANGE POLICY", "Exchanges accepted within 3 days.", "YOUR CODE: K7M4QH", "Follow us:", "Thank you for shopping with us!"} {
+	for _, want := range []string{"PAYMENT DETAILS", "EXCHANGE POLICY", "Exchanges accepted within 3 days.", "YOUR CODE: K7M4QH", "Follow us on:", "Thank you for shopping with us!"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("default receipt lacks %q", want)
 		}
 	}
 	own := string(buildESCPosReceipt(sampleTextsReceipt(receiptTexts{
-		PaymentsTitle: "PAID WITH", PolicyTitle: "EXCHANGES", ReferralTitle: "SHARE:", ReferralNote: "{percent} off for you", Thanks: "See you soon",
+		PaymentsTitle: "PAID WITH", PolicyTitle: "EXCHANGES", ReferralTitle: "SHARE:", ReferralNote: "{percent} off for you", SocialsTitle: "Find us:", Thanks: "See you soon",
 	})))
-	for _, want := range []string{"PAID WITH", "EXCHANGES", "SHARE: K7M4QH", "15% off for you", "See you soon"} {
+	for _, want := range []string{"PAID WITH", "EXCHANGES", "SHARE: K7M4QH", "15% off for you", "Find us:", "See you soon"} {
 		if !strings.Contains(own, want) {
 			t.Fatalf("own wording lacks %q", want)
 		}
 	}
-	for _, gone := range []string{"PAYMENT DETAILS", "EXCHANGE POLICY", "YOUR CODE", "Thank you for shopping"} {
+	for _, gone := range []string{"PAYMENT DETAILS", "EXCHANGE POLICY", "YOUR CODE", "Follow us", "Thank you for shopping"} {
 		if strings.Contains(own, gone) {
 			t.Fatalf("default %q still printed", gone)
 		}
 	}
 	hidden := string(buildESCPosReceipt(sampleTextsReceipt(receiptTexts{Hide: receiptSections})))
-	for _, gone := range []string{"PAYMENT DETAILS", "CASH RECEIVED", "EXCHANGE POLICY", "Exchanges accepted", "Follow us:", "Thank you"} {
+	for _, gone := range []string{"PAYMENT DETAILS", "CASH RECEIVED", "EXCHANGE POLICY", "Exchanges accepted", "Follow us on:", "Thank you"} {
 		if strings.Contains(hidden, gone) {
 			t.Fatalf("hidden part %q printed", gone)
 		}

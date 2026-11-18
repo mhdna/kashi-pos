@@ -36,6 +36,7 @@ type receiptCanvas struct {
 	margin   int
 	contentW int
 	faces    map[string]font.Face
+	marks    []receiptMark
 }
 
 func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
@@ -51,6 +52,13 @@ func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
 }
 
 func renderReceiptRaster(data printReceiptData) (*image.RGBA, error) {
+	img, _, err := renderReceiptRasterMarked(data)
+	return img, err
+}
+
+// renderReceiptRasterMarked is renderReceiptRaster with where each editable
+// part landed (receipt_marks.go).
+func renderReceiptRasterMarked(data printReceiptData) (*image.RGBA, []receiptMark, error) {
 	if data.TitleSize <= 0 {
 		data.TitleSize = 21
 	}
@@ -70,7 +78,7 @@ func renderReceiptRaster(data printReceiptData) (*image.RGBA, error) {
 	}
 	if estimatedHeight > rasterMaxHeight {
 		if data.ShiftReport != nil || len(data.Items) > 120 {
-			return nil, fmt.Errorf("receipt is too long to render safely")
+			return nil, nil, fmt.Errorf("receipt is too long to render safely")
 		}
 		estimatedHeight = rasterMaxHeight
 	}
@@ -99,16 +107,16 @@ func renderReceiptRaster(data printReceiptData) (*image.RGBA, error) {
 		y, err = c.drawReceipt()
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if y <= 0 || y > c.img.Bounds().Dy() {
-		return nil, fmt.Errorf("receipt raster height is invalid: %d", y)
+		return nil, nil, fmt.Errorf("receipt raster height is invalid: %d", y)
 	}
 
 	top := firstRasterInkRow(c.img, y)
 	cropped := image.NewRGBA(image.Rect(0, 0, width, y-top))
 	draw.Draw(cropped, cropped.Bounds(), c.img, image.Point{Y: top}, draw.Src)
-	return cropped, nil
+	return cropped, shiftMarks(c.marks, top), nil
 }
 
 func firstRasterInkRow(img *image.RGBA, height int) int {
@@ -216,7 +224,11 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 
 	showPayments := len(c.data.Payments) > 0 && !c.data.Texts.hidden(receiptSectionPayments)
 	if showPayments {
-		y, _ = c.center(y, c.data.Texts.paymentsTitle(), c.data.BodySize-1, true, false)
+		sectionTop := y
+		title := c.data.Texts.paymentsTitle()
+		titleTop := y
+		y, _ = c.center(y, title, c.data.BodySize-1, true, false)
+		c.markText(receiptPartPaymentsTitle, title, titleTop, y, c.data.BodySize-1, true)
 		y += c.gap(8)
 		for _, payment := range c.data.Payments {
 			label := payment.AccountName
@@ -231,13 +243,14 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
 			y += c.gap(7)
 		}
-	}
-
-	if showPayments {
 		y = c.ruleLine(y) + c.gap(10)
+		c.markSection(receiptSectionPayments, sectionTop, y)
 	}
 	if !c.data.Texts.hidden(receiptSectionPolicy) {
-		y, _ = c.center(y, c.data.Texts.policyTitle(), c.data.BodySize-1.5, true, false)
+		sectionTop := y
+		title := c.data.Texts.policyTitle()
+		y, _ = c.center(y, title, c.data.BodySize-1.5, true, false)
+		c.markText(receiptPartPolicyTitle, title, sectionTop, y, c.data.BodySize-1.5, true)
 		y += c.gap(8)
 		policy := c.data.ReturnPolicy
 		if policy == "" {
@@ -245,17 +258,25 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		}
 		y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
 		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
+		c.markSection(receiptSectionPolicy, sectionTop, y)
 	}
 
 	if c.data.ReferralCode != "" {
-		y, _ = c.center(y, c.data.Texts.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false)
+		sectionTop := y
+		title := c.data.Texts.referralTitle()
+		y, _ = c.center(y, title+" "+c.data.ReferralCode, c.data.BodySize+1, true, false)
+		c.markText(receiptPartReferralTitle, title, sectionTop, y, c.data.BodySize+1, true)
 		y += c.gap(8)
+		noteTop := y
 		y, _ = c.centerWrappedNormal(y, c.data.ReferralNote, c.data.BodySize-2.5, 2)
+		c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)
 		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
+		c.markSection(receiptSectionReferral, sectionTop, y)
 	}
 
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
 	if len(socials) > 0 && !c.data.Texts.hidden(receiptSectionSocials) {
+		sectionTop := y
 		var rowBottom int
 		if rowBottom, err = c.socialFooterRow(y, socials); err != nil {
 			return 0, err
@@ -266,12 +287,19 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 			return 0, err
 		}
 		y += c.gap(8)
+		c.markSection(receiptSectionSocials, sectionTop, y)
 	}
 	y += c.gap(10)
 	if !c.data.Texts.hidden(receiptSectionThanks) {
-		y, _ = c.center(y, c.data.Texts.thanks(c.style.Thanks), c.data.BodySize-1, true, false)
+		thanks := c.data.Texts.thanks(c.style.Thanks)
+		thanksTop := y
+		y, _ = c.center(y, thanks, c.data.BodySize-1, true, false)
+		c.markText(receiptPartThanks, thanks, thanksTop, y, c.data.BodySize-1, true)
+		// The room under the line goes with it (a script face's tails reach
+		// into it), so the section's band holds all its ink.
+		y += 56
+		c.markSection(receiptSectionThanks, thanksTop, y)
 	}
-	y += 56
 	// Printer barcode temporarily disabled.
 	// y = c.barcode(y, c.data.ReceiptNo) + 24
 	y += 24
@@ -662,7 +690,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 		labelGap = 10
 	)
 
-	label := "Follow us on:"
+	label := c.data.Texts.socialsTitle()
 	labelWidth, err := c.measure(label, c.data.BodySize-1, true, false)
 	if err != nil {
 		return y, err
@@ -677,6 +705,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	}
 
 	x := startX + labelWidth + labelGap
+	iconsLeft := x
 	rowBottom := y
 	for _, item := range items {
 		iconBytes := socialPlatformIconBytes(item.platform)
@@ -692,6 +721,10 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 			rowBottom = y + iconSize
 		}
 	}
+	c.markText(receiptPartSocialsTitle, label, y, rowBottom, c.data.BodySize-1, true)
+	title := &c.marks[len(c.marks)-1]
+	title.Left, title.Right = startX, startX+labelWidth
+	c.marks = append(c.marks, receiptMark{Kind: "icons", Part: receiptPartSocialsIcons, Top: y, Bottom: rowBottom, Left: iconsLeft, Right: x - gap})
 	return rowBottom, nil
 }
 

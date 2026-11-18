@@ -22,10 +22,18 @@ func TestGenerateReceiptPreviews(t *testing.T) {
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	base := printReceiptData{ReceiptWidth: 80, TitleSize: 21, BodySize: 11, BodyFont: "Printer Font A", Font: "Belleza"}
+	base := sampleSocials(printReceiptData{ReceiptWidth: 80, TitleSize: 21, BodySize: 11, BodyFont: "Printer Font A", Font: "Belleza"})
+	type previewMode struct {
+		Mode   string        `json:"mode"`
+		File   string        `json:"file"`
+		Width  int           `json:"width"`
+		Height int           `json:"height"`
+		Parts  []receiptMark `json:"parts"`
+	}
 	type previewLayout struct {
 		receiptLayoutInfo
-		Preview string `json:"preview"`
+		Preview string        `json:"preview"`
+		Modes   []previewMode `json:"modes"`
 	}
 	type previewTheme struct {
 		receiptThemeInfo
@@ -35,20 +43,44 @@ func TestGenerateReceiptPreviews(t *testing.T) {
 	for _, theme := range receiptThemeCatalog() {
 		entry := previewTheme{receiptThemeInfo: theme}
 		for _, layout := range theme.Layouts {
-			data, err := renderReceiptPreview(sampleReceiptData(base), theme.ID, layout.ID)
-			if err != nil {
-				t.Fatalf("%s/%s: %v", theme.ID, layout.ID, err)
+			item := previewLayout{receiptLayoutInfo: layout}
+			for _, mode := range receiptPreviewModes {
+				data, marks, err := renderReceiptPreviewMarked(receiptPreviewData(base, mode), theme.ID, layout.ID)
+				if err != nil {
+					t.Fatalf("%s/%s/%s: %v", theme.ID, layout.ID, mode, err)
+				}
+				name := fmt.Sprintf("%s-%s.png", theme.ID, layout.ID)
+				if mode != receiptModeSale {
+					name = fmt.Sprintf("%s-%s-%s.png", theme.ID, layout.ID, mode)
+				}
+				if err := os.WriteFile(filepath.Join(out, name), data, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				w, h := pngSize(t, data)
+				item.Modes = append(item.Modes, previewMode{Mode: mode, File: name, Width: w, Height: h, Parts: marks})
+				if mode == receiptModeSale {
+					item.Preview = name
+				}
 			}
-			name := fmt.Sprintf("%s-%s.png", theme.ID, layout.ID)
-			if err := os.WriteFile(filepath.Join(out, name), data, 0o644); err != nil {
-				t.Fatal(err)
-			}
-			entry.Layouts = append(entry.Layouts, previewLayout{layout, name})
+			entry.Layouts = append(entry.Layouts, item)
 		}
 		catalog = append(catalog, entry)
 	}
+	defaults := receiptTexts{}
 	raw, err := json.MarshalIndent(map[string]any{
 		"default_theme": defaultReceiptTheme, "default_layout": defaultReceiptLayout, "themes": catalog,
+		// The wording a till prints when central sets none, and the limits it
+		// keeps to (receipt_texts.go), so the designer shows and checks the same.
+		"texts": map[string]any{
+			"defaults": map[string]string{
+				"payments_title": defaults.paymentsTitle(), "policy_title": defaults.policyTitle(),
+				"referral_title": defaults.referralTitle(), "referral_note": defaultReferralNote,
+				"socials_title": defaults.socialsTitle(), "thanks": defaults.thanks(""),
+			},
+			"sections":         receiptSections,
+			"max_length":       receiptTextMaxLen,
+			"referral_percent": sampleReferralPercent,
+		},
 	}, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -56,6 +88,15 @@ func TestGenerateReceiptPreviews(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(out, "catalog.json"), append(raw, '\n'), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func pngSize(t *testing.T, data []byte) (int, int) {
+	t.Helper()
+	cfg, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg.Width, cfg.Height
 }
 
 func TestResolveReceiptThemeFallsBack(t *testing.T) {

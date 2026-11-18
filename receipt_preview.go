@@ -68,20 +68,88 @@ func sampleReceiptData(base printReceiptData) printReceiptData {
 	return data
 }
 
+// Receipt Designer modes: the same shop's receipt in each case central can
+// preview (receiptPreviewData).
+const (
+	receiptModeSale     = "sale"
+	receiptModeReferral = "referral"
+	receiptModeClient   = "client"
+	receiptModeExchange = "exchange"
+	receiptModeReturn   = "return"
+)
+
+var receiptPreviewModes = []string{receiptModeSale, receiptModeReferral, receiptModeClient, receiptModeExchange, receiptModeReturn}
+
+// sampleReferralPercent is the reward the referral sample prints.
+const sampleReferralPercent = 15
+
+// receiptPreviewData is the sample receipt in one mode: a plain sale, a sale
+// to a client (with their referral code when referrals are on), an exchange
+// or a return. Unknown modes are the plain sale.
+func receiptPreviewData(base printReceiptData, mode string) printReceiptData {
+	data := sampleReceiptData(base)
+	switch mode {
+	case receiptModeReferral:
+		data.Customer = "Maya Haddad"
+		data.ReferralCode = "K7M4QH"
+		data.ReferralNote = data.Texts.referralNote(sampleReferralPercent)
+	case receiptModeClient:
+		data.Customer = "Maya Haddad"
+	case receiptModeExchange:
+		// The shirt goes back, the jeans come home instead.
+		data.Customer = "Maya Haddad"
+		data.ReceiptNo = "EX/CT/2026/00031"
+		data.Items = []invoiceItem{
+			{Name: "Blue Linen Shirt", Code: "SH-1042", Color: "Navy", Size: "M", Price: 20, Discount: 10, Qty: -1},
+			{Name: "Black Slim Fit Stretch Jeans", Code: "JN-220", Color: "Black", Size: "32", Price: 45, Qty: 1},
+		}
+		data.GrandTotalCents = 4500 - 1800
+		data.Payments = []receiptPayment{{AccountName: "Cash", CurrencyCode: "USD", AmountCents: data.GrandTotalCents, EntryType: "payment"}}
+	case receiptModeReturn:
+		data.Customer = "Maya Haddad"
+		data.ReceiptNo = "RS/CT/2026/00068"
+		data.Items = []invoiceItem{
+			{Name: "Canvas Tote Bag", Code: "BG-115", Price: 12, Discount: 10, Qty: -3},
+			{Name: "Sport Cap", Code: "CP-001", Price: 9, Qty: -2},
+		}
+		data.GrandTotalCents = -(3240 + 1800)
+		data.Payments = []receiptPayment{{AccountName: "Cash", CurrencyCode: "USD", AmountCents: data.GrandTotalCents, EntryType: "change"}}
+	}
+	return data
+}
+
+// sampleSocials are the socials central's previews show when the shop's own
+// aren't known, so the "Follow us" row is always there to see and reword.
+func sampleSocials(base printReceiptData) printReceiptData {
+	if len(socialFooterItems(base.SocialPlatforms, base.SocialHandles)) == 0 {
+		base.SocialPlatforms = []string{"instagram", "facebook", "tiktok"}
+		base.SocialHandles = map[string]string{"instagram": "@yourstore", "facebook": "yourstore", "tiktok": "@yourstore"}
+	}
+	return base
+}
+
 // renderReceiptPreview renders data in the named look as the printer will
 // print it: pure black and white, using the same threshold as the raster
 // encoder, so thin fonts that would break up on paper break up here too.
 func renderReceiptPreview(data printReceiptData, themeID, layoutID string) ([]byte, error) {
+	png, _, err := renderReceiptPreviewMarked(data, themeID, layoutID)
+	return png, err
+}
+
+// renderReceiptPreviewMarked is renderReceiptPreview with where each editable
+// part is on the image (receipt_marks.go).
+func renderReceiptPreviewMarked(data printReceiptData, themeID, layoutID string) ([]byte, []receiptMark, error) {
 	data.Theme, data.Layout = themeID, layoutID
 	previousNow := receiptNow
 	receiptNow = func() time.Time { return time.Date(2026, 10, 19, 14, 30, 0, 0, time.UTC) }
 	defer func() { receiptNow = previousNow }()
 
-	img, err := renderReceiptRaster(data)
+	img, marks, err := renderReceiptRasterMarked(data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return encodeBilevelPNG(img)
+	png, err := encodeBilevelPNG(img)
+	return png, marks, err
 }
 
 func encodeBilevelPNG(img *image.RGBA) ([]byte, error) {

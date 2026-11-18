@@ -30,6 +30,7 @@ type receiptTexts struct {
 	PolicyTitle   string   `json:"policy_title,omitempty"`
 	ReferralTitle string   `json:"referral_title,omitempty"`
 	ReferralNote  string   `json:"referral_note,omitempty"`
+	SocialsTitle  string   `json:"socials_title,omitempty"`
 	Thanks        string   `json:"thanks,omitempty"`
 	Hide          []string `json:"hide,omitempty"`
 }
@@ -38,6 +39,7 @@ const (
 	defaultPaymentsTitle = "PAYMENT DETAILS"
 	defaultPolicyTitle   = "EXCHANGE POLICY"
 	defaultReferralTitle = "YOUR CODE:"
+	defaultSocialsTitle  = "Follow us on:"
 	// {percent} is the reward, like "15%".
 	defaultReferralNote = "Give this code to a friend. When they shop with us for the first time, you get {percent} off your next visit."
 	receiptTextMaxLen   = 300
@@ -65,7 +67,8 @@ func normalizeReceiptTexts(t receiptTexts) receiptTexts {
 	}
 	out := receiptTexts{
 		PaymentsTitle: clean(t.PaymentsTitle), PolicyTitle: clean(t.PolicyTitle),
-		ReferralTitle: clean(t.ReferralTitle), ReferralNote: clean(t.ReferralNote), Thanks: clean(t.Thanks),
+		ReferralTitle: clean(t.ReferralTitle), ReferralNote: clean(t.ReferralNote),
+		SocialsTitle: clean(t.SocialsTitle), Thanks: clean(t.Thanks),
 	}
 	seen := map[string]bool{}
 	for _, section := range receiptSections {
@@ -91,6 +94,7 @@ func (t receiptTexts) hidden(section string) bool {
 func (t receiptTexts) paymentsTitle() string { return orDefault(t.PaymentsTitle, defaultPaymentsTitle) }
 func (t receiptTexts) policyTitle() string   { return orDefault(t.PolicyTitle, defaultPolicyTitle) }
 func (t receiptTexts) referralTitle() string { return orDefault(t.ReferralTitle, defaultReferralTitle) }
+func (t receiptTexts) socialsTitle() string  { return orDefault(t.SocialsTitle, defaultSocialsTitle) }
 
 // referralNote is the line under the code, with the reward put in.
 func (t receiptTexts) referralNote(percent int64) string {
@@ -104,7 +108,7 @@ func (t receiptTexts) thanks(themeThanks string) string {
 }
 
 // SetReceiptTexts stores the receipt's wording from central's
-// update_settings; raw is the JSON, '' for every default.
+// update_settings; raw is the JSON, ” for every default.
 func (a *App) SetReceiptTexts(raw string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")

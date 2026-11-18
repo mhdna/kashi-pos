@@ -277,6 +277,20 @@ sell at their typed price and show no chip. The cart sends the line's
 - Central's rules (on or off, percent, minimum spend, days, cap) live in kashi
   (`referral_program` on the till holds what it needs).
 
+## Receipt wording
+
+- Central's Receipt Designer sets `settings.receipt_texts` (JSON, `receipt_texts.go`):
+  the payment, exchange policy, referral and "Follow us on:" titles, the referral
+  line (`{percent}` is the reward) and the thank-you line, plus the ==parts left
+  out== (payments, policy, referral, socials, thanks). Empty is every default.
+- The designer can't run this renderer, so `make receipt-previews` draws every
+  look in five ==modes== (sale, referral, client, exchange, return) and writes
+  where each part landed (`receipt_marks.go`) into the catalog. Central lays its
+  editable text over those bands and closes a band when a part is left out.
+- That only holds if leaving a part out prints ==exactly the receipt with its
+  band cut==: `TestReceiptMarksHidingCutsTheBand` checks it pixel for pixel on
+  every look. A hidden thank-you line takes the room under it along.
+
 ## The unfinished sale (draft)
 
 The cart, client, note and calculator state are kept in `localStorage`
