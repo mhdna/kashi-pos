@@ -101,7 +101,7 @@ describe("RewardsButton", () => {
     expect(find("deal-students")?.getAttribute("title")).toBe("15% off the whole invoice");
     expect(find("deal-staff")?.textContent).toContain("$5");
     expect(find("auto-auto")?.querySelector(".reward-size")?.textContent).toBe("15%");
-    expect(find("auto-auto")?.querySelector(".reward-line")?.textContent).toBe("$100 and up");
+    expect(find("auto-auto")?.querySelector(".reward-line")?.textContent).toBe("> $100");
     expect(find("auto-auto")?.tagName).not.toBe("BUTTON");
     expect(find("auto-auto")?.className).toContain("reward-card--locked");
     expect(find("auto-auto")?.querySelector("input, button")).toBeNull();
@@ -245,7 +245,7 @@ describe("RewardsButton cards, the reported set", () => {
     expect(find("auto-t100")?.className).toContain("reward-card--applied");
     expect(find("auto-t50")?.className).not.toContain("reward-card--applied");
     expect(find("auto-t150")?.querySelector(".reward-size")?.textContent).toBe("20%");
-    expect(find("auto-t150")?.querySelector(".reward-line")?.textContent).toBe("$150 and up");
+    expect(find("auto-t150")?.querySelector(".reward-line")?.textContent).toBe("> $150");
     expect(find("auto-t150")?.getAttribute("title")).toBe("20% off invoices of $150 or more");
   });
 });

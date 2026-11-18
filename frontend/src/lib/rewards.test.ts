@@ -34,8 +34,8 @@ describe("dealSize", () => {
 describe("dealWhen", () => {
   it("is the condition in a few words", () => {
     expect(dealWhen(deal({}))).toBe("Whole invoice");
-    expect(dealWhen(deal({ minTotal: 5000 }))).toBe("$50 and up");
-    expect(dealWhen(deal({ minTotal: 4999 }))).toBe("$49.99 and up");
+    expect(dealWhen(deal({ minTotal: 5000 }))).toBe("> $50");
+    expect(dealWhen(deal({ minTotal: 4999 }))).toBe("> $49.99");
   });
 });
 

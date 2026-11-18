@@ -29,9 +29,10 @@ export function dealTitle(d: RewardDeal): string {
   return title || d.name;
 }
 
-// dealWhen is a deal's condition in a few words: "Whole invoice", "$50 and up".
+// dealWhen is a deal's condition in a few words: "Whole invoice", "> $50".
+// (A total of exactly the minimum counts too; the card's title says "or more".)
 export function dealWhen(d: RewardDeal): string {
-  return d.minTotal > 0 ? `${dollars(d.minTotal)} and up` : "Whole invoice";
+  return d.minTotal > 0 ? `> ${dollars(d.minTotal)}` : "Whole invoice";
 }
 
 // dealTerms is what a deal takes off and when: "15% off the whole invoice",
