@@ -17,7 +17,8 @@
       <k-card>
         <k-card-title>Rewards</k-card-title>
         <k-card-text class="rewards-body">
-          <div class="rewards-grid">
+          <div v-if="pickable.length || referralEnabled" class="rewards-heading">For this sale</div>
+          <div v-if="pickable.length || referralEnabled" class="rewards-grid" data-test="rewards-pick-grid">
             <button
               v-for="d in pickable"
               :key="d.uid"
@@ -59,6 +60,10 @@
               <span class="reward-line" data-test="referral-foot">{{ modelValue || "Referral code" }}</span>
             </button>
 
+          </div>
+
+          <div v-if="automatic.length" class="rewards-heading" data-test="rewards-automatic">Apply by themselves, set in kashi</div>
+          <div v-if="automatic.length" class="rewards-grid" data-test="rewards-automatic-grid">
             <div
               v-for="d in automatic"
               :key="d.uid"
@@ -81,7 +86,6 @@
               <span class="reward-line">{{ dealWhen(d) }}</span>
             </div>
           </div>
-          <p v-if="automatic.length" class="rewards-note" data-test="rewards-automatic">Locked ones apply by themselves. Set in kashi.</p>
         </k-card-text>
         <k-card-actions class="pa-4">
           <span v-if="appliedName" class="rewards-now" data-test="rewards-now">Now off this sale: {{ appliedName }}</span>
@@ -306,6 +310,12 @@ defineExpose({ loadInfo });
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.rewards-heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(var(--k-theme-on-surface), 0.6);
 }
 
 .rewards-grid {

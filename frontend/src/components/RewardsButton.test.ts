@@ -106,7 +106,7 @@ describe("RewardsButton", () => {
     expect(find("rewards-referral")?.classList.contains("reward-card")).toBe(true);
     expect(find("rewards-referral")?.textContent).toContain("Referral code");
     expect(find("referral-input")).toBeNull();
-    expect(find("rewards-automatic")?.textContent).toBe("Locked ones apply by themselves. Set in kashi.");
+    expect(find("rewards-automatic")?.textContent).toBe("Apply by themselves, set in kashi");
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
 
@@ -230,8 +230,10 @@ describe("RewardsButton cards, the reported set", () => {
     ] as never);
     await mountButton({ appliedName: "15% above $100" });
     await openDialog();
-    const cards = [...document.body.querySelectorAll(".reward-card")].map((c) => c.getAttribute("data-test"));
-    expect(cards).toEqual(["deal-s", "rewards-referral", "auto-t50", "auto-t100", "auto-t150"]);
+    // Two rows: what the cashier picks, then the locked ones on their own.
+    const row = (sel: string) => [...find(sel)!.querySelectorAll(".reward-card")].map((c) => c.getAttribute("data-test"));
+    expect(row("rewards-pick-grid")).toEqual(["deal-s", "rewards-referral"]);
+    expect(row("rewards-automatic-grid")).toEqual(["auto-t50", "auto-t100", "auto-t150"]);
     expect(find("auto-t100")?.className).toContain("reward-card--applied");
     expect(find("auto-t50")?.className).not.toContain("reward-card--applied");
     expect(find("auto-t150")?.querySelector(".reward-size")?.textContent).toBe("20%");
