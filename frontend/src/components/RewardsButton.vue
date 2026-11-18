@@ -110,7 +110,7 @@
                 autofocus
                 class="flex-grow-1"
                 hide-details
-                placeholder="Code, like K7M4QH"
+                placeholder="Code"
                 variant="outlined"
                 data-test="referral-input"
                 @keydown.enter="check"
