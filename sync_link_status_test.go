@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -421,7 +422,7 @@ func TestLinkPullShowsProgressAndEndsIdle(t *testing.T) {
 	app.syncPullMu.Unlock()
 
 	got := seen.Load().(map[string]bool)
-	if !got[fmt.Sprintf("Currencies 0/%d", len(pullEntities))] || !got[fmt.Sprintf("Products 2/%d", len(pullEntities))] {
+	if !got[fmt.Sprintf("Currencies 0/%d", len(pullEntities))] || !got[fmt.Sprintf("Products %d/%d", slices.Index(pullEntities, "products"), len(pullEntities))] {
 		t.Fatalf("pull never showed its progress, saw %v", got)
 	}
 	s := link.snapshot()
