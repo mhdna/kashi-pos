@@ -121,3 +121,27 @@ func TestDesignerCatalog(t *testing.T) {
 		}
 	}
 }
+
+// Central draws previews for several people at once: no shared state.
+func TestRenderDesignerPreviewConcurrently(t *testing.T) {
+	done := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		go func(i int) {
+			_, err := RenderDesignerPreview(DesignerInput{Mode: receiptPreviewModes[i%len(receiptPreviewModes)]})
+			done <- err
+		}(i)
+	}
+	for i := 0; i < 8; i++ {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkRenderDesignerPreview(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if _, err := RenderDesignerPreview(DesignerInput{Theme: "classic", Layout: "A", Mode: receiptModeReferral}); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

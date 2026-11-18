@@ -91,27 +91,34 @@ func (c *receiptCanvas) drawMeta(y int) int {
 	all := [][3]string{
 		{"meta_customer", "Customer", fallbackReceiptValue(c.data.Customer, receiptWalkInLabel)},
 		{"meta_salesperson", "Salesperson", formatReceiptSalesperson(c.data.Salesperson)},
-		{"meta_date", "Date", receiptNow().Format(t.dateLayout())},
+		{"meta_date", "Date", c.now().Format(t.dateLayout())},
 	}
-	var pairs [][2]string
+	type metaPair struct{ key, label, value string }
+	var pairs []metaPair
 	for _, p := range all {
 		if !t.elementHidden(p[0]) {
-			pairs = append(pairs, [2]string{t.word(p[0], p[1]), p[2]})
+			pairs = append(pairs, metaPair{p[0], t.word(p[0], p[1]), p[2]})
 		}
 	}
 	top := y
 	defer func() { c.markGroup("meta", top, y) }()
-	size := c.data.BodySize - 1
 	for _, pair := range pairs {
+		size, bold := c.elementStyle(pair.key, c.data.BodySize-1, false)
+		role := roleBody
+		if bold {
+			role = roleBodyBold
+		}
+		lineTop := y
 		switch {
 		case c.style.MetaRows:
-			c.textRole(c.margin, y, pair[0], size, roleBody, image.Black)
-			y, _ = c.rightRole(c.margin+c.contentW, y, pair[1], size, roleBodyBold, image.Black)
+			c.textRole(c.margin, y, pair.label, size, role, image.Black)
+			y, _ = c.rightRole(c.margin+c.contentW, y, pair.value, size, roleBodyBold, image.Black)
 		case c.style.MetaCentered:
-			y, _ = c.centerRole(y, pair[0]+": "+pair[1], size, roleBody)
+			y, _ = c.centerRole(y, pair.label+": "+pair.value, size, role)
 		default:
-			y, _ = c.left(y, pair[0]+": "+pair[1], size, false)
+			y, _ = c.left(y, pair.label+": "+pair.value, size, bold)
 		}
+		c.markLine(pair.key, pair.label, lineTop, y, size, "left")
 		y += c.gap(8)
 	}
 	// Room before the rule under the block, as there is above the first line.

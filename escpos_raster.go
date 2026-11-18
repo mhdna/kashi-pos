@@ -150,6 +150,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	var err error
 	t := c.data.Texts
 	headerTop := y
+	y, headerBox := c.decorStart("header", y)
 	store := t.word("store_name", c.data.StoreName)
 	branch := t.word("branch_name", c.data.Branch)
 	if c.style.UpperStore {
@@ -195,21 +196,28 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		y, _, _ = c.line(y, "website", website, c.data.BodySize-1.5, true, false, "center")
 		y += c.gap(8)
 	}
+	y = c.decorEnd("header", y, headerBox, true)
 	c.markGroup("header", headerTop, y)
-	y = c.ruleLine(y) + c.gap(10)
+	y = c.divider("header", y) + c.gap(10)
+	metaTop := y
+	y, metaBox := c.decorStart("meta", y)
 	y = c.drawMeta(y)
 	if strings.TrimSpace(c.data.Notes) != "" {
 		y += c.gap(6)
 		y, _ = c.left(y, t.word("note_label", "Note")+": "+strings.TrimSpace(c.data.Notes), c.data.BodySize-1, false)
 		y += c.gap(8)
 	}
-	y = c.ruleLine(y) + c.gap(10)
+	y = c.decorEnd("meta", y, metaBox, true)
+	c.markGroup("meta", metaTop, y)
+	y = c.divider("meta", y) + c.gap(10)
 
 	itemsTop := y
+	y, itemsBox := c.decorStart("columns", y)
 	y, subtotal, discountTotal := c.layout.draw(c, y)
+	y = c.decorEnd("columns", y, itemsBox, true)
 	c.markGroup("columns", itemsTop, y)
 
-	y = c.ruleLine(y) + c.gap(10)
+	y = c.divider("columns", y) + c.gap(10)
 	grandTotal := float64(c.data.GrandTotalCents) / 100
 	// See buildESCPosReceipt: the grand total already carries the cash-grid
 	// snap, so tax has to come from the invoice rather than be inferred from
@@ -217,128 +225,192 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	tax := float64(c.data.TaxCents) / 100
 	invoiceDisc := float64(c.data.InvoiceDiscount.Cents) / 100
 	rounding := grandTotal - (subtotal - discountTotal - invoiceDisc) - tax
-	var rows [][2]string
+	var rows [][3]string // label, amount, element
 	if !t.elementHidden("subtotal") {
-		rows = append(rows, [2]string{t.word("subtotal", "Subtotal"), fmt.Sprintf("$%.2f", subtotal)})
+		rows = append(rows, [3]string{t.word("subtotal", "Subtotal"), fmt.Sprintf("$%.2f", subtotal), "subtotal"})
 	}
 	if discountTotal > 0 {
-		rows = append(rows, [2]string{t.word("discount", "Discount"), fmt.Sprintf("-$%.2f", discountTotal)})
+		rows = append(rows, [3]string{t.word("discount", "Discount"), fmt.Sprintf("-$%.2f", discountTotal), "discount"})
 	}
 	if c.data.InvoiceDiscount.Cents > 0 {
-		rows = append(rows, [2]string{invoiceDiscountLabel(c.data.InvoiceDiscount), fmt.Sprintf("-$%.2f", invoiceDisc)})
+		rows = append(rows, [3]string{invoiceDiscountLabel(c.data.InvoiceDiscount), fmt.Sprintf("-$%.2f", invoiceDisc), "discount"})
 	}
 	if math.Abs(rounding) > 0.005 {
-		rows = append(rows, [2]string{t.word("rounding", "Rounding"), fmt.Sprintf("$%.2f", rounding)})
+		rows = append(rows, [3]string{t.word("rounding", "Rounding"), fmt.Sprintf("$%.2f", rounding), "rounding"})
 	}
 	if c.style.ItemCount && !t.elementHidden("items_count") {
 		var units float64
 		for _, item := range c.data.Items {
 			units += item.Qty
 		}
-		rows = append(rows, [2]string{t.word("items_count", "Items"), fmt.Sprintf("%.0f", units)})
+		rows = append(rows, [3]string{t.word("items_count", "Items"), fmt.Sprintf("%.0f", units), "items_count"})
 	}
 	if c.style.Savings && discountTotal > 0 && !t.elementHidden("you_saved") {
-		rows = append(rows, [2]string{t.word("you_saved", "You saved"), fmt.Sprintf("$%.2f", discountTotal)})
+		rows = append(rows, [3]string{t.word("you_saved", "You saved"), fmt.Sprintf("$%.2f", discountTotal), "you_saved"})
 	}
 	totalsTop := y
+	y, totalsBox := c.decorStart("totals", y)
 	// Quieter than the total: regular weight, a size down.
 	for _, row := range rows {
-		y, _ = c.twoCol(y, row[0], row[1], 10, false)
+		y = c.row(y, row[2], row[0], row[0], row[1], 10, false)
 		y += c.gap(7)
 	}
 	c.markGroup("totals", totalsTop, y)
 	y = c.drawTotal(y, grandTotal)
+	y = c.decorEnd("totals", y, totalsBox, false)
+	c.markGroup("totals", totalsTop, y)
 	y += c.gap(6)
 
-	showPayments := len(c.data.Payments) > 0 && !c.data.Texts.hidden(receiptSectionPayments)
-	if showPayments {
-		sectionTop := y
-		if !t.elementHidden("payments_title") {
-			titleTop := y
-			y, _, _ = c.line(y, "payments_title", t.paymentsTitle(), c.data.BodySize-1, true, false, "center")
-			c.markText(receiptPartPaymentsTitle, t.paymentsTitle(), titleTop, y, c.data.BodySize-1, true)
-			y += c.gap(8)
+	// The parts under the totals, in the branch's order.
+	for _, section := range t.footerOrder() {
+		var err error
+		switch section {
+		case receiptSectionPayments:
+			y, err = c.drawPaymentsPart(y)
+		case receiptSectionPolicy:
+			y, err = c.drawPolicyPart(y)
+		case receiptSectionReferral:
+			y, err = c.drawReferralPart(y)
+		case receiptSectionSocials:
+			y, err = c.drawSocialsPart(y)
+		case receiptSectionThanks:
+			y, err = c.drawThanksPart(y)
 		}
-		for _, payment := range c.data.Payments {
-			label := payment.AccountName
-			if label == "" {
-				label = "Cash"
-			}
-			if payment.EntryType == "change" {
-				label = t.word("change", "Change") + " - " + label
-			} else {
-				label = t.word("received", "Received") + " - " + label
-			}
-			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
-			y += c.gap(7)
-		}
-		y = c.ruleLine(y) + c.gap(10)
-		c.markSection(receiptSectionPayments, sectionTop, y)
-		c.markGroup("payments", sectionTop, y)
-	}
-	if !c.data.Texts.hidden(receiptSectionPolicy) {
-		sectionTop := y
-		if !t.elementHidden("policy_title") {
-			titleTop := y
-			y, _, _ = c.line(y, "policy_title", t.policyTitle(), c.data.BodySize-1.5, true, false, "center")
-			c.markText(receiptPartPolicyTitle, t.policyTitle(), titleTop, y, c.data.BodySize-1.5, true)
-			y += c.gap(8)
-		}
-		policy := c.data.ReturnPolicy
-		if policy == "" {
-			policy = defaultReturnPolicy
-		}
-		y, _, _ = c.lineWrapped(y, "policy_text", t.word("policy_text", policy), c.data.BodySize-2.5, false, 2, "center")
-		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
-		c.markSection(receiptSectionPolicy, sectionTop, y)
-		c.markGroup("policy", sectionTop, y)
-	}
-
-	if c.data.ReferralCode != "" {
-		sectionTop := y
-		y, _, _ = c.line(y, "referral_title", t.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false, "center")
-		c.markText(receiptPartReferralTitle, t.referralTitle(), sectionTop, y, c.data.BodySize+1, true)
-		y += c.gap(8)
-		noteTop := y
-		y, _, _ = c.lineWrapped(y, "referral_note", c.data.ReferralNote, c.data.BodySize-2.5, false, 2, "center")
-		c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)
-		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
-		c.markSection(receiptSectionReferral, sectionTop, y)
-		c.markGroup("referral", sectionTop, y)
-	}
-
-	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
-	if len(socials) > 0 && !c.data.Texts.hidden(receiptSectionSocials) {
-		sectionTop := y
-		var rowBottom int
-		if rowBottom, err = c.socialFooterRow(y, socials); err != nil {
+		if err != nil {
 			return 0, err
 		}
-		y = rowBottom + c.gap(10)
-		// Match the PDF receipt: show one centered handle beneath the icon row.
-		if !t.elementHidden("socials_handle") {
-			if y, _, err = c.line(y, "socials_handle", socials[0].handle, c.data.BodySize-1.5, false, false, "center"); err != nil {
-				return 0, err
-			}
-			y += c.gap(8)
-		}
-		c.markSection(receiptSectionSocials, sectionTop, y)
-		c.markGroup("socials", sectionTop, y)
-	}
-	y += c.gap(10)
-	if !c.data.Texts.hidden(receiptSectionThanks) && !t.elementHidden("thanks") {
-		thanks := c.data.Texts.thanks(c.style.Thanks)
-		thanksTop := y
-		y, _, _ = c.line(y, "thanks", thanks, c.data.BodySize-1, true, false, "center")
-		c.markText(receiptPartThanks, thanks, thanksTop, y, c.data.BodySize-1, true)
-		// The room under the line goes with it (a script face's tails reach
-		// into it), so the section's band holds all its ink.
-		y += 56
-		c.markSection(receiptSectionThanks, thanksTop, y)
 	}
 	// Printer barcode temporarily disabled.
 	// y = c.barcode(y, c.data.ReceiptNo) + 24
 	y += 24
+	return y, nil
+}
+
+// The parts under the totals, each drawn from y, returning the y below it.
+
+func (c *receiptCanvas) drawPaymentsPart(y int) (int, error) {
+	t := c.data.Texts
+	if len(c.data.Payments) == 0 || t.hidden(receiptSectionPayments) {
+		return y, nil
+	}
+	sectionTop := y
+	y, boxTop := c.decorStart("payments", y)
+	if !t.elementHidden("payments_title") {
+		titleTop := y
+		y, _, _ = c.line(y, "payments_title", t.paymentsTitle(), c.data.BodySize-1, true, false, "center")
+		c.markText(receiptPartPaymentsTitle, t.paymentsTitle(), titleTop, y, c.data.BodySize-1, true)
+		y += c.gap(8)
+	}
+	for _, payment := range c.data.Payments {
+		label := payment.AccountName
+		if label == "" {
+			label = "Cash"
+		}
+		key, word := "received", t.word("received", "Received")
+		if payment.EntryType == "change" {
+			key, word = "change", t.word("change", "Change")
+		}
+		y = c.row(y, key, word, word+" - "+label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
+		y += c.gap(7)
+	}
+	y = c.decorEnd("payments", y, boxTop, true)
+	y = c.divider("payments", y) + c.gap(10)
+	c.markSection(receiptSectionPayments, sectionTop, y)
+	c.markGroup("payments", sectionTop, y)
+	return y, nil
+}
+
+func (c *receiptCanvas) drawPolicyPart(y int) (int, error) {
+	t := c.data.Texts
+	if t.hidden(receiptSectionPolicy) {
+		return y, nil
+	}
+	sectionTop := y
+	y, boxTop := c.decorStart("policy", y)
+	if !t.elementHidden("policy_title") {
+		titleTop := y
+		y, _, _ = c.line(y, "policy_title", t.policyTitle(), c.data.BodySize-1.5, true, false, "center")
+		c.markText(receiptPartPolicyTitle, t.policyTitle(), titleTop, y, c.data.BodySize-1.5, true)
+		y += c.gap(8)
+	}
+	policy := c.data.ReturnPolicy
+	if policy == "" {
+		policy = defaultReturnPolicy
+	}
+	y, _, _ = c.lineWrapped(y, "policy_text", t.word("policy_text", policy), c.data.BodySize-2.5, false, 2, "center")
+	y = c.decorEnd("policy", y, boxTop, true)
+	y = c.divider("policy", y+c.gap(6)) + c.gap(10)
+	c.markSection(receiptSectionPolicy, sectionTop, y)
+	c.markGroup("policy", sectionTop, y)
+	return y, nil
+}
+
+func (c *receiptCanvas) drawReferralPart(y int) (int, error) {
+	t := c.data.Texts
+	if c.data.ReferralCode == "" {
+		return y, nil
+	}
+	sectionTop := y
+	y, boxTop := c.decorStart("referral", y)
+	titleTop := y
+	y, _, _ = c.line(y, "referral_title", t.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false, "center")
+	c.markText(receiptPartReferralTitle, t.referralTitle(), titleTop, y, c.data.BodySize+1, true)
+	y += c.gap(8)
+	noteTop := y
+	y, _, _ = c.lineWrapped(y, "referral_note", c.data.ReferralNote, c.data.BodySize-2.5, false, 2, "center")
+	c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)
+	y = c.decorEnd("referral", y, boxTop, true)
+	y = c.divider("referral", y+c.gap(6)) + c.gap(10)
+	c.markSection(receiptSectionReferral, sectionTop, y)
+	c.markGroup("referral", sectionTop, y)
+	return y, nil
+}
+
+func (c *receiptCanvas) drawSocialsPart(y int) (int, error) {
+	t := c.data.Texts
+	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
+	if len(socials) == 0 || t.hidden(receiptSectionSocials) {
+		return y, nil
+	}
+	sectionTop := y
+	y, boxTop := c.decorStart("socials", y)
+	rowBottom, err := c.socialFooterRow(y, socials)
+	if err != nil {
+		return 0, err
+	}
+	y = rowBottom + c.gap(10)
+	// Match the PDF receipt: show one centered handle beneath the icon row.
+	if !t.elementHidden("socials_handle") {
+		if y, _, err = c.line(y, "socials_handle", socials[0].handle, c.data.BodySize-1.5, false, false, "center"); err != nil {
+			return 0, err
+		}
+		y += c.gap(8)
+	}
+	y = c.decorEnd("socials", y, boxTop, false)
+	c.markSection(receiptSectionSocials, sectionTop, y)
+	c.markGroup("socials", sectionTop, y)
+	return y, nil
+}
+
+func (c *receiptCanvas) drawThanksPart(y int) (int, error) {
+	t := c.data.Texts
+	y += c.gap(10)
+	if t.hidden(receiptSectionThanks) || t.elementHidden("thanks") {
+		return y, nil
+	}
+	thanks := t.thanks(c.style.Thanks)
+	thanksTop := y
+	y, boxTop := c.decorStart("thanks", y)
+	lineTop := y
+	y, _, _ = c.line(y, "thanks", thanks, c.data.BodySize-1, true, false, "center")
+	c.markText(receiptPartThanks, thanks, lineTop, y, c.data.BodySize-1, true)
+	if d := c.decor("thanks"); d.Box != "" || (d.Below != "" && d.Below != "none") {
+		y = c.decorEnd("thanks", y, boxTop, false)
+	}
+	// The room under the line goes with it (a script face's tails reach
+	// into it), so the section's band holds all its ink.
+	y += 56
+	c.markSection(receiptSectionThanks, thanksTop, y)
 	return y, nil
 }
 
@@ -745,13 +817,12 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	iconsLeft := x
 	rowBottom := y
 	for _, item := range items {
-		iconBytes := socialPlatformIconBytes(item.platform)
-		if len(iconBytes) > 0 {
-			icon, decodeErr := png.Decode(bytes.NewReader(iconBytes))
-			if decodeErr != nil {
-				return y, fmt.Errorf("decode %s icon: %w", item.platform, decodeErr)
-			}
-			xdraw.CatmullRom.Scale(c.img, image.Rect(x, y, x+iconSize, y+iconSize), icon, icon.Bounds(), xdraw.Over, nil)
+		icon, iconErr := scaledSocialIcon(item.platform, iconSize)
+		if iconErr != nil {
+			return y, iconErr
+		}
+		if icon != nil {
+			draw.Draw(c.img, image.Rect(x, y, x+iconSize, y+iconSize), icon, image.Point{}, draw.Over)
 		}
 		x += iconSize + gap
 		if y+iconSize > rowBottom {

@@ -151,11 +151,17 @@ func renderReceiptPreviewMarked(data printReceiptData, themeID, layoutID string)
 	if err != nil {
 		return nil, nil, err
 	}
-	png, err := encodeBilevelPNG(img)
-	return png, marks, err
+	out, err := encodeBilevelPNGLevel(img, png.BestCompression)
+	return out, marks, err
 }
 
 func encodeBilevelPNG(img *image.RGBA) ([]byte, error) {
+	return encodeBilevelPNGLevel(img, png.BestCompression)
+}
+
+// encodeBilevelPNGLevel is encodeBilevelPNG at a compression level: the
+// designer's live preview takes the fast one, the pictures that ship the best.
+func encodeBilevelPNGLevel(img *image.RGBA, level png.CompressionLevel) ([]byte, error) {
 	bounds := img.Bounds()
 	out := image.NewPaletted(bounds, color.Palette{color.White, color.Black})
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
@@ -167,7 +173,7 @@ func encodeBilevelPNG(img *image.RGBA) ([]byte, error) {
 		}
 	}
 	var buf bytes.Buffer
-	encoder := png.Encoder{CompressionLevel: png.BestCompression}
+	encoder := png.Encoder{CompressionLevel: level}
 	if err := encoder.Encode(&buf, out); err != nil {
 		return nil, fmt.Errorf("encode receipt preview: %w", err)
 	}

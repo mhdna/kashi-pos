@@ -249,7 +249,7 @@ func TestNormalizeReceiptElements(t *testing.T) {
 			"nonsense": {Text: "x"},
 			"total":    {},
 			"phone":    {Size: -20.3},
-			"subtotal": {Size: 1.26},
+			"note_label": {Size: 1.26},
 		},
 	}
 	out := normalizeReceiptTexts(in)
@@ -271,8 +271,8 @@ func TestNormalizeReceiptElements(t *testing.T) {
 	if out.Elements["phone"].Size != receiptElementMinSize {
 		t.Fatalf("size not clamped: %v", out.Elements["phone"].Size)
 	}
-	if _, ok := out.Elements["subtotal"]; ok {
-		t.Fatal("subtotal can't change size")
+	if _, ok := out.Elements["note_label"]; ok {
+		t.Fatal("the note label can't change size")
 	}
 	raw, _ := json.Marshal(out)
 	var back receiptTexts

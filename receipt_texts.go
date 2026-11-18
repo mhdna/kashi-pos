@@ -37,6 +37,14 @@ type receiptTexts struct {
 	// the date prints.
 	Elements   map[string]receiptElement `json:"elements,omitempty"`
 	DateFormat string                    `json:"date_format,omitempty"`
+	// Groups change every line of a part at once (capitals, size, weight,
+	// alignment); a line's own setting comes first.
+	Groups map[string]receiptElement `json:"groups,omitempty"`
+	// Decor is each part's lines and box (receipt_decor.go).
+	Decor map[string]receiptDecor `json:"decor,omitempty"`
+	// Order is the order of the parts under the totals; missing ones keep
+	// their place after the ones named.
+	Order []string `json:"order,omitempty"`
 }
 
 const (
@@ -85,6 +93,9 @@ func normalizeReceiptTexts(t receiptTexts) receiptTexts {
 	}
 	out.Elements = normalizeReceiptElements(t.Elements, clean)
 	out.DateFormat = validReceiptDateFormat(t.DateFormat)
+	out.Groups = normalizeReceiptGroups(t.Groups)
+	out.Decor = normalizeReceiptDecor(t.Decor)
+	out.Order = normalizeReceiptOrder(t.Order)
 	return out
 }
 

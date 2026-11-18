@@ -11,6 +11,16 @@ Measured or reported slow things that are not fixed yet.
 
 ## Entries
 
+### 2026-11-18: The Receipt Designer's live receipt took 41 ms to draw
+
+**Symptom.** Central redraws the receipt on every change in its designer, and each change felt slow to show.
+
+**Finding.** Benchmarked (`BenchmarkRenderDesignerPreview`, M-series Mac): 41 ms a receipt. The profile put 39% in the socials row, which decoded each icon's PNG and scaled it again on every receipt, and 30% in PNG's best compression.
+
+**Change.** The social icons are decoded and scaled once per size and kept (`scaledSocialIcon` in `receipt_render_deps.go`); the designer's preview uses PNG's fast compression (`renderDesignerPNG`), the shipped pictures still the best. 13 ms a receipt; every printed receipt gains from the icons too. Pixel for pixel the same on all 70 looks and modes. The preview's date is passed with the receipt instead of swapping the clock, so central can draw several at once (`TestRenderDesignerPreviewConcurrently` under `-race`).
+
+**Not done.** An HTML preview: instant, but it would no longer be what the till prints.
+
 ### 2026-11-18: Settings waited behind a long clients pull
 
 **Symptom.** Referrals switched on in kashi didn't reach the till for minutes: the till was busy re-pulling every client, and the referral rules came after clients in the pull.

@@ -2,6 +2,8 @@ package main
 
 import (
 	"image"
+	"slices"
+	"time"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -89,9 +91,9 @@ var receiptElements = []receiptElementInfo{
 	{Key: "invoice_label_return", Group: "header", Label: "Return invoice title", Default: "Return Invoice", Can: canText | canCase},
 	{Key: "website", Group: "header", Label: "Website", Can: canAll},
 
-	{Key: "meta_customer", Group: "meta", Label: "Customer", Default: "Customer", Can: canText | canCase | canHide},
-	{Key: "meta_salesperson", Group: "meta", Label: "Salesperson", Default: "Salesperson", Can: canText | canCase | canHide},
-	{Key: "meta_date", Group: "meta", Label: "Date", Default: "Date", Can: canText | canCase | canHide},
+	{Key: "meta_customer", Group: "meta", Label: "Customer", Default: "Customer", Can: canText | canCase | canSize | canBold | canHide},
+	{Key: "meta_salesperson", Group: "meta", Label: "Salesperson", Default: "Salesperson", Can: canText | canCase | canSize | canBold | canHide},
+	{Key: "meta_date", Group: "meta", Label: "Date", Default: "Date", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "note_label", Group: "meta", Label: "Note", Default: "Note", Can: canText | canCase},
 
 	{Key: "col_item", Group: "columns", Label: "Item", Default: "ITEM", Can: canText | canCase},
@@ -101,17 +103,17 @@ var receiptElements = []receiptElementInfo{
 	{Key: "col_total", Group: "columns", Label: "Total", Default: "TOTAL", Can: canText | canCase},
 	{Key: "col_amount", Group: "columns", Label: "Amount", Default: "AMOUNT", Can: canText | canCase},
 
-	{Key: "subtotal", Group: "totals", Label: "Subtotal", Default: "Subtotal", Can: canText | canCase | canHide},
-	{Key: "discount", Group: "totals", Label: "Discount", Default: "Discount", Can: canText | canCase},
-	{Key: "rounding", Group: "totals", Label: "Rounding", Default: "Rounding", Can: canText | canCase},
-	{Key: "items_count", Group: "totals", Label: "Items count", Default: "Items", Can: canText | canCase | canHide},
-	{Key: "you_saved", Group: "totals", Label: "You saved", Default: "You saved", Can: canText | canCase | canHide},
+	{Key: "subtotal", Group: "totals", Label: "Subtotal", Default: "Subtotal", Can: canText | canCase | canSize | canBold | canHide},
+	{Key: "discount", Group: "totals", Label: "Discount", Default: "Discount", Can: canText | canCase | canSize | canBold},
+	{Key: "rounding", Group: "totals", Label: "Rounding", Default: "Rounding", Can: canText | canCase | canSize | canBold},
+	{Key: "items_count", Group: "totals", Label: "Items count", Default: "Items", Can: canText | canCase | canSize | canBold | canHide},
+	{Key: "you_saved", Group: "totals", Label: "You saved", Default: "You saved", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "total", Group: "totals", Label: "Total", Default: "TOTAL", Can: canText | canCase},
-	{Key: "equivalent", Group: "totals", Label: "Other currency total", Default: "{currency} equivalent", Can: canText | canCase | canHide},
+	{Key: "equivalent", Group: "totals", Label: "Other currency total", Default: "{currency} equivalent", Can: canText | canCase | canSize | canBold | canHide},
 
 	{Key: "payments_title", Group: "payments", Label: "Title", Default: defaultPaymentsTitle, Can: canAll},
-	{Key: "received", Group: "payments", Label: "Paid line", Default: "Received", Can: canText | canCase},
-	{Key: "change", Group: "payments", Label: "Change line", Default: "Change", Can: canText | canCase},
+	{Key: "received", Group: "payments", Label: "Paid line", Default: "Received", Can: canText | canCase | canSize | canBold},
+	{Key: "change", Group: "payments", Label: "Change line", Default: "Change", Can: canText | canCase | canSize | canBold},
 
 	{Key: "policy_title", Group: "policy", Label: "Title", Default: defaultPolicyTitle, Can: canAll},
 	{Key: "policy_text", Group: "policy", Label: "Policy", Default: defaultReturnPolicy, Can: canText | canCase | canSize | canBold | canAlign},
@@ -163,6 +165,22 @@ func receiptGroupOf(key string) string {
 // the element it now is.
 func (t receiptTexts) element(key string) receiptElement {
 	e := t.Elements[key]
+	// The part's own settings fill what the line leaves unset.
+	if g, ok := t.Groups[receiptGroupOf(key)]; ok {
+		info, _ := receiptElementByKey(key)
+		if e.Case == "" && info.Can&canCase != 0 {
+			e.Case = g.Case
+		}
+		if e.Size == 0 && info.Can&canSize != 0 {
+			e.Size = g.Size
+		}
+		if e.Bold == nil && info.Can&canBold != 0 {
+			e.Bold = g.Bold
+		}
+		if e.Align == "" && info.Can&canAlign != 0 {
+			e.Align = g.Align
+		}
+	}
 	if e.Text == "" {
 		switch key {
 		case "payments_title":
@@ -331,6 +349,7 @@ func (c *receiptCanvas) line(y int, key, value string, size float64, bold, title
 		y, err = c.center(y, value, size, bold, title)
 	}
 	c.markElement(key, top, y)
+	c.markLine(key, value, top, y, size, align)
 	return y, true, err
 }
 
@@ -348,6 +367,7 @@ func (c *receiptCanvas) lineWrapped(y int, key, value string, size float64, bold
 	var err error
 	y, err = c.wrappedAligned(y, value, size, bold, spacing, align)
 	c.markElement(key, top, y)
+	c.markLine(key, value, top, y, size, align)
 	return y, true, err
 }
 
@@ -443,4 +463,111 @@ func (t receiptTexts) extraHeight() int {
 		extra += int(float64(80+6*receiptTextLen(e.Text)) * grow)
 	}
 	return extra
+}
+
+// now is the receipt's date: the one it was given, else the clock's.
+func (c *receiptCanvas) now() time.Time {
+	if !c.data.Now.IsZero() {
+		return c.data.Now
+	}
+	return receiptNow()
+}
+
+// normalizeReceiptGroups keeps a part's capitals, size, weight and alignment.
+func normalizeReceiptGroups(in map[string]receiptElement) map[string]receiptElement {
+	out := map[string]receiptElement{}
+	for key, g := range in {
+		known := false
+		for _, info := range receiptGroups {
+			known = known || info.Key == key
+		}
+		if !known {
+			continue
+		}
+		var n receiptElement
+		if g.Case == "upper" || g.Case == "lower" || g.Case == "title" {
+			n.Case = g.Case
+		}
+		n.Size = float64(int(min(max(g.Size, receiptElementMinSize), receiptElementMaxSize)*2)) / 2
+		if g.Bold != nil {
+			b := *g.Bold
+			n.Bold = &b
+		}
+		if g.Align == "left" || g.Align == "center" || g.Align == "right" {
+			n.Align = g.Align
+		}
+		if n != (receiptElement{}) {
+			out[key] = n
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// The parts under the totals, in their default order; Order rearranges them.
+var receiptFooterOrder = []string{receiptSectionPayments, receiptSectionPolicy, receiptSectionReferral, receiptSectionSocials, receiptSectionThanks}
+
+// normalizeReceiptOrder keeps the known footer parts, once each, and nil
+// when that is the default order.
+func normalizeReceiptOrder(in []string) []string {
+	var out []string
+	for _, key := range in {
+		if slices.Contains(receiptFooterOrder, key) && !slices.Contains(out, key) {
+			out = append(out, key)
+		}
+	}
+	for _, key := range receiptFooterOrder {
+		if !slices.Contains(out, key) {
+			out = append(out, key)
+		}
+	}
+	if slices.Equal(out, receiptFooterOrder) {
+		return nil
+	}
+	return out
+}
+
+// footerOrder is the order the footer parts print in.
+func (t receiptTexts) footerOrder() []string {
+	if order := normalizeReceiptOrder(t.Order); order != nil {
+		return order
+	}
+	return receiptFooterOrder
+}
+
+// row is a label and an amount on one line in an element's size and
+// weight; word is the element's own words within the label, for the designer
+// to edit in place.
+func (c *receiptCanvas) row(y int, key, word, label, amount string, size float64, bold bool) int {
+	size, bold = c.elementStyle(key, size, bold)
+	top := y
+	y, _ = c.twoCol(y, label, amount, size, bold)
+	c.markLine(key, word, top, y, size, "left")
+	return y
+}
+
+// markLine records where an element's line is and what it says, so the
+// designer can type over it on the paper.
+func (c *receiptCanvas) markLine(key, text string, top, bottom int, size float64, align string) {
+	if bottom <= top {
+		return
+	}
+	c.marks = append(c.marks, receiptMark{
+		Kind: "line", Part: key, Top: top, Bottom: bottom, Text: text,
+		SizePx: size * c.bodyFactor() * 2.6, Left: alignCode(align),
+	})
+}
+
+// alignCode keeps a line's alignment in a mark's Left: 1 left, 2 centre,
+// 3 right.
+func alignCode(align string) int {
+	switch align {
+	case "left":
+		return 1
+	case "right":
+		return 3
+	}
+	return 2
 }

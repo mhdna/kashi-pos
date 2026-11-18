@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"image/png"
 	"strings"
+	"time"
 )
 
 // The renderer as central uses it (its copy of these files, package
@@ -46,13 +47,27 @@ type DesignerMark struct {
 	Bottom int    `json:"bottom"`
 }
 
-// DesignerPreview is the drawn receipt (PNG, as the printer prints it) and
-// where its parts are, merged per part.
+// DesignerLine is one line the designer can type over on the paper: which
+// element, where, what it says, its size in the picture's pixels and its
+// alignment.
+type DesignerLine struct {
+	Key    string  `json:"key"`
+	Group  string  `json:"group"`
+	Top    int     `json:"top"`
+	Bottom int     `json:"bottom"`
+	Text   string  `json:"text"`
+	SizePx float64 `json:"size_px"`
+	Align  string  `json:"align"`
+}
+
+// DesignerPreview is the drawn receipt (PNG, as the printer prints it),
+// where its parts are, merged per part, and its lines.
 type DesignerPreview struct {
 	PNG    []byte         `json:"-"`
 	Width  int            `json:"width"`
 	Height int            `json:"height"`
 	Marks  []DesignerMark `json:"marks"`
+	Lines  []DesignerLine `json:"lines"`
 }
 
 // RenderDesignerPreview draws the sample receipt for a branch with a design.
@@ -92,12 +107,12 @@ func RenderDesignerPreview(in DesignerInput) (DesignerPreview, error) {
 			data.ReferralNote = data.Texts.referralNote(percent)
 		}
 	}
-	png, marks, err := renderReceiptPreviewMarked(data, in.Theme, in.Layout)
+	png, marks, err := renderDesignerPNG(data, in.Theme, in.Layout)
 	if err != nil {
 		return DesignerPreview{}, err
 	}
 	w, h := pngDims(png)
-	return DesignerPreview{PNG: png, Width: w, Height: h, Marks: designerMarks(marks)}, nil
+	return DesignerPreview{PNG: png, Width: w, Height: h, Marks: designerMarks(marks), Lines: designerLines(marks)}, nil
 }
 
 // designerMarks is one band per part: from its first line to its last.
@@ -115,6 +130,28 @@ func designerMarks(marks []receiptMark) []DesignerMark {
 		}
 		index[m.Part] = len(out)
 		out = append(out, DesignerMark{Group: m.Part, Top: m.Top, Bottom: m.Bottom})
+	}
+	return out
+}
+
+// designerLines are the lines whose words can be changed, in print order.
+func designerLines(marks []receiptMark) []DesignerLine {
+	aligns := map[int]string{1: "left", 2: "center", 3: "right"}
+	var out []DesignerLine
+	for _, m := range marks {
+		if m.Kind != "line" {
+			continue
+		}
+		info, ok := receiptElementByKey(m.Part)
+		if !ok || info.Can&canText == 0 {
+			continue
+		}
+		text := m.Text
+		if m.Part == "referral_title" {
+			// The title's words, without the sample code printed after them.
+			text = strings.TrimSuffix(text, " "+sampleReferralCode)
+		}
+		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left]})
 	}
 	return out
 }
@@ -141,9 +178,11 @@ func DesignerCatalog() map[string]any {
 		"can": map[string]int{
 			"text": canText, "case": canCase, "size": canSize, "bold": canBold, "align": canAlign, "hide": canHide,
 		},
-		"size_min":   receiptElementMinSize,
-		"size_max":   receiptElementMaxSize,
-		"max_length": receiptTextMaxLen,
+		"line_styles":  receiptLineStyles,
+		"footer_order": receiptFooterOrder,
+		"size_min":     receiptElementMinSize,
+		"size_max":     receiptElementMaxSize,
+		"max_length":   receiptTextMaxLen,
 	}
 }
 
@@ -170,4 +209,19 @@ func pngDims(data []byte) (int, int) {
 		return 0, 0
 	}
 	return cfg.Width, cfg.Height
+}
+
+// renderDesignerPNG draws a preview with fast compression: it's drawn again
+// on every change, and the best compression was a third of its time.
+func renderDesignerPNG(data printReceiptData, theme, layout string) ([]byte, []receiptMark, error) {
+	data.Theme, data.Layout = theme, layout
+	// The sample's date, given with the receipt: central draws previews for
+	// several people at once, so nothing global is changed.
+	data.Now = time.Date(2026, 10, 19, 14, 30, 0, 0, time.UTC)
+	img, marks, err := renderReceiptRasterMarked(data)
+	if err != nil {
+		return nil, nil, err
+	}
+	out, err := encodeBilevelPNGLevel(img, png.BestSpeed)
+	return out, marks, err
 }
