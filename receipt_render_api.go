@@ -47,13 +47,27 @@ type DesignerMark struct {
 	Bottom int    `json:"bottom"`
 }
 
-// DesignerPreview is the drawn receipt (PNG, as the printer prints it) and
-// where its parts are, merged per part.
+// DesignerLine is one line the designer can type over on the paper: which
+// element, where, what it says, its size in the picture's pixels and its
+// alignment.
+type DesignerLine struct {
+	Key    string  `json:"key"`
+	Group  string  `json:"group"`
+	Top    int     `json:"top"`
+	Bottom int     `json:"bottom"`
+	Text   string  `json:"text"`
+	SizePx float64 `json:"size_px"`
+	Align  string  `json:"align"`
+}
+
+// DesignerPreview is the drawn receipt (PNG, as the printer prints it),
+// where its parts are, merged per part, and its lines.
 type DesignerPreview struct {
 	PNG    []byte         `json:"-"`
 	Width  int            `json:"width"`
 	Height int            `json:"height"`
 	Marks  []DesignerMark `json:"marks"`
+	Lines  []DesignerLine `json:"lines"`
 }
 
 // RenderDesignerPreview draws the sample receipt for a branch with a design.
@@ -98,7 +112,7 @@ func RenderDesignerPreview(in DesignerInput) (DesignerPreview, error) {
 		return DesignerPreview{}, err
 	}
 	w, h := pngDims(png)
-	return DesignerPreview{PNG: png, Width: w, Height: h, Marks: designerMarks(marks)}, nil
+	return DesignerPreview{PNG: png, Width: w, Height: h, Marks: designerMarks(marks), Lines: designerLines(marks)}, nil
 }
 
 // designerMarks is one band per part: from its first line to its last.
@@ -116,6 +130,23 @@ func designerMarks(marks []receiptMark) []DesignerMark {
 		}
 		index[m.Part] = len(out)
 		out = append(out, DesignerMark{Group: m.Part, Top: m.Top, Bottom: m.Bottom})
+	}
+	return out
+}
+
+// designerLines are the lines whose words can be changed, in print order.
+func designerLines(marks []receiptMark) []DesignerLine {
+	aligns := map[int]string{1: "left", 2: "center", 3: "right"}
+	var out []DesignerLine
+	for _, m := range marks {
+		if m.Kind != "line" {
+			continue
+		}
+		info, ok := receiptElementByKey(m.Part)
+		if !ok || info.Can&canText == 0 {
+			continue
+		}
+		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: m.Text, SizePx: m.SizePx, Align: aligns[m.Left]})
 	}
 	return out
 }
@@ -142,9 +173,11 @@ func DesignerCatalog() map[string]any {
 		"can": map[string]int{
 			"text": canText, "case": canCase, "size": canSize, "bold": canBold, "align": canAlign, "hide": canHide,
 		},
-		"size_min":   receiptElementMinSize,
-		"size_max":   receiptElementMaxSize,
-		"max_length": receiptTextMaxLen,
+		"line_styles":  receiptLineStyles,
+		"footer_order": receiptFooterOrder,
+		"size_min":     receiptElementMinSize,
+		"size_max":     receiptElementMaxSize,
+		"max_length":   receiptTextMaxLen,
 	}
 }
 

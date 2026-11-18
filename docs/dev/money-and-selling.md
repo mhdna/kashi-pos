@@ -312,6 +312,12 @@ sell at their typed price and show no chip. The cart sends the line's
   as `receiptElements` allows for it; `date_format` picks the date. All of it
   lives in `receipt_texts.elements`; nothing set prints exactly as before
   (checked against every preview picture).
+- A whole ==part== can take capitals, size, bold and alignment at once
+  (`groups`); a line's own setting wins. Each part can have a line above, its
+  divider swapped or taken away (`below: "none"`) and a box, dotted, dashed,
+  solid or double, 1 to 4 thick, square or rounded (`decor`,
+  `receipt_decor.go`). The parts under the totals print in `order`. Nothing set
+  is the look exactly as before.
 - The renderer builds on its own (`scripts/receipt-render-files.txt`,
   `TestReceiptRendererBuildsAlone`): central copies it to draw the designer's
   live receipt with the same code.
