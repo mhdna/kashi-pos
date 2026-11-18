@@ -27,7 +27,6 @@
                     :always-anonymous-available="alwaysAnonymousClientEnabled"
                   />
                 </div>
-                <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
                 <RewardsButton
                   v-if="pageMode === 'sale'"
                   v-model="referralCode"
@@ -85,6 +84,18 @@
             @blur="onBlur"
             @keydown.enter="onBarcodeEnter"
           />
+          <k-btn
+            icon
+            class="ms-1 note-btn"
+            :class="{ 'note-has-content': invoiceNotes.trim().length > 0 }"
+            variant="text"
+            aria-label="Invoice note"
+            title="Invoice note"
+            data-test="note-open"
+            @click="openNoteDialog"
+          >
+            <k-icon :icon="invoiceNotes.trim() ? 'mdi-check-circle' : 'mdi-note-text-outline'" size="26" />
+          </k-btn>
           <k-btn
             v-if="pageMode !== 'settlement'"
             icon
@@ -467,7 +478,6 @@ import VariantPicker from "@/components/VariantPicker.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 import type { DealLine } from "@/lib/deals";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
-import NoteButton from "@/components/NoteButton.vue";
 import RewardsButton from "@/components/RewardsButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
@@ -1966,6 +1976,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* A sale with a note: the note button turns orange with a tick. */
+.note-btn.note-has-content {
+  color: rgb(245, 127, 23);
+}
+
 .empty-cart-card {
   background-color: rgb(var(--k-theme-surface)) !important;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
