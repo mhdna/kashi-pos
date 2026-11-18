@@ -336,6 +336,10 @@ func TestReceiptDesignsRandomized(t *testing.T) {
 	words := []string{"", "Hi", "  spaced  ", "LONG " + strings.Repeat("word ", 20), "شكراً", "{percent} off", "{currency}"}
 	cases := []string{"", "upper", "lower", "title", "junk"}
 	aligns := []string{"", "left", "center", "right", "middle"}
+	fonts := []string{"", "junk"}
+	for _, f := range receiptFonts {
+		fonts = append(fonts, f.Key)
+	}
 	themes := receiptThemeCatalog()
 	for run := 0; run < 120; run++ {
 		elements := map[string]receiptElement{}
@@ -347,6 +351,7 @@ func TestReceiptDesignsRandomized(t *testing.T) {
 			elements[info.Key] = receiptElement{
 				Text: words[rng.Intn(len(words))], Case: cases[rng.Intn(len(cases))],
 				Size: float64(rng.Intn(30) - 10), Bold: &b, Align: aligns[rng.Intn(len(aligns))], Hide: rng.Intn(5) == 0,
+				Font: fonts[rng.Intn(len(fonts))],
 			}
 		}
 		texts := normalizeReceiptTexts(receiptTexts{Elements: elements, DateFormat: receiptDateFormats[rng.Intn(len(receiptDateFormats))].Key})

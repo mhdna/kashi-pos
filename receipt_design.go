@@ -36,6 +36,8 @@ type receiptElement struct {
 	Align string `json:"align,omitempty"`
 	// Hide leaves the line out.
 	Hide bool `json:"hide,omitempty"`
+	// Font is one of receiptFonts; "" the look's own.
+	Font string `json:"font,omitempty"`
 }
 
 // What an element can change.
@@ -46,6 +48,7 @@ const (
 	canBold              // weight
 	canAlign             // alignment
 	canHide              // leave it out
+	canFont              // its font
 )
 
 const canAll = canText | canCase | canSize | canBold | canAlign | canHide
@@ -183,6 +186,9 @@ func (t receiptTexts) element(key string) receiptElement {
 		if e.Align == "" && info.Can&canAlign != 0 {
 			e.Align = g.Align
 		}
+		if e.Font == "" && info.Can&canFont != 0 {
+			e.Font = g.Font
+		}
 	}
 	if e.Text == "" {
 		switch key {
@@ -308,6 +314,9 @@ func normalizeReceiptElements(in map[string]receiptElement, clean func(string) s
 		if info.Can&canAlign != 0 && (e.Align == "left" || e.Align == "center" || e.Align == "right") {
 			n.Align = e.Align
 		}
+		if info.Can&canFont != 0 {
+			n.Font = validReceiptFont(e.Font)
+		}
 		if info.Can&canHide != 0 {
 			n.Hide = e.Hide
 		}
@@ -353,6 +362,7 @@ func (c *receiptCanvas) line(y int, key, value string, size float64, bold, title
 	if e.Hide || strings.TrimSpace(value) == "" {
 		return y, false, nil
 	}
+	defer c.useFont(e.Font)()
 	size, bold = c.elementStyle(key, size, bold)
 	if e.Align != "" {
 		align = e.Align
@@ -382,6 +392,7 @@ func (c *receiptCanvas) lineWrapped(y int, key, value string, size float64, bold
 	if e.Hide || strings.TrimSpace(value) == "" {
 		return y, false, nil
 	}
+	defer c.useFont(e.Font)()
 	size, bold = c.elementStyle(key, size, bold)
 	if e.Align != "" {
 		align = e.Align
@@ -519,6 +530,7 @@ func normalizeReceiptGroups(in map[string]receiptElement) map[string]receiptElem
 		if g.Align == "left" || g.Align == "center" || g.Align == "right" {
 			n.Align = g.Align
 		}
+		n.Font = validReceiptFont(g.Font)
 		if n != (receiptElement{}) {
 			out[key] = n
 		}
@@ -564,6 +576,7 @@ func (t receiptTexts) footerOrder() []string {
 // weight; word is the element's own words within the label, for the designer
 // to edit in place.
 func (c *receiptCanvas) row(y int, key, word, label, amount string, size float64, bold bool) int {
+	defer c.useFont(c.data.Texts.element(key).Font)()
 	size, bold = c.elementStyle(key, size, bold)
 	top := y
 	y, _ = c.twoCol(y, label, amount, size, bold)
@@ -584,6 +597,7 @@ func (c *receiptCanvas) markLine(key, text string, top, bottom int, size float64
 	c.marks = append(c.marks, receiptMark{
 		Kind: "line", Part: key, Top: top, Bottom: bottom, Text: text,
 		SizePx: size * c.bodyFactor() * 2.6, Left: alignCode(align),
+		Font: c.lastFont, Bold: c.lastBold,
 	})
 }
 
@@ -618,6 +632,17 @@ func (c *receiptCanvas) wordWith(key, def, after string) string {
 	return w + after
 }
 
+// pendingFont is the font set for words about to be drawn among others on
+// a row (a column title, TOTAL), when they are pending; "" for none.
+func (c *receiptCanvas) pendingFont(value string) string {
+	for _, p := range c.pendingWords {
+		if p.text == value {
+			return c.data.Texts.element(p.key).Font
+		}
+	}
+	return ""
+}
+
 // markPendingWord marks words just drawn at x when they are a pending word.
 func (c *receiptCanvas) markPendingWord(value string, x, top, bottom int, size float64, role fontRole, width int) {
 	for i, p := range c.pendingWords {
@@ -631,6 +656,7 @@ func (c *receiptCanvas) markPendingWord(value string, x, top, bottom int, size f
 		c.marks = append(c.marks, receiptMark{
 			Kind: "line", Part: p.key, Top: top, Bottom: bottom, Text: p.word,
 			SizePx: size * scale * 2.6, Left: alignCode("left"), X0: x, X1: x + width,
+			Font: c.lastFont, Bold: c.lastBold,
 		})
 		c.pendingWords = append(c.pendingWords[:i], c.pendingWords[i+1:]...)
 		// The same words measured first are pending again; one mark each.

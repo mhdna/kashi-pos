@@ -32,6 +32,17 @@ type receiptBanner struct {
 	When string `json:"when,omitempty"`
 	// Place: "" under the shop's name, "bottom" at the end of the receipt.
 	Place string `json:"place,omitempty"`
+	// Font, when set, is the title's font (receiptFonts) instead of the
+	// style's own.
+	Font string `json:"font,omitempty"`
+}
+
+// titleFont is the banner's own font, else the style's.
+func (b receiptBanner) titleFont(style string) string {
+	if b.Font != "" {
+		return b.Font
+	}
+	return style
 }
 
 // receiptBannerStyleInfo describes a style for the designer.
@@ -107,6 +118,7 @@ func normalizeReceiptBanners(in []receiptBanner) []receiptBanner {
 		if b.Place == "bottom" {
 			n.Place = "bottom"
 		}
+		n.Font = validReceiptFont(b.Font)
 		out = append(out, n)
 	}
 	return out
@@ -156,6 +168,9 @@ var (
 )
 
 func bannerFontData(name string) []byte {
+	if f, ok := receiptFontByKey(name); ok {
+		return f.Bold
+	}
 	switch name {
 	case "jost":
 		return jostSemiBold
@@ -299,7 +314,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 	switch b.Style {
 	case "ribbon":
 		// A black band with notched ends, white letters.
-		face, _ := c.fitFace("jost", b.Title, 64, c.contentW-90)
+		face, _ := c.fitFace(b.titleFont("jost"), b.Title, 64, c.contentW-90)
 		m := face.Metrics()
 		subH := 0
 		if b.Subtitle != "" {
@@ -314,7 +329,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		return bot
 	case "burst":
 		// A black band with zigzag edges.
-		face, _ := c.fitFace("manrope", b.Title, 60, c.contentW-40)
+		face, _ := c.fitFace(b.titleFont("manrope"), b.Title, 60, c.contentW-40)
 		m := face.Metrics()
 		subH := 0
 		if b.Subtitle != "" {
@@ -338,7 +353,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		return bot + zig
 	case "stamp":
 		// A thick rounded frame, heavy serif letters.
-		face, _ := c.fitFace("playfair", b.Title, 58, c.contentW-60)
+		face, _ := c.fitFace(b.titleFont("playfair"), b.Title, 58, c.contentW-60)
 		top := y
 		ty := c.bannerText(face, b.Title, left, right, top+18, black)
 		ty = sub(ty+2, "jost", 24, black, left, right)
@@ -349,7 +364,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		return bot
 	case "frame":
 		// A double-lined box, an elegant serif title.
-		face, _ := c.fitFace("cormorant", b.Title, 72, c.contentW-60)
+		face, _ := c.fitFace(b.titleFont("cormorant"), b.Title, 72, c.contentW-60)
 		top := y
 		ty := c.bannerText(face, b.Title, left, right, top+14, black)
 		if b.Subtitle != "" {
@@ -362,7 +377,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		return bot
 	case "ornament":
 		// The title between rules, with diamonds.
-		face, _ := c.fitFace("playfair", b.Title, 56, c.contentW-140)
+		face, _ := c.fitFace(b.titleFont("playfair"), b.Title, 56, c.contentW-140)
 		top := y
 		m := face.Metrics()
 		mid := top + (m.Ascent.Ceil()+m.Descent.Ceil())/2
@@ -378,7 +393,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		return sub(ty+4, "lora", 24, black, left, right) + 6
 	case "stars":
 		// Rows of stars around a bold title.
-		face, _ := c.fitFace("manrope", b.Title, 58, c.contentW-20)
+		face, _ := c.fitFace(b.titleFont("manrope"), b.Title, 58, c.contentW-20)
 		top := y
 		row := func(cy int) {
 			for i, x := 0, left+18; x < right; i, x = i+1, x+44 {

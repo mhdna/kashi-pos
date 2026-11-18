@@ -14,3 +14,4 @@ receipt_design.go
 receipt_render_api.go
 receipt_decor.go
 receipt_banner.go
+receipt_fonts.go
