@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-18: The Referral button stayed hidden after central turned referrals on
+
+**Symptom:** after switching referrals on for a branch in kashi, the till's sale screen still had no Referral button, even once the till had the new rules. It only appeared after leaving the sale screen and coming back, or restarting the till.
+
+**Cause:** the button asked whether referrals are on once, when the sale screen opened (and when its own dialog opened, which it can't while hidden). Nothing told it when the till pulled new rules from central.
+
+**Fix:** the button listens for `sync_applied:referral_program`, which the till emits after it applies central's rules, and asks again, so it appears or goes as soon as the rules arrive (`frontend/src/components/ReferralCodeButton.vue`). Tests "appears as soon as central's rules arrive, without leaving the screen" and "stops listening when the screen goes" in `ReferralCodeButton.test.ts`.
+
 ## 2026-11-17: The discount sat beside "Rounded" instead of under the total
 
 **Symptom:** on a cash sale with a rounded total and a discount, the card showed Total, then "Rounded" with "Discount −$14" on the same line, to its right, instead of the discount stacked under the total.

@@ -13,6 +13,14 @@ vi.mock("../../wailsjs/go/main/App", () => ({
   GetReferralInfo: vi.fn(),
 }));
 
+const listeners = new Map<string, () => void>();
+vi.mock("../../wailsjs/runtime/runtime", () => ({
+  EventsOn: vi.fn((name: string, cb: () => void) => {
+    listeners.set(name, cb);
+    return () => listeners.delete(name);
+  }),
+}));
+
 import { CheckReferralCode, GetReferralInfo } from "../../wailsjs/go/main/App";
 import ReferralCodeButton from "./ReferralCodeButton.vue";
 
@@ -59,6 +67,29 @@ describe("ReferralCodeButton", () => {
     getInfo.mockResolvedValue({ enabled: false, rewardPercent: 0, code: "", rewardOfferPercent: 0 } as never);
     await mountButton();
     expect(find("referral-open")).toBeNull();
+  });
+
+  it("the reported case: appears as soon as central's rules arrive, without leaving the screen", async () => {
+    getInfo.mockResolvedValue({ enabled: false, rewardPercent: 0, code: "", rewardOfferPercent: 0 } as never);
+    await mountButton();
+    expect(find("referral-open")).toBeNull();
+    getInfo.mockResolvedValue({ enabled: true, rewardPercent: 15, code: "", rewardOfferPercent: 0 } as never);
+    listeners.get("sync_applied:referral_program")?.();
+    await flushPromises();
+    expect(find("referral-open")).not.toBeNull();
+    // And goes again when central turns this branch off.
+    getInfo.mockResolvedValue({ enabled: false, rewardPercent: 0, code: "", rewardOfferPercent: 0 } as never);
+    listeners.get("sync_applied:referral_program")?.();
+    await flushPromises();
+    expect(find("referral-open")).toBeNull();
+  });
+
+  it("stops listening when the screen goes", async () => {
+    await mountButton();
+    expect(listeners.has("sync_applied:referral_program")).toBe(true);
+    wrapper?.unmount();
+    wrapper = null;
+    expect(listeners.has("sync_applied:referral_program")).toBe(false);
   });
 
   it("explains the reward and catches a typo without asking the backend", async () => {

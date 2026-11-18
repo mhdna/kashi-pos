@@ -46,9 +46,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { CheckReferralCode, GetReferralInfo } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { normalizeReferralCode, referralCodeHint } from "@/lib/referralCode";
 
 const props = defineProps<{ modelValue: string; clientId: number }>();
@@ -72,6 +73,11 @@ async function loadInfo() {
   }
 }
 void loadInfo();
+// Central switching referrals on or off at this branch reaches the till as
+// a pull of the rules; look again then, so the button comes and goes without
+// leaving the sale screen.
+const stopListening = EventsOn("sync_applied:referral_program", () => void loadInfo());
+onUnmounted(() => stopListening?.());
 
 const hint = computed(() => referralCodeHint(draft.value));
 const message = computed(() => {
