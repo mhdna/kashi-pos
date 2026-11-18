@@ -88,7 +88,6 @@
           </div>
         </k-card-text>
         <k-card-actions class="pa-4">
-          <span v-if="appliedName" class="rewards-now" data-test="rewards-now">Now off this sale: {{ appliedName }}</span>
           <k-spacer />
           <k-btn color="primary" variant="elevated" data-test="rewards-done" @click="dialog = false">Done</k-btn>
         </k-card-actions>

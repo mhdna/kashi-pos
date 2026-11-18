@@ -137,7 +137,7 @@ describe("RewardsButton", () => {
     await openDialog();
     expect(find("auto-applied")).not.toBeNull();
     expect(find("auto-auto")?.className).toContain("reward-card--applied");
-    expect(find("rewards-now")?.textContent).toContain("15% off $100");
+    expect(find("rewards-now")).toBeNull();
   });
 
   it("is hidden with no referrals and no deals; comes when central sends some", async () => {
