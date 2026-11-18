@@ -115,7 +115,7 @@
             aria-label="Add an unknown item"
             @click="openUnknownPrice('')"
           >
-            <k-icon icon="mdi-help-circle-outline" size="26" />
+            <k-icon icon="mdi-help-box-outline" size="26" />
           </k-btn>
           <k-btn
             v-if="pageMode !== 'settlement' && productSearchEnabled"
