@@ -10,7 +10,7 @@
     <k-card class="on-hold-card d-flex flex-column text-center" height="480" rounded="lg">
       <k-card-title class="d-flex flex-column align-center pa-4 flex-shrink-0">
         <div class="text-subtitle-1 font-weight-bold">Invoices on hold</div>
-        <div class="text-caption text-medium-emphasis">{{ holds.length }} held</div>
+        <div v-if="holds.length" class="text-caption text-medium-emphasis" data-test="held-count">{{ holds.length }} held</div>
       </k-card-title>
       <k-divider />
       <k-card-text class="on-hold-list pa-0 flex-grow-1 overflow-y-auto">

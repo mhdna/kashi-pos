@@ -133,6 +133,14 @@ describe("OnHoldMenu", () => {
     expect(text).toContain("#22 — 1 item");
   });
 
+  it("says nothing about a count when nothing is held; the empty list says it", async () => {
+    listHolds.mockResolvedValue([]);
+    await openMenu();
+    expect(document.querySelector('[data-test="held-count"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("0 held");
+    expect(document.body.textContent).toContain("No invoices on hold");
+  });
+
   it("has no icon above its title, just the title and the count", async () => {
     listHolds.mockResolvedValue([heldSale]);
     await openMenu();
