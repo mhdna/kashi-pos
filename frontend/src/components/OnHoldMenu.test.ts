@@ -141,13 +141,13 @@ describe("OnHoldMenu", () => {
     expect(document.body.textContent).toContain("No invoices on hold");
   });
 
-  it("has no icon above its title, just the title and the count", async () => {
+  it("shows the pause icon above its title, and the count", async () => {
     listHolds.mockResolvedValue([heldSale]);
     await openMenu();
     const title = document.querySelector(".on-hold-card .k-card-title, .on-hold-card [class*='card-title']");
     expect(title?.textContent).toContain("Invoices on hold");
     expect(title?.textContent).toContain("1 held");
-    expect(title?.querySelector("svg, .k-avatar, [class*='avatar']")).toBeNull();
+    expect(title?.querySelector("svg, .k-avatar, [class*='avatar']")).not.toBeNull();
   });
 
   it("tells an exchange from a sale by icon, colour and tag", async () => {

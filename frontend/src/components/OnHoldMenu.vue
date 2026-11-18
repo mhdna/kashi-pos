@@ -9,6 +9,9 @@
   <k-dialog v-model="menu" max-width="500">
     <k-card class="on-hold-card d-flex flex-column text-center" height="480" rounded="lg">
       <k-card-title class="d-flex flex-column align-center pa-4 flex-shrink-0">
+        <k-avatar color="primary" variant="tonal" size="56" class="mb-2">
+          <k-icon icon="mdi-pause" size="28" />
+        </k-avatar>
         <div class="text-subtitle-1 font-weight-bold">Invoices on hold</div>
         <div v-if="holds.length" class="text-caption text-medium-emphasis" data-test="held-count">{{ holds.length }} held</div>
       </k-card-title>
