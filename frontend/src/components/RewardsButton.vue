@@ -97,7 +97,6 @@
       <k-card>
         <k-card-title>Referral code</k-card-title>
         <k-card-text>
-          <p class="rewards-explain">Client referral code</p>
           <div v-if="modelValue" class="reward-referral-current" data-test="referral-current">
             <div>
               <div class="reward-line">{{ modelValue }}</div>
@@ -122,7 +121,7 @@
             <div v-if="message" class="rewards-message" :class="messageError ? 'text-error' : ''" data-test="referral-message">
               {{ message }}
             </div>
-            <InlineKeyboard v-model="draft" :max-length="12" class="mt-3" />
+            <InlineKeyboard v-model="draft" :max-length="12" layout="caps" class="mt-3" />
           </template>
         </k-card-text>
         <k-card-actions class="pa-4">

@@ -174,7 +174,12 @@ describe("RewardsButton", () => {
   it("explains the reward and catches a typo without asking the backend", async () => {
     await mountButton();
     await openCode();
-    expect(document.body.textContent).toContain("Client referral code");
+    expect(document.body.textContent).not.toContain("Client referral code");
+    // The keyboard has the number row and types capitals.
+    const keys = [...document.body.querySelectorAll(".inline-keyboard-key")].map((k) => k.textContent?.trim());
+    expect(keys.slice(0, 10)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]);
+    expect(keys).toContain("K");
+    expect(keys).not.toContain("k");
     await type("K7M4QA");
     expect(find("referral-message")?.textContent).toMatch(/typo/);
     find("referral-add")!.click();

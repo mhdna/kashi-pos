@@ -15,7 +15,7 @@
         variant="tonal"
         @click="append(letter)"
       >
-        {{ shift ? letter : letter.toLowerCase() }}
+        {{ shift || caps ? letter : letter.toLowerCase() }}
       </k-btn>
     </div>
     <div class="inline-keyboard-actions">
@@ -49,7 +49,8 @@ const props = withDefaults(
   defineProps<{
     modelValue: string;
     maxLength?: number;
-    layout?: "text" | "code" | "note";
+    // "caps": the number row and capitals only, for codes like K7M4QH.
+    layout?: "text" | "code" | "note" | "caps";
     // The field being typed into. Given, keys type at its caret (replacing
     // a selection) and the caret keys show; without it they add at the end.
     input?: HTMLInputElement | HTMLTextAreaElement | null;
@@ -75,6 +76,7 @@ const visibleRows = computed(() => (props.layout === "text" ? rows : [numberRow,
 // A note reads as sentences ("Gift wrap, call on Monday"), not Title Case
 // Words like a name: capitals only at the start and after . ! ?
 const sentenceCase = computed(() => props.layout === "note");
+const caps = computed(() => props.layout === "caps");
 const shift = ref(false);
 
 // The field's selection, or the end of the text when it isn't focused (or
@@ -103,8 +105,8 @@ function append(character: string) {
   const before = props.modelValue.slice(0, start);
   const wordStart = sentenceCase.value ? !before.trim() || /[.!?]\s+$/.test(before) : !before || /[\s'-]$/.test(before);
   const value =
-    character === " "
-      ? character
+    character === " " || caps.value
+      ? character.toUpperCase()
       : wordStart || shift.value
         ? character.toUpperCase()
         : sentenceCase.value && !/[a-z]/i.test(character)
