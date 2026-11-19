@@ -198,6 +198,9 @@ type branchClientPayload struct {
 	// or answers with the canonical uid when the phone already belongs to
 	// an existing client (see adoptCanonicalClientUID).
 	UID string `json:"uid,omitempty"`
+	// ReferralCode is the client's code; central keeps a new client's code
+	// from the till (made offline at their first sale), else its own.
+	ReferralCode string `json:"referral_code,omitempty"`
 }
 
 // queueBranchClientSync upserts the single sync_outbox row for one client,
@@ -220,6 +223,7 @@ func queueBranchClientSync(ctx context.Context, q *db.Queries, centralAPIURL str
 		Name:           client.Name,
 		Phone:          client.Phone,
 		UID:            client.Uid.String,
+		ReferralCode:   client.ReferralCode,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal client sync payload: %w", err)
@@ -239,7 +243,7 @@ func queueBranchClientSync(ctx context.Context, q *db.Queries, centralAPIURL str
 // invoice is queued, so the client row lands first and central can attribute
 // the invoice immediately.
 func queueBranchClientSyncForPurchase(ctx context.Context, q *db.Queries, centralAPIURL string, clientID int64) error {
-	if centralAPIURL == "" || clientID <= 0 {
+	if clientID <= 0 {
 		return nil
 	}
 	client, err := q.GetClientByID(ctx, clientID)
@@ -247,6 +251,19 @@ func queueBranchClientSyncForPurchase(ctx context.Context, q *db.Queries, centra
 		return fmt.Errorf("load client for sync: %w", err)
 	}
 	if isWalkInClient(client) {
+		return nil
+	}
+	// A customer without a code gets one here, offline first: their receipt
+	// prints it at once and central keeps it (sent with the client).
+	if client.ReferralCode == "" {
+		if code, err := newLocalReferralCode(ctx, q); err == nil {
+			if err := q.SetClientReferralCode(ctx, db.SetClientReferralCodeParams{ReferralCode: code, ID: client.ID}); err != nil {
+				return fmt.Errorf("referral code: %w", err)
+			}
+			client.ReferralCode = code
+		}
+	}
+	if centralAPIURL == "" {
 		return nil
 	}
 	return queueBranchClientSync(ctx, q, centralAPIURL, client)

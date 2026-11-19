@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"math/big"
 	"strings"
 	"time"
 
@@ -88,7 +92,6 @@ func applySyncedReferralProgram(ctx context.Context, q *db.Queries, p syncedRefe
 		RewardTo: to, FriendPercent: p.FriendPercent,
 	})
 }
-
 
 // referralRewardsFriend says whether the new customer gets the program's
 // friend percent off the sale they use a code on.
@@ -367,4 +370,50 @@ func referralReceiptNote(program db.ReferralProgram, client db.Client, texts rec
 func referralCodeUsed(ctx context.Context, q *db.Queries, owner db.Client) (bool, error) {
 	n, err := q.CountReferralUsesOfOwner(ctx, db.CountReferralUsesOfOwnerParams{OwnerUid: owner.Uid.String, Code: owner.ReferralCode})
 	return n > 0, err
+}
+
+// adoptPushedReferralCode keeps the referral code central answered a client
+// push with, so the till has it at once instead of on the next pull.
+func (a *App) adoptPushedReferralCode(ctx context.Context, entry db.SyncOutbox, code string) {
+	code = normalizeReferralCode(code)
+	if !validReferralCode(code) {
+		return
+	}
+	var p branchClientPayload
+	if err := json.Unmarshal([]byte(entry.PayloadJson), &p); err != nil || p.BranchClientID <= 0 {
+		return
+	}
+	if err := retryBusy(func() error {
+		return a.store.SetClientReferralCode(ctx, db.SetClientReferralCodeParams{ReferralCode: code, ID: p.BranchClientID})
+	}); err != nil {
+		log.Printf("sync outbox entry %d: keep referral code: %v", entry.ID, err)
+	}
+}
+
+// newLocalReferralCode makes a code no client here has. Central keeps it
+// for the new client it is sent with; on the rare clash with a code made on
+// another till since the last sync, central gives its own and the till takes
+// that (adoptPushedReferralCode).
+func newLocalReferralCode(ctx context.Context, q *db.Queries) (string, error) {
+	for range 50 {
+		body := make([]byte, referralCodeLength-1)
+		for i := range body {
+			n, err := rand.Int(rand.Reader, big.NewInt(int64(len(referralAlphabet))))
+			if err != nil {
+				return "", err
+			}
+			body[i] = referralAlphabet[n.Int64()]
+		}
+		check, ok := referralCheckChar(string(body))
+		if !ok {
+			continue
+		}
+		code := string(body) + string(check)
+		if _, err := q.GetClientByReferralCode(ctx, code); errors.Is(err, sql.ErrNoRows) {
+			return code, nil
+		} else if err != nil {
+			return "", err
+		}
+	}
+	return "", errors.New("no free referral code")
 }

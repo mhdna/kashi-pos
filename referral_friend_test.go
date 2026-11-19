@@ -382,3 +382,54 @@ func TestDarkLines(t *testing.T) {
 		}
 	}
 }
+
+// The reported case: a customer added at checkout got no code on their
+// receipt (central makes codes and the till only learned them on the next
+// sync), but a reprint showed it. Now the till makes it at the sale, offline
+// (central here is unreachable), prints it, and sends it up with the client.
+func TestNewCustomerCodeOnFirstReceipt(t *testing.T) {
+	shop := setUpDealShop(t)
+	setFriendProgram(t, shop, referralRewardBoth, 15, 0)
+	ctx := context.Background()
+	maya := newShopClient(t, shop, "Maya", "70777001", "")
+	if _, _, err := sellWithCode(t, shop, maya, "", nil, "JACKET"); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := shop.store.GetClientByID(ctx, maya.ID)
+	if !validReferralCode(after.ReferralCode) {
+		t.Fatalf("no valid code after the first sale: %q", after.ReferralCode)
+	}
+	if code, note := shop.app.receiptReferral(maya.ID, receiptTexts{}); code != after.ReferralCode || note == "" {
+		t.Fatalf("the first receipt: code %q note %q", code, note)
+	}
+	var payload string
+	if err := shop.app.conn.QueryRow(`SELECT payload_json FROM sync_outbox WHERE client_ref = ?`, fmt.Sprintf("client-%d", maya.ID)).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	var p branchClientPayload
+	_ = json.Unmarshal([]byte(payload), &p)
+	if p.ReferralCode != after.ReferralCode {
+		t.Fatalf("the code isn't sent up: %q", payload)
+	}
+	// A second sale keeps the code.
+	if _, _, err := sellWithCode(t, shop, after, "", nil, "SOCKS"); err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := shop.store.GetClientByID(ctx, maya.ID); again.ReferralCode != after.ReferralCode {
+		t.Fatalf("the code changed: %q to %q", after.ReferralCode, again.ReferralCode)
+	}
+	// Central's answer wins (a clash with another till's code).
+	shop.app.adoptPushedReferralCode(ctx, db.SyncOutbox{PayloadJson: payload}, "7EDXTH")
+	if got, _ := shop.store.GetClientByID(ctx, maya.ID); got.ReferralCode != "7EDXTH" {
+		t.Fatalf("central's code not taken: %q", got.ReferralCode)
+	}
+	// Codes made here never repeat one a client has.
+	seen := map[string]bool{}
+	for range 300 {
+		code, err := newLocalReferralCode(ctx, shop.store.Queries)
+		if err != nil || !validReferralCode(code) || code == "7EDXTH" || seen[code] {
+			t.Fatalf("code %q %v", code, err)
+		}
+		seen[code] = true
+	}
+}

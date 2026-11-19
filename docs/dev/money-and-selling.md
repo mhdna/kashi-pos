@@ -293,6 +293,15 @@ sell at their typed price and show no chip. The cart sends the line's
   (`withReferralPick`), checked by `checkReferralCode`, so the discount never
   comes without the code being recorded. `TestReferralDiscountRandomized`.
 
+- ==A new customer's code is made at the till==: central gives every client
+  a code, but a customer added at the till had none until the next sync, so
+  their first receipt printed no code (a reprint did). Now the till makes it
+  at their first sale, offline (`newLocalReferralCode`, in
+  `queueBranchClientSyncForPurchase`), checked against every code it has,
+  prints it, and sends it with the client. Central keeps it for a client that
+  push creates (`keepTillReferralCode`); a clash, or a customer central
+  already had, keeps central's, and the till takes that from the answer
+  (`adoptPushedReferralCode`).
 - ==A code is good once==: a client's code prints on their receipts until a
   friend uses it (a referral central has for them, or a sale here that named
   it: `referralCodeUsed`), and the till refuses a used code; central refuses
