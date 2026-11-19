@@ -88,7 +88,7 @@
             @keydown.space.prevent="!(!hasItems || restricted) && emit('account')"
           >
             <k-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
-              <span class="payment-method-name text-h6 font-weight-bold">On Account</span>
+              <span class="payment-method-name text-h6 font-weight-bold" data-test="on-account-name">On<br>Account</span>
             </k-card-text>
           </k-card>
           <k-card
@@ -855,10 +855,12 @@ defineExpose({
   min-height: 62px;
   max-height: 62px;
 }
+/* "On Account" is two short lines, "On" over "Account", inside the same
+   fixed height. */
 .calculator-action-cards .payment-method-name {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.1;
+  white-space: normal;
 }
 .calculator-type-card {
   cursor: pointer;

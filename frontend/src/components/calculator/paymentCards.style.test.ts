@@ -19,10 +19,11 @@ describe("calculator cards keep one height", () => {
     const src = readFileSync(resolve(__dirname, "CalculatorPaymentMethods.vue"), "utf8");
     expect(src).toMatch(/\.calculator-type-card \{[^}]*height: 62px;[^}]*min-height: 62px;[^}]*max-height: 62px;/);
   });
-  it("On Account and Coupon are the same, their names on one line", () => {
+  it("On Account and Coupon are the same height; On Account is two lines", () => {
     const src = readFileSync(resolve(__dirname, "../Calculator.vue"), "utf8");
     expect(src).toMatch(/\.calculator-action-cards \{[^}]*grid-auto-rows: 62px;/);
     expect(src).toMatch(/\.calculator-action-cards > \.calculator-type-card \{[^}]*height: 62px;[^}]*max-height: 62px;/);
-    expect(src).toMatch(/\.calculator-action-cards \.payment-method-name \{[^}]*white-space: nowrap;/);
+    expect(src).toMatch(/\.calculator-action-cards \.payment-method-name \{[^}]*white-space: normal;/);
+    expect(src).toContain(">On<br>Account</span>");
   });
 });

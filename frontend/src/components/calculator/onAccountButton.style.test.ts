@@ -9,7 +9,7 @@ const live = src.replace(/<!--[\s\S]*?-->/g, "");
 
 describe("calculator On Account button", () => {
   it("is in the rendered template and asks for a client", () => {
-    expect(live).toMatch(/>On Account</);
+    expect(live).toMatch(/>On<br>Account</);
     expect(live).toMatch(/emit\('account'\)/);
   });
   it("is not left in a comment", () => {
