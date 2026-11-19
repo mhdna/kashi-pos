@@ -448,7 +448,7 @@ func init() {
 	for i := range receiptElements {
 		e := &receiptElements[i]
 		if e.Can&canText != 0 && e.Can&canSize != 0 {
-			e.Can |= canArabic
+			e.Can |= canArabic | canDark
 			e.ArDefault = arabicDefaults[e.Key]
 		}
 	}

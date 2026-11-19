@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"math"
 	"math/rand"
+	"slices"
 	"strings"
 	"sync"
 
@@ -41,6 +42,9 @@ type receiptCanvas struct {
 	// pendingWords are element words about to be drawn; the next time each is
 	// drawn, where it lands is marked (column titles share a row).
 	pendingWords []pendingWord
+	// darkSpans are the rows of lines printed white on black
+	// (receiptElement.Dark), turned at the end so neighbours make one block.
+	darkSpans [][2]int
 	// fontKey, when set, is the font (receiptFonts) a line is set in instead
 	// of the look's own; lastFont and lastBold are the font the last text was
 	// drawn in, for the designer.
@@ -301,6 +305,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	// Printer barcode temporarily disabled.
 	// y = c.barcode(y, c.data.ReceiptNo) + 24
 	y += 24
+	c.applyDarkLines()
 	return y, nil
 }
 
@@ -370,18 +375,20 @@ func (c *receiptCanvas) drawReferralPart(y int) (int, error) {
 	}
 	sectionTop := y
 	y, boxTop := c.decorStart("referral", y)
-	// The code stands out: its line (and its Arabic) is white on black.
-	bandTop := y
-	y += c.gap(8)
+	// Dark lines' black reaches darkPad past them: room for it in the part.
+	if t.elementDark("referral_title") {
+		y += darkPad
+	}
 	titleTop := y
 	y, _, _ = c.line(y, "referral_title", t.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false, "center")
 	c.markText(receiptPartReferralTitle, t.referralTitle(), titleTop, y, c.data.BodySize+1, true)
 	y += c.gap(8)
-	c.invertRect(c.margin, bandTop, c.margin+c.contentW, y)
-	y += c.gap(8)
 	noteTop := y
 	y, _, _ = c.lineWrapped(y, "referral_note", c.data.ReferralNote, c.data.BodySize-2.5, false, 2, "center")
 	c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)
+	if t.elementDark("referral_note") {
+		y += darkPad
+	}
 	y = c.decorEnd("referral", y, boxTop, true)
 	y = c.divider("referral", y+c.gap(6)) + c.gap(10)
 	c.markSection(receiptSectionReferral, sectionTop, y)
@@ -1023,4 +1030,31 @@ func (c *receiptCanvas) invertRect(x0, y0, x1, y1 int) {
 			i += 4
 		}
 	}
+}
+
+// darkPad is the black around a white-on-black line.
+const darkPad = 10
+
+// applyDarkLines turns the dark lines white on black: lines next to each
+// other (with only their spacing between) make one block, so the black has
+// no white stripes.
+func (c *receiptCanvas) applyDarkLines() {
+	if len(c.darkSpans) == 0 {
+		return
+	}
+	spans := append([][2]int{}, c.darkSpans...)
+	slices.SortFunc(spans, func(a, b [2]int) int { return a[0] - b[0] })
+	merged := [][2]int{{spans[0][0] - darkPad, spans[0][1] + darkPad}}
+	for _, s := range spans[1:] {
+		last := &merged[len(merged)-1]
+		if s[0]-darkPad <= last[1]+darkPad {
+			last[1] = max(last[1], s[1]+darkPad)
+			continue
+		}
+		merged = append(merged, [2]int{s[0] - darkPad, s[1] + darkPad})
+	}
+	for _, m := range merged {
+		c.invertRect(c.margin, m[0], c.margin+c.contentW, m[1])
+	}
+	c.darkSpans = nil
 }
