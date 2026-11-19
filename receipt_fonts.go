@@ -146,7 +146,7 @@ var receiptFonts = []receiptFont{
 
 // arabicFontDefault is the font Arabic lines are drawn in unless the line's
 // own font is an Arabic one.
-const arabicFontDefault = "vazirmatn"
+const arabicFontDefault = "noto-naskh-arabic"
 
 func receiptFontByKey(key string) (receiptFont, bool) {
 	for _, f := range receiptFonts {

@@ -370,6 +370,9 @@ func (c *receiptCanvas) drawReferralPart(y int) (int, error) {
 	}
 	sectionTop := y
 	y, boxTop := c.decorStart("referral", y)
+	// The code stands out: the block is printed white on black.
+	blockTop := y
+	y += c.gap(12)
 	titleTop := y
 	y, _, _ = c.line(y, "referral_title", t.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false, "center")
 	c.markText(receiptPartReferralTitle, t.referralTitle(), titleTop, y, c.data.BodySize+1, true)
@@ -377,6 +380,8 @@ func (c *receiptCanvas) drawReferralPart(y int) (int, error) {
 	noteTop := y
 	y, _, _ = c.lineWrapped(y, "referral_note", c.data.ReferralNote, c.data.BodySize-2.5, false, 2, "center")
 	c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)
+	y += c.gap(12)
+	c.invertRect(c.margin, blockTop, c.margin+c.contentW, y)
 	y = c.decorEnd("referral", y, boxTop, true)
 	y = c.divider("referral", y+c.gap(6)) + c.gap(10)
 	c.markSection(receiptSectionReferral, sectionTop, y)
@@ -1003,4 +1008,19 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// invertRect turns a part of the receipt white on black (and black on white):
+// what was drawn there stays readable, the block stands out.
+func (c *receiptCanvas) invertRect(x0, y0, x1, y1 int) {
+	r := image.Rect(x0, y0, x1, y1).Intersect(c.img.Bounds())
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		i := c.img.PixOffset(r.Min.X, y)
+		for x := r.Min.X; x < r.Max.X; x++ {
+			c.img.Pix[i] = 255 - c.img.Pix[i]
+			c.img.Pix[i+1] = 255 - c.img.Pix[i+1]
+			c.img.Pix[i+2] = 255 - c.img.Pix[i+2]
+			i += 4
+		}
+	}
 }

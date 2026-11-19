@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,18 @@ import (
 )
 
 const ownerCode = "K7M4QH"
+
+// codeFor makes a valid referral code from n (a code is good once, so tests
+// that sell many times need many).
+func codeFor(n int) string {
+	body := make([]byte, 5)
+	for i := 4; i >= 0; i-- {
+		body[i] = referralAlphabet[n%len(referralAlphabet)]
+		n /= len(referralAlphabet)
+	}
+	check, _ := referralCheckChar(string(body))
+	return string(body) + string(check)
+}
 
 func setFriendProgram(t *testing.T, shop dealShop, to string, friendPct, minSpend int64) {
 	t.Helper()
@@ -109,17 +122,20 @@ func TestNewCustomerGetsReferralDiscount(t *testing.T) {
 		t.Fatalf("own code got %d off", q.InvoiceDiscountCents)
 	}
 
-	// Owner only (as before): the new customer pays in full.
+	// Owner only (as before): the new customer pays in full. (A code is good
+	// once: a fresh owner's.)
 	setFriendProgram(t, shop, referralRewardOwner, 10, 0)
+	newShopClient(t, shop, "Hadi", "70999001", "7EDXTH")
 	sami := newShopClient(t, shop, "Sami", "70333333", "")
-	if sale, _, err := sellWithCode(t, shop, sami, ownerCode, nil, "JACKET"); err != nil || sale.InvoiceDiscount.Cents != 0 {
+	if sale, _, err := sellWithCode(t, shop, sami, "7EDXTH", nil, "JACKET"); err != nil || sale.InvoiceDiscount.Cents != 0 {
 		t.Fatalf("owner only: %+v %v", sale.InvoiceDiscount, err)
 	}
 
 	// Under the program's minimum spend: none.
 	setFriendProgram(t, shop, referralRewardFriend, 10, 20000)
+	newShopClient(t, shop, "Hiba", "70999002", "HQ4XJD")
 	lina := newShopClient(t, shop, "Lina", "70444444", "")
-	if _, q, _ := sellWithCode(t, shop, lina, ownerCode, nil, "JACKET"); q.InvoiceDiscountCents != 0 {
+	if _, q, _ := sellWithCode(t, shop, lina, "HQ4XJD", nil, "JACKET"); q.InvoiceDiscountCents != 0 {
 		t.Fatalf("under the minimum got %d off", q.InvoiceDiscountCents)
 	}
 }
@@ -156,8 +172,9 @@ func TestReferralDiscountWithDeals(t *testing.T) {
 		t.Fatalf("biggest: %q %v", q.InvoiceDiscountName, err)
 	}
 	setStack(t, shop, true)
+	newShopClient(t, shop, "Owner B", "70600102", codeFor(1001))
 	b := newShopClient(t, shop, "B", "70600002", "")
-	_, q, err := sellWithCode(t, shop, b, ownerCode, nil, "JACKET", "JACKET")
+	_, q, err := sellWithCode(t, shop, b, codeFor(1001), nil, "JACKET", "JACKET")
 	// 20000 -20% 16000 -10% 14400.
 	if err != nil || q.InvoiceDiscountName != "20% above $150 + Referral 10%" || q.InvoiceDiscountCents != 5600 {
 		t.Fatalf("added up: %q %d %v", q.InvoiceDiscountName, q.InvoiceDiscountCents, err)
@@ -186,7 +203,8 @@ func TestReferralDiscountRandomized(t *testing.T) {
 		}
 		code := ""
 		if rng.Intn(3) != 0 {
-			code = ownerCode
+			code = codeFor(5000 + run)
+			newShopClient(t, shop, fmt.Sprintf("O%d", run), fmt.Sprintf("72%06d", run), code)
 		}
 		var picked []string
 		if rng.Intn(2) == 0 {
@@ -214,5 +232,100 @@ func TestReferralDiscountRandomized(t *testing.T) {
 		if err != nil || inv.GrandTotal != sale.GrandTotal || inv.InvoiceDiscountName != sale.InvoiceDiscount.Name {
 			t.Fatalf("run %d: stored %+v %v", run, inv, err)
 		}
+	}
+}
+
+// The reported case: a code is good once. After a friend used it, it is no
+// longer printed on its owner's receipts, and the till refuses it.
+func TestReferralCodeGoodOnce(t *testing.T) {
+	shop := setUpDealShop(t)
+	newShopClient(t, shop, "Rami", "70111111", ownerCode)
+	setFriendProgram(t, shop, referralRewardBoth, 15, 0)
+	texts := receiptTexts{}
+	ctx := context.Background()
+	owner, _ := shop.store.GetClientByReferralCode(ctx, ownerCode)
+	program, err := referralProgram(ctx, shop.store.Queries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	used, err := referralCodeUsed(ctx, shop.store.Queries, owner)
+	if err != nil || used {
+		t.Fatalf("fresh code used=%v %v", used, err)
+	}
+	if code, _ := referralReceiptNote(program, owner, texts, used); code != ownerCode {
+		t.Fatal("an unused code isn't printed")
+	}
+	friend := newShopClient(t, shop, "Nadia", "70222222", "")
+	if _, _, err := sellWithCode(t, shop, friend, ownerCode, nil, "JACKET"); err != nil {
+		t.Fatal(err)
+	}
+	if used, _ = referralCodeUsed(ctx, shop.store.Queries, owner); !used {
+		t.Fatal("the sale with the code doesn't count as its use")
+	}
+	if code, _ := referralReceiptNote(program, owner, texts, used); code != "" {
+		t.Fatal("a used code is still printed")
+	}
+	other := newShopClient(t, shop, "Sami", "70333333", "")
+	if _, _, err := checkReferralCode(ctx, shop.store.Queries, ownerCode, other.ID); err != errReferralCodeUsed {
+		t.Fatalf("second use: %v", err)
+	}
+	// A reward central sends for the owner counts too (a sale elsewhere).
+	newShopClient(t, shop, "Lina", "70444444", "PCTT9T")
+	owner2, _ := shop.store.GetClientByReferralCode(ctx, "PCTT9T")
+	if !validReferralCode("PCTT9T") {
+		t.Skip("sample code invalid")
+	}
+	if err := shop.store.UpsertReferralReward(ctx, db.UpsertReferralRewardParams{Uid: "rw-1", OwnerClientUid: owner2.Uid.String, Percent: 15, Status: "available"}); err != nil {
+		t.Fatal(err)
+	}
+	if used, _ := referralCodeUsed(ctx, shop.store.Queries, owner2); !used {
+		t.Fatal("a reward from central doesn't count as a use")
+	}
+}
+
+// The note says what the program does: both, the new customer only, or the
+// owner only; in English and Arabic.
+func TestReferralNoteFollowsTheProgram(t *testing.T) {
+	cases := map[string][2]string{
+		referralRewardBoth:   {"you both get 15% off the whole invoice", "بتاخدوا انتو التنين حسم ١٥٪"},
+		referralRewardFriend: {"they get 15% off their first invoice", "بياخد حسم ١٥٪ على أول فاتورة"},
+		referralRewardOwner:  {"you get 15% off your next visit", "بتاخد انت حسم ١٥٪ على زيارتك الجاية"},
+	}
+	for to, want := range cases {
+		texts := receiptTexts{ReferralRewardTo: to}
+		en := texts.referralNote(15)
+		if !strings.Contains(en, want[0]) {
+			t.Fatalf("%s english: %q", to, en)
+		}
+		if ar := texts.arabicWords("referral_note", en); !strings.Contains(ar, want[1]) {
+			t.Fatalf("%s arabic: %q", to, ar)
+		}
+	}
+}
+
+// The code's block prints white on black so it stands out.
+func TestReferralBlockWhiteOnBlack(t *testing.T) {
+	data := receiptPreviewData(designBase(), receiptModeReferral)
+	_, img, marks := drawnTexts(t, data, "classic", "A")
+	var top, bottom int
+	for _, m := range marks {
+		if m.Kind == "section" && m.Part == receiptSectionReferral {
+			top, bottom = m.Top, m.Bottom
+		}
+	}
+	if bottom <= top {
+		t.Fatal("no referral part")
+	}
+	dark := 0
+	b := img.Bounds()
+	for y := top; y < bottom; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			if r, _, _, _ := img.At(x, y).RGBA(); r < 0x8000 {
+				dark++
+			}
+		}
+	}
+	if share := float64(dark) / float64((bottom-top)*b.Dx()); share < 0.5 {
+		t.Fatalf("the code's block is only %.0f%% black", share*100)
 	}
 }

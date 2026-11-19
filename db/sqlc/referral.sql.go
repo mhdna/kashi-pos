@@ -26,6 +26,26 @@ func (q *Queries) ClientHasSale(ctx context.Context, clientID int64) (bool, erro
 	return has_sale, err
 }
 
+const countReferralUsesOfOwner = `-- name: CountReferralUsesOfOwner :one
+SELECT
+    (SELECT COUNT(*) FROM referral_rewards WHERE owner_client_uid = ?1) +
+    (SELECT COUNT(*) FROM invoices WHERE referral_code = ?2 AND ?2 <> '') AS uses
+`
+
+type CountReferralUsesOfOwnerParams struct {
+	OwnerUid string `json:"ownerUid"`
+	Code     string `json:"code"`
+}
+
+// Whether a client's referral code has been used: a referral central has
+// for them (any but a refusal), or a sale here that named their code.
+func (q *Queries) CountReferralUsesOfOwner(ctx context.Context, arg CountReferralUsesOfOwnerParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countReferralUsesOfOwner, arg.OwnerUid, arg.Code)
+	var uses int64
+	err := row.Scan(&uses)
+	return uses, err
+}
+
 const getClientByReferralCode = `-- name: GetClientByReferralCode :one
 SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at, referral_code FROM clients WHERE referral_code = ? AND referral_code <> '' LIMIT 1
 `

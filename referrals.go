@@ -89,12 +89,6 @@ func applySyncedReferralProgram(ctx context.Context, q *db.Queries, p syncedRefe
 	})
 }
 
-// Who a referral code rewards.
-const (
-	referralRewardOwner  = "owner"
-	referralRewardFriend = "friend"
-	referralRewardBoth   = "both"
-)
 
 // referralRewardsFriend says whether the new customer gets the program's
 // friend percent off the sale they use a code on.
@@ -235,6 +229,7 @@ var (
 	errReferralOwnCode       = errors.New("This is the customer's own code")
 	errReferralNotNewClient  = errors.New("A referral code is only for a new customer's first purchase")
 	errReferralCodeAndReward = errors.New("This customer has a referral reward, so they aren't new")
+	errReferralCodeUsed      = errors.New("This code was already used: a code is good once")
 )
 
 // checkReferralCode decides whether code can go on a sale to clientID, and
@@ -272,6 +267,11 @@ func checkReferralCode(ctx context.Context, q *db.Queries, code string, clientID
 	}
 	if buyer.ID == owner.ID {
 		return "", db.Client{}, errReferralOwnCode
+	}
+	if used, err := referralCodeUsed(ctx, q, owner); err != nil {
+		return "", db.Client{}, err
+	} else if used {
+		return "", db.Client{}, errReferralCodeUsed
 	}
 	hasSale, err := q.ClientHasSale(ctx, buyer.ID)
 	if err != nil {
@@ -346,12 +346,25 @@ func (a *App) GetReferralInfo(clientID int64) (ReferralInfo, error) {
 }
 
 // referralReceiptNote is the receipt's lines about the customer's code, or
-// nothing when referrals are off or the customer has none.
+// nothing when referrals are off, the customer has none, or it was already
+// used (used: a code is good once, so it stops printing).
 // The wording is the branch's (receipt_texts.go), and the branch can leave
 // the block out.
-func referralReceiptNote(program db.ReferralProgram, client db.Client, texts receiptTexts) (code, note string) {
-	if program.Enabled == 0 || program.RewardPercent <= 0 || client.ReferralCode == "" || isWalkInClient(client) || texts.hidden(receiptSectionReferral) {
+func referralReceiptNote(program db.ReferralProgram, client db.Client, texts receiptTexts, used bool) (code, note string) {
+	if program.Enabled == 0 || program.RewardPercent <= 0 || client.ReferralCode == "" || isWalkInClient(client) || texts.hidden(receiptSectionReferral) || used {
 		return "", ""
 	}
-	return client.ReferralCode, texts.referralNote(program.RewardPercent)
+	texts.ReferralRewardTo = program.RewardTo
+	percent := program.RewardPercent
+	if program.RewardTo == referralRewardFriend && program.FriendPercent > 0 {
+		percent = program.FriendPercent
+	}
+	return client.ReferralCode, texts.referralNote(percent)
+}
+
+// referralCodeUsed says whether a client's code was used: a referral central
+// has for them, or a sale here that named it.
+func referralCodeUsed(ctx context.Context, q *db.Queries, owner db.Client) (bool, error) {
+	n, err := q.CountReferralUsesOfOwner(ctx, db.CountReferralUsesOfOwnerParams{OwnerUid: owner.Uid.String, Code: owner.ReferralCode})
+	return n > 0, err
 }

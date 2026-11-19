@@ -986,6 +986,10 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 	}
 	receiptPayments = aggregateReceiptPayments(receiptPayments)
 	texts := a.receiptTexts()
+	// The referral note's default wording follows who the program rewards.
+	if program, err := referralProgram(a.ctx, a.store.Queries); err == nil {
+		texts.ReferralRewardTo = program.RewardTo
+	}
 	referralCode, referralNote := a.receiptReferral(clientID, texts)
 	theme, layout := a.receiptLook()
 	return printReceiptToPrinter(printReceiptData{
@@ -1051,7 +1055,11 @@ func (a *App) receiptReferral(clientID int64, texts receiptTexts) (code, note st
 	if err != nil {
 		return "", ""
 	}
-	return referralReceiptNote(program, client, texts)
+	used, err := referralCodeUsed(a.ctx, a.store.Queries, client)
+	if err != nil {
+		return "", ""
+	}
+	return referralReceiptNote(program, client, texts, used)
 }
 
 // lineName is what an invoice line is called: the name the cashier gave an

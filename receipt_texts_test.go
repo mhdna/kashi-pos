@@ -105,10 +105,10 @@ func TestRasterReceiptTexts(t *testing.T) {
 func TestHiddenReferralBlock(t *testing.T) {
 	program := db.ReferralProgram{Enabled: 1, RewardPercent: 15}
 	client := db.Client{Phone: "+96171000001", ReferralCode: "K7M4QH"}
-	if code, note := referralReceiptNote(program, client, receiptTexts{ReferralNote: "Share: {percent}"}); code != "K7M4QH" || note != "Share: 15%" {
+	if code, note := referralReceiptNote(program, client, receiptTexts{ReferralNote: "Share: {percent}"}, false); code != "K7M4QH" || note != "Share: 15%" {
 		t.Fatalf("%q %q", code, note)
 	}
-	if code, _ := referralReceiptNote(program, client, receiptTexts{Hide: []string{receiptSectionReferral}}); code != "" {
+	if code, _ := referralReceiptNote(program, client, receiptTexts{Hide: []string{receiptSectionReferral}}, false); code != "" {
 		t.Fatal("hidden block still printed the code")
 	}
 }
