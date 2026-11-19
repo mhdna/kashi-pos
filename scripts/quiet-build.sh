@@ -7,6 +7,25 @@
 label=$1; log=$2; shift 3
 . "$(dirname "$0")/pretty.sh"
 
+# One build at a time: wails writes and removes the same files (the Windows
+# resource .syso, build/bin, the log) in this folder, so a second build at once
+# breaks the first. A second one waits; a lock left by a build that died is
+# taken over.
+lock="$(dirname "$0")/../.build.lock"
+waited=0
+while ! mkdir "$lock" 2>/dev/null; do
+  holder=$(cat "$lock/pid" 2>/dev/null)
+  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
+    rm -rf "$lock"
+    continue
+  fi
+  if [ "$waited" -eq 0 ]; then say_step "Another build is running here (pid ${holder:-?}); waiting for it…"; fi
+  waited=1
+  sleep 2
+done
+echo $$ >"$lock/pid"
+trap 'rm -rf "$lock"' EXIT INT TERM
+
 start=$(date +%s)
 "$@" >"$log" 2>&1 &
 pid=$!

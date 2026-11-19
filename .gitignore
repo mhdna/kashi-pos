@@ -83,3 +83,4 @@ tools/kashi-admin/main-september-sale-staff-guide*
 # publish settings (URL + admin user), see Makefile
 .publish.env
 .build.log
+.build.lock/
