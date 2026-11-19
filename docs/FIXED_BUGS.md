@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-19: Reprints at Centro printed no referral code for older customers
+
+**Symptom:** at Centro, reprinting an older invoice printed no referral code, though the customer has one in kashi. New customers' receipts had theirs.
+
+**Cause:** kashi gave every client a code (its migration 000247) while Centro's till was on 1.1.146, which didn't read codes. The till pulled those rows anyway, stamped their versions and moved its clients cursor past them. After updating to 1.1.153 it had nothing left to pull: neither the incremental pull nor the completeness check (versions matched) fetched the codes.
+
+**Fix:** migration `000145_refetch_referral_codes` forgets the version of every client still without a code and resets the clients cursor, so the next pull checks every client against kashi and fetches just those. Test: `TestOldTillGetsReferralCodesBack` in `referral_codes_refetch_test.go`.
+
 ## 2026-11-18: The other currency's total ignored its size and weight
 
 **Symptom:** in the Receipt Designer, making the "LBP equivalent" line bigger or not bold changed nothing on the printed receipt.
