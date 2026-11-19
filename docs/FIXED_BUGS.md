@@ -3,6 +3,26 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-19: An exchange with two unknown items was refused
+
+**Symptom:** an exchange selling two "Unknown item" replacements at
+different prices ($13.30 and $24.50) showed "send a custom-priced
+replacement "UNKNOWN" as a single line" and could not be finished.
+
+**Cause:** `parseExchangeRequest` merges replacement lines of the same
+code and barcode into one, and refused to merge lines that carry their own
+price. Every unknown item has the code UNKNOWN and its own typed price, so
+any exchange with two of them was refused.
+
+**Fix:** only list-priced lines merge; a line with its own price (typed
+price, per-unit prices or discounts) stays its own replacement line
+(`exchange_validation.go`). Tests: `TestExchangeSellsTwoUnknownItemsAtTheirOwnPrices`
+(the reported exchange), `TestExchangeMergesOnlyListPricedLines`, and
+`TestExchangeAcceptsAnyCartTheScreenBuilds`, which quotes and checks out
+random exchange carts (several unknown items, the same product plain and
+priced, any order) and checks what is stored equals the quote
+(`exchange_two_unknown_test.go`).
+
 ## 2026-11-19: A new customer's receipt printed no referral code (a reprint did)
 
 **Symptom:** a customer added at checkout got a receipt without their

@@ -168,14 +168,15 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 		// the same product) - it's kept as its own separate line rather than
 		// netted against the return, so the returned line stays negative and
 		// the replacement stays positive.
+		//
+		// Lines of one product at the list price merge into one. A line with
+		// its own price (a typed price, per-unit prices or discounts) stays
+		// its own line: two "Unknown item" replacements at $13.30 and $24.50
+		// are two different things, and merging them used to refuse the
+		// whole exchange. Only plain lines are in replacementIndex.
 		normalizedCode := strings.ToLower(line.Code) + "\x00" + line.Barcode
 		hasCustomPricing := line.CustomPriceCents != nil || len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0
-		if index, exists := replacementIndex[normalizedCode]; exists {
-			existing := request.replacements[index]
-			existingHasCustomPricing := existing.CustomPriceCents != nil || len(existing.UnitPricesCents) > 0 || len(existing.UnitDiscounts) > 0
-			if hasCustomPricing || existingHasCustomPricing {
-				return exchangeRequest{}, fmt.Errorf("send a custom-priced replacement %q as a single line", line.Code)
-			}
+		if index, exists := replacementIndex[normalizedCode]; exists && !hasCustomPricing {
 			current := request.replacements[index].Qty
 			if line.Qty > math.MaxInt64-current {
 				return exchangeRequest{}, fmt.Errorf("replacement quantity is too large")
@@ -184,7 +185,9 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 			request.sources = append(request.sources, exchangeSource{group: index, qty: line.Qty})
 			continue
 		}
-		replacementIndex[normalizedCode] = len(request.replacements)
+		if !hasCustomPricing {
+			replacementIndex[normalizedCode] = len(request.replacements)
+		}
 		request.sources = append(request.sources, exchangeSource{group: len(request.replacements), qty: line.Qty})
 		request.replacements = append(request.replacements, line)
 	}
