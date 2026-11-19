@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"slices"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -75,7 +76,8 @@ var receiptBannerPresets = []receiptBanner{
 }
 
 const (
-	receiptBannerMax         = 4
+	// A branch can keep a banner per deal; one prints (chosenBanner).
+	receiptBannerMax         = 12
 	receiptBannerTitleMax    = 40
 	receiptBannerSubtitleMax = 80
 )
@@ -126,6 +128,24 @@ func normalizeReceiptBanners(in []receiptBanner) []receiptBanner {
 
 // bannerApplies says whether a banner prints on this receipt.
 func (c *receiptCanvas) bannerApplies(b receiptBanner) bool {
+	_, ok := c.bannerRank(b)
+	return ok
+}
+
+// invoiceDealNames are the deals the invoice took off, biggest first: one, or
+// several joined with " + " where they added up (invoiceDiscountsStacked).
+func (c *receiptCanvas) invoiceDealNames() []string {
+	if c.data.InvoiceDiscount.Cents <= 0 || c.data.InvoiceDiscount.Name == "" {
+		return nil
+	}
+	return strings.Split(c.data.InvoiceDiscount.Name, " + ")
+}
+
+// bannerRank says whether a banner prints on this receipt and how strongly it
+// fits (lower is better): a banner for one deal first, the bigger the deal
+// the better (its place in the invoice's deal names), then one for a deal on
+// the items, then buy X get Y, then any invoice deal, then always.
+func (c *receiptCanvas) bannerRank(b receiptBanner) (int, bool) {
 	itemDeal := func(name string) bool {
 		for _, item := range c.data.Items {
 			if item.Deal != "" && (name == "" || item.Deal == name) {
@@ -136,28 +156,43 @@ func (c *receiptCanvas) bannerApplies(b receiptBanner) bool {
 	}
 	switch {
 	case b.When == "":
-		return true
+		return 300, true
 	case b.When == "item_deal":
-		return itemDeal("")
+		return 100, itemDeal("")
 	case b.When == "deal":
-		return c.data.InvoiceDiscount.Cents > 0
+		return 200, c.data.InvoiceDiscount.Cents > 0
 	case strings.HasPrefix(b.When, "deal:"):
 		name := strings.TrimPrefix(b.When, "deal:")
-		return (c.data.InvoiceDiscount.Cents > 0 && c.data.InvoiceDiscount.Name == name) || itemDeal(name)
+		if i := slices.Index(c.invoiceDealNames(), name); i >= 0 {
+			return i, true
+		}
+		return 50, itemDeal(name)
 	}
-	return false
+	return 0, false
 }
 
-// drawBanners draws the banners for a place ("" top, "bottom") from y.
-func (c *receiptCanvas) drawBanners(y int, place string) int {
+// chosenBanner is the one banner this receipt prints, -1 for none: the best
+// fitting (bannerRank), the first of equals. Never two on one receipt.
+func (c *receiptCanvas) chosenBanner() int {
+	best, bestRank := -1, 0
 	for i, b := range c.data.Texts.Banners {
-		if b.Place != place || !c.bannerApplies(b) {
-			continue
+		if rank, ok := c.bannerRank(b); ok && (best < 0 || rank < bestRank) {
+			best, bestRank = i, rank
 		}
-		top := y
-		y = c.drawBanner(y, b) + c.gap(12)
-		c.markGroup(fmt.Sprintf("banner-%d", i), top, y)
 	}
+	return best
+}
+
+// drawBanners draws the receipt's one banner (chosenBanner) when it goes in
+// this place ("" top, "bottom").
+func (c *receiptCanvas) drawBanners(y int, place string) int {
+	i := c.chosenBanner()
+	if i < 0 || c.data.Texts.Banners[i].Place != place {
+		return y
+	}
+	top := y
+	y = c.drawBanner(y, c.data.Texts.Banners[i]) + c.gap(12)
+	c.markGroup(fmt.Sprintf("banner-%d", i), top, y)
 	return y
 }
 

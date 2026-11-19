@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -30,11 +31,13 @@ func TestReceiptBannersPrint(t *testing.T) {
 	always := receiptBanner{Style: "ornament", Title: "Thank You", Place: "bottom"}
 	texts := bannerTexts(b1g1, student, always)
 
+	// The reported case: one banner per invoice. A buy 2 get 1 sale has the
+	// buy X get Y banner and the always-on one; only the first prints.
 	drawn, marks, h := render(receiptModeItemDeal, texts, nil)
-	if !drewText(drawn, "BUY 1 GET 1") || !drewText(drawn, "Thank You") || drewText(drawn, "STUDENT DEAL") {
+	if !drewText(drawn, "BUY 1 GET 1") || drewText(drawn, "Thank You") || drewText(drawn, "STUDENT DEAL") {
 		t.Fatalf("buy 2 get 1 sale: %q", drawn)
 	}
-	// Under the shop's name, before the customer; the bottom one at the end.
+	// Under the shop's name, before the customer.
 	at := func(s string) int {
 		for i, d := range drawn {
 			if d == s {
@@ -46,9 +49,6 @@ func TestReceiptBannersPrint(t *testing.T) {
 	if !(at("BUY 1 GET 1") > at("Sales Invoice: PV-10452") && at("BUY 1 GET 1") < at("Customer: Maya Haddad")) {
 		t.Fatalf("top banner out of place: %q", drawn)
 	}
-	if at("Thank You") < at("Thank you for shopping with us!") {
-		t.Fatalf("bottom banner not at the end: %q", drawn)
-	}
 	seen := map[string]bool{}
 	for _, m := range marks {
 		seen[m.Group] = true
@@ -56,8 +56,25 @@ func TestReceiptBannersPrint(t *testing.T) {
 			t.Fatalf("%s outside the paper", m.Group)
 		}
 	}
-	if !seen["banner-0"] || !seen["banner-2"] || seen["banner-1"] {
+	if !seen["banner-0"] || seen["banner-2"] || seen["banner-1"] {
 		t.Fatalf("banner marks: %v", seen)
+	}
+	// A plain sale: the always-on one, at the end.
+	drawn, _, _ = render(receiptModeSale, texts, nil)
+	if !drewText(drawn, "Thank You") {
+		t.Fatalf("plain sale: %q", drawn)
+	}
+	thanks, line := -1, -1
+	for i, d := range drawn {
+		if d == "Thank You" {
+			thanks = i
+		}
+		if d == "Thank you for shopping with us!" {
+			line = i
+		}
+	}
+	if thanks < line {
+		t.Fatalf("bottom banner not at the end: %q", drawn)
 	}
 
 	drawn, _, _ = render(receiptModeClient, texts, &DesignerDeal{Name: "Students 15%", Kind: "percent", Percent: 15})
@@ -94,8 +111,16 @@ func TestNormalizeReceiptBanners(t *testing.T) {
 		{Style: "stamp", Title: "B", When: "deal:Students 15%"},
 		{Style: "frame", Title: "C"},
 	})
-	if len(out) != receiptBannerMax {
+	if len(out) != 5 {
 		t.Fatalf("%d banners kept", len(out))
+	}
+	// No more than receiptBannerMax are kept.
+	many := make([]receiptBanner, receiptBannerMax+3)
+	for i := range many {
+		many[i] = receiptBanner{Style: "frame", Title: fmt.Sprint(i)}
+	}
+	if got := normalizeReceiptBanners(many); len(got) != receiptBannerMax || got[receiptBannerMax-1].Title != fmt.Sprint(receiptBannerMax-1) {
+		t.Fatalf("kept %d", len(got))
 	}
 	if out[0] != (receiptBanner{Style: "ribbon", Title: "BUY 1 GET 1", When: "item_deal", Place: "bottom"}) {
 		t.Fatalf("first: %+v", out[0])
@@ -107,7 +132,7 @@ func TestNormalizeReceiptBanners(t *testing.T) {
 		t.Fatalf("whens: %q %q", out[2].When, out[3].When)
 	}
 	// Presets are all valid, and draw on their own.
-	if len(normalizeReceiptBanners(receiptBannerPresets[:receiptBannerMax])) != receiptBannerMax {
+	if n := min(len(receiptBannerPresets), receiptBannerMax); len(normalizeReceiptBanners(receiptBannerPresets[:n])) != n {
 		t.Fatal("a preset doesn't survive cleaning")
 	}
 	for _, p := range receiptBannerPresets {
@@ -119,5 +144,46 @@ func TestNormalizeReceiptBanners(t *testing.T) {
 	}
 	if _, err := RenderBannerPreview(`{"style":"nope","title":"x"}`); err == nil {
 		t.Fatal("an unknown style drew")
+	}
+}
+
+// Deals that added up print one banner: the biggest deal's.
+func TestOneBannerForStackedDeals(t *testing.T) {
+	texts := bannerTexts(
+		receiptBanner{Style: "ribbon", Title: "TEN OFF", When: "deal:10% above $50"},
+		receiptBanner{Style: "stamp", Title: "STUDENT DEAL", When: "deal:Students 15%"},
+		receiptBanner{Style: "burst", Title: "BIG SPENDER", When: "deal:20% above $150"},
+		receiptBanner{Style: "frame", Title: "ANY DEAL", When: "deal"},
+		receiptBanner{Style: "stars", Title: "HELLO"},
+	)
+	data := receiptPreviewData(designBase(), receiptModeSale)
+	data.Texts = texts
+	draw := func(name string) []string {
+		data.InvoiceDiscount = invoiceDiscount{Name: name, Cents: 500}
+		if name == "" {
+			data.InvoiceDiscount.Cents = 0
+		}
+		drawn, _, _ := drawnTexts(t, data, "classic", "A")
+		var titles []string
+		for _, d := range drawn {
+			for _, b := range texts.Banners {
+				if d == b.Title {
+					titles = append(titles, d)
+				}
+			}
+		}
+		return titles
+	}
+	cases := map[string]string{
+		"20% above $150 + Students 15% + 10% above $50": "BIG SPENDER",
+		"Students 15% + 10% above $50":                  "STUDENT DEAL",
+		"10% above $50":                                 "TEN OFF",
+		"Staff $5":                                      "ANY DEAL",
+		"":                                              "HELLO",
+	}
+	for name, want := range cases {
+		if got := draw(name); len(got) != 1 || got[0] != want {
+			t.Fatalf("%q: printed %q, want only %q", name, got, want)
+		}
 	}
 }

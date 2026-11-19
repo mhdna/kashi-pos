@@ -349,7 +349,11 @@ sell at their typed price and show no chip. The cart sends the line's
   fonts, shrunk to fit the paper. `when` is empty (always), `item_deal` (a line
   has a buy X get Y deal), `deal` (a deal on the invoice) or `deal:<name>` (that
   deal, on the invoice or a line); `place` is under the shop's name or
-  `bottom`. `receiptBannerPresets` are the designer's ready-made ones, and
+  `bottom`. A branch keeps up to 12; ==one prints== per receipt
+  (`chosenBanner`): the banner for the biggest deal on it (its place in a
+  stacked deal name), then one for a deal on the items, buy X get Y, any
+  invoice deal, then always; the first of equals.
+  `receiptBannerPresets` are the designer's ready-made ones, and
   `RenderBannerPreview` draws one alone for its gallery.
 - The renderer builds on its own (`scripts/receipt-render-files.txt`,
   `TestReceiptRendererBuildsAlone`): central copies it to draw the designer's
