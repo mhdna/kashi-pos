@@ -1,11 +1,11 @@
 <template>
   <div v-if="visible" class="rewards-pair">
   <div class="header-btn-wrap">
-    <div class="header-btn-subtitle">Rewards</div>
+    <div class="header-btn-subtitle">Sales</div>
     <k-btn
       size="small"
       variant="text"
-      aria-label="Rewards"
+      aria-label="Sales"
       class="rewards-btn"
       :class="{ 'rewards-on': activeCount > 0 }"
       data-test="rewards-open"
@@ -34,7 +34,7 @@
   </div>
     <k-dialog v-model="dialog" max-width="780">
       <k-card>
-        <k-card-title>Rewards</k-card-title>
+        <k-card-title>Sales</k-card-title>
         <k-card-text class="rewards-body">
           <div v-if="pickable.length" class="rewards-heading">Choose</div>
           <div v-if="pickable.length" class="rewards-grid" data-test="rewards-pick-grid">

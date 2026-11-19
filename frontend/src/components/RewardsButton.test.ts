@@ -91,7 +91,9 @@ describe("RewardsButton", () => {
   it("the reported case: one Rewards button holding picked deals, the referral code and the automatic ones", async () => {
     await mountButton();
     expect(find("rewards-open")).not.toBeNull();
-    expect(document.body.textContent).toContain("Rewards");
+    // The reported case: it reads Sales, not Rewards.
+    expect(document.body.textContent).toContain("Sales");
+    expect(document.body.textContent).not.toContain("Rewards");
     await openDialog();
     // Short cards: the size, then one line; the details are in the title.
     expect(find("deal-students")?.textContent).toContain("15%");
