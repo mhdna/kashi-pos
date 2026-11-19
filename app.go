@@ -455,6 +455,21 @@ func (a *App) GetStartupError() string {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	// Give Windows back first (taskbar, keys, the window off the top), so a
+	// slow close never leaves a black screen nobody can get out of.
+	leaveKioskNow()
+	// And never hang: whatever is still running after this long, the app
+	// ends (SQLite's journal keeps the data safe).
+	finished := make(chan struct{})
+	defer close(finished)
+	go func() {
+		select {
+		case <-finished:
+		case <-time.After(shutdownDeadline):
+			log.Printf("shutdown: still closing after %s, ending the app", shutdownDeadline)
+			exitApp(0)
+		}
+	}()
 	a.stopWSClient()
 	a.stopSyncWorker()
 	a.stopAttendanceProbe()
@@ -465,7 +480,9 @@ func (a *App) shutdown(ctx context.Context) {
 	// connection closes underneath it would either error noisily or (worse,
 	// for tests) still be touching the SQLite file on disk after shutdown
 	// has returned.
-	a.backgroundWG.Wait()
+	if !waitTimeout(&a.backgroundWG, backgroundStopWait) {
+		log.Printf("shutdown: background work didn't stop within %s; closing anyway", backgroundStopWait)
+	}
 	a.closePhotoCache()
 	a.stopAdminServer(ctx)
 	a.stopShiftUploadServer(ctx)
@@ -1575,5 +1592,33 @@ func refreshPlannerStats(ctx context.Context, conn *sql.DB) {
 	}
 	if took := time.Since(start); took > 50*time.Millisecond {
 		log.Printf("refreshed query planner stats in %v", took)
+	}
+}
+
+// How long closing waits for background work (a sync mid-pull), and how long
+// it may take in all before the app ends regardless.
+var (
+	backgroundStopWait = 10 * time.Second
+	shutdownDeadline   = 20 * time.Second
+)
+
+// leaveKioskNow and exitApp are leaveKiosk and os.Exit; tests replace them.
+var (
+	leaveKioskNow = leaveKiosk
+	exitApp       = os.Exit
+)
+
+// waitTimeout waits for wg, at most d; false when it gave up.
+func waitTimeout(wg *sync.WaitGroup, d time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(d):
+		return false
 	}
 }

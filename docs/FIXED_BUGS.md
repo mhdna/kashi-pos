@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-19: Close App left a black screen until the PC was restarted
+
+**Symptom:** on a Windows till, Quit → Close App left a black screen; the keyboard did nothing and only restarting the computer helped.
+
+**Cause:** closing first waited, with no time limit, for background work (a sync mid-pull, say) to stop, and only after the app had fully closed did it leave kiosk mode. While it waited, the till's window stayed black and on top of everything, the keyboard hook still swallowed the Windows key, Alt+Tab and Alt+F4, and Explorer (the taskbar) wasn't started again.
+
+**Fix:** `shutdown` leaves kiosk mode before anything else (`leaveKioskNow`), and `leaveKiosk` also takes the window off the top and hides it (`kiosk_windows.go`). The wait for background work is capped at 10s (`waitTimeout`), and a watchdog ends the app if closing takes more than 20s (`app.go`). Tests: `shutdown_test.go`.
+
 ## 2026-11-19: Reprints at Centro printed no referral code for older customers
 
 **Symptom:** at Centro, reprinting an older invoice printed no referral code, though the customer has one in kashi. New customers' receipts had theirs.

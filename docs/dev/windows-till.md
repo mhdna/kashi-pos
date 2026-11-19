@@ -21,7 +21,11 @@ While the app runs, the till shows nothing else:
 Programs allowed in front of the till (`kioskAllowedPrograms`): Task Manager,
 the Windows admin prompt, Tailscale (`tailscale-ipn.exe`) and AnyDesk.
 
-**Getting out:** Quit → Close App starts Explorer again. Shut Down and Restart
+**Getting out:** Quit → Close App starts Explorer again, ==first thing==
+when the app closes (`shutdown` calls `leaveKiosk` before stopping anything):
+the keyboard hook stops and the till's window leaves the top and hides, so a
+slow close can't leave a black screen. Closing waits at most 10s for
+background work and ends the app after 20s whatever is still running. Shut Down and Restart
 leave it off (the PC is going down anyway). If the app crashed: Ctrl+Shift+Esc
 → Task Manager → Run new task → `explorer`. Nothing is stored, so a reboot
 always brings Explorer back.
