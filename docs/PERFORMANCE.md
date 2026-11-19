@@ -11,6 +11,16 @@ Measured or reported slow things that are not fixed yet.
 
 ## Entries
 
+### 2026-11-19: Adding a branch downloaded every product and client again
+
+**Symptom.** Adding Test Branch on a till that already ran Centro synced everything from scratch, though every product and client was already on the machine.
+
+**Finding.** Each branch has its own database and `CreateBranch` started an empty one, so the pull fetched the whole catalog (about 130,900 clients and every product, page by page). Not timed on the till; the clients alone took minutes in earlier catch-ups (Known slow spots).
+
+**Change.** The new branch copies central's products and clients from the branch open on the till, if it syncs with the same central (`branch_seed.go`, called from `CreateBranch` in `branches.go`); its first sync compares ids and versions and fetches only the difference. `TestNewBranchCopiesTheCatalog`: no fetch at all after the copy, one when one client is newer.
+
+**Not done.** Copying the other shared settings (currencies, categories, coupon types): small, pulled in seconds.
+
 ### 2026-11-18: The Receipt Designer's live receipt took 41 ms to draw
 
 **Symptom.** Central redraws the receipt on every change in its designer, and each change felt slow to show.

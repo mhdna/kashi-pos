@@ -281,8 +281,26 @@ func (a *App) CreateBranch(name, code, apiKey, centralApiUrl string) (map[string
 		return nil, err
 	}
 
+	// The branch open now, to copy central's products and clients from when
+	// it syncs with the same central (seedCatalogFromBranch).
+	seedFrom := ""
+	if a.store != nil && a.dbPath != "" && strings.TrimSpace(centralApiUrl) != "" {
+		if s, err := a.store.GetSettings(a.ctx); err == nil && s.CentralApiUrl != "" &&
+			normalizeCentralAPIURL(s.CentralApiUrl) == normalizeCentralAPIURL(centralApiUrl) {
+			seedFrom = a.dbPath
+		}
+	}
+
 	if err := a.switchDatabase(dbPath, true); err != nil {
 		return nil, err
+	}
+	// Before the new branch knows its central, so no sync runs meanwhile.
+	if seedFrom != "" {
+		if products, clients, err := seedCatalogFromBranch(a.ctx, a.conn, seedFrom); err != nil {
+			log.Printf("new branch %s: copy the catalog from %s: %v (it downloads it instead)", code, seedFrom, err)
+		} else {
+			log.Printf("new branch %s: copied %d products and %d clients from %s", code, products, clients, seedFrom)
+		}
 	}
 
 	current, err := a.store.GetSettings(a.ctx)
