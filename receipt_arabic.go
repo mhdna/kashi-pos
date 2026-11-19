@@ -280,6 +280,13 @@ var arabicDefaults = map[string]string{
 	"thanks":           "يسلمو، نورتونا!",
 }
 
+// arabicLabelLines are the lines printed as words then data (a name, a
+// date, a code, a payment account): their Arabic keeps the data.
+var arabicLabelLines = map[string]bool{
+	"meta_customer": true, "meta_salesperson": true, "meta_date": true,
+	"referral_title": true, "received": true, "change": true,
+}
+
 // arabicDigits writes the digits of s as Arabic-Indic ones (15 to ١٥).
 func arabicDigits(s string) string {
 	var b strings.Builder
@@ -320,8 +327,12 @@ func (t receiptTexts) arabicWords(key, value string) string {
 		}
 		ar = strings.ReplaceAll(ar, "{percent}", pct)
 	}
-	// The line's English words, as the receipt prints them, and what comes
-	// after them ("Customer: Maya Haddad" keeps ": Maya Haddad").
+	// A label line keeps what follows its English words ("Customer: Maya
+	// Haddad" keeps ": Maya Haddad", "YOUR CODE: K7M4QH" its code). Prose
+	// (the policy, a note) never does: its Arabic is the whole line.
+	if !arabicLabelLines[key] {
+		return ar
+	}
 	if def := info.Default; def != "" && !strings.Contains(def, "{") {
 		if en := t.word(key, def); en != "" {
 			if i := strings.Index(value, en); i >= 0 {
