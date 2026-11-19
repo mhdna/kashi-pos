@@ -4,6 +4,10 @@ Things to maybe build later. Not built unless asked.
 
 ## Ideas
 
+- Licensing: keep the "latest time this till ran" inside the encrypted database too, so restoring an old license.dat together with a clock set back can't stretch a lease (2026-11-19).
+- Licensing: build releases with `garble` so the license checks and the lock are harder to find and patch out of the exe (2026-11-19).
+- Licensing: a paid-until date per customer on the license server that turns them off by itself, with a warning on the owner's screen a week before (2026-11-19).
+- Licensing: show "Licensed to ..." and the install code in Settings, for support calls (2026-11-19).
 - Sync central's colour hex values to the till, so variant swatches use the colours set in central instead of reading the colour name (2026-11-07).
 - Use the new colour/size picker (`VariantPicker`) for a scanned code shared by several variants too, instead of the plain list in `home.vue` (2026-11-07).
 - Fetch the thumbnails of recent expenses, loans and transfers into the photo cache in the background, so even a first look at a page is instant (2026-11-10).

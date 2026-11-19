@@ -279,6 +279,9 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 }
 
 func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes string) (map[string]any, error) {
+	if err := a.licenseBlocked(); err != nil {
+		return nil, err
+	}
 	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)

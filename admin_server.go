@@ -29,7 +29,7 @@ type adminServer struct {
 
 func (a *adminServer) backup(ctx context.Context) (map[string]any, error) {
 	backupPath := fmt.Sprintf("%s.backup-%s", a.app.dbPath, time.Now().UTC().Format("20060102-150405.000"))
-	if _, err := a.app.conn.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
+	if _, err := a.app.conn.ExecContext(ctx, `VACUUM INTO ?`, a.app.vacuumTarget(backupPath)); err != nil {
 		return nil, fmt.Errorf("create database backup: %w", err)
 	}
 	return map[string]any{"backup": backupPath}, nil
@@ -398,7 +398,7 @@ func (a *adminServer) exportDatabase(w http.ResponseWriter, ctx context.Context)
 	_ = temporary.Close()
 	_ = os.Remove(temporaryPath)
 	defer os.Remove(temporaryPath)
-	if _, err := a.app.conn.ExecContext(ctx, `VACUUM INTO ?`, temporaryPath); err != nil {
+	if _, err := a.app.conn.ExecContext(ctx, `VACUUM INTO ?`, a.app.vacuumTarget(temporaryPath)); err != nil {
 		writeAdminError(w, http.StatusInternalServerError, fmt.Sprintf("export database: %v", err))
 		return
 	}

@@ -41,6 +41,8 @@ type App struct {
 	admin              *adminServer
 	shiftUpload        *shiftUploadServer
 	startupErr         error
+	// license is nil when licensing is off (wails dev, tests).
+	license *licenseManager
 
 	attendanceProbe     attendanceProbe
 	attendanceProbeStop chan struct{}
@@ -209,6 +211,23 @@ func (a *App) startup(ctx context.Context) {
 	defer close(a.ready)
 	a.ctx = ctx
 
+	// The license comes first: without it there is no database key. A
+	// locked till still opens its database (startLicense returns nil) so its
+	// sales keep syncing behind the lock screen.
+	if err := a.startLicense(); err != nil {
+		a.startupErr = err
+		if !errors.Is(err, errLicenseNotActivated) && !errors.Is(err, errLicenseLocked) {
+			log.Printf("license: %v", err)
+		}
+		return
+	}
+	a.openStartupDatabase()
+}
+
+// openStartupDatabase opens the active branch's database, or records why it
+// can't (missing: the branch setup screen). It runs from startup, or after
+// the activation screen.
+func (a *App) openStartupDatabase() {
 	dbPath, err := applicationDatabasePath()
 	if err != nil {
 		a.failStartup("resolve database path", err)
@@ -287,7 +306,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 		}
 	}
 
-	conn, err := sql.Open("sqlite", databaseDSN(path))
+	conn, err := openAppDatabase(path, a.databaseKey())
 	if err != nil {
 		return err
 	}
@@ -454,6 +473,9 @@ func (a *App) GetStartupError() string {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	if a.license != nil {
+		a.license.close()
+	}
 	a.stopWSClient()
 	a.stopSyncWorker()
 	a.stopAttendanceProbe()
@@ -808,6 +830,7 @@ func (a *App) WaitUntilReady() map[string]interface{} {
 		"error":           a.GetStartupError(),
 		"theme":           "light",
 		"databaseMissing": errors.Is(a.startupErr, errDatabaseMissing),
+		"license":         a.GetLicenseStatus(),
 	}
 	if theme, err := a.GetTheme(); err == nil {
 		result["theme"] = theme

@@ -1,0 +1,44 @@
+{
+  "activate": {
+    "required": true,
+    "state": "activate",
+    "code": "",
+    "licensedTo": "",
+    "warnHours": 0
+  },
+  "licensingOff": {
+    "required": false,
+    "state": "ok",
+    "code": "",
+    "licensedTo": "",
+    "warnHours": 0
+  },
+  "lockedOff": {
+    "required": true,
+    "state": "locked",
+    "code": "11112222",
+    "licensedTo": "",
+    "warnHours": 0
+  },
+  "lockedOffline": {
+    "required": true,
+    "state": "locked",
+    "code": "11112222",
+    "licensedTo": "",
+    "warnHours": 0
+  },
+  "ok": {
+    "required": true,
+    "state": "ok",
+    "code": "11112222",
+    "licensedTo": "Grand",
+    "warnHours": 0
+  },
+  "okOfflineWarning": {
+    "required": true,
+    "state": "ok",
+    "code": "11112222",
+    "licensedTo": "Grand",
+    "warnHours": 24
+  }
+}

@@ -9,6 +9,7 @@
 |---|---|
 | `%APPDATA%\kashi-pos\branches.json` | The branch registry: every branch set up on this PC, which is active, which opens by default. Read before any database is opened. |
 | `%APPDATA%\kashi-pos\database-<code>` | One SQLite database per branch (no file extension). |
+| `%APPDATA%\kashi-pos\license.dat` | The license: install id and secret, the database key, the latest lease. Sealed to this PC (see Licensing). Deleting it only asks for the product key again. |
 | `%APPDATA%\kashi-pos\devices.json` | Which input device is the scanner. |
 | `%APPDATA%\kashi-pos\updates\` | Downloaded releases, `state.json` and `handoff.json` for remote updates. |
 | next to `GB-Cloud.exe` | The previous version's exe, kept for rollback, and an optional `.env`. |
@@ -32,6 +33,8 @@
   by the seed after that.
 - SQLite runs with WAL, foreign keys on, a 5 s busy timeout and
   `_txlock=immediate` (every transaction takes the write lock at its start).
+- With licensing on, every branch database is **encrypted** with the install's
+  database key (see Licensing). `wails dev` and tests use plain databases.
 
 ## Record photo cache (`photo_cache.go`, `record_photos.go`)
 
@@ -63,6 +66,50 @@ too.
   server never shows the old one's. Capped at 512 MB, least recently shown
   dropped first.
 - Can't be opened: photos just come from central as before.
+
+## Licensing (`license.go`, `internal/license`, `database_encryption.go`)
+
+A till runs only with a **lease** signed by the vendor's license server
+(`~/Code/kashi-license`, its own repo and server, not central). The till holds
+only the server's public key (`internal/license/pubkey.go`), so it can check a
+lease but never make one.
+
+| When | What happens |
+|---|---|
+| First launch on a PC | Activation screen asks for the product key (`ActivateLicense`). The server ties it to the PC's hardware fingerprint (motherboard, BIOS, CPU via WMI, copied from aman-lomr) and returns an install id and secret, the **database key** and a lease. |
+| Running | Check-in ==about once a minute== renews the lease (the server sets the pace; bounded 15 s to 10 min). |
+| Offline | The saved lease holds for the customer's ==offline days (4 by default, set per customer on the server)==. From ==48 h before== it runs out a warning asks to connect. After, the till locks. |
+| Turned off on the server | The next check-in returns an "off" lease: the lock screen covers everything within a minute. Turned back on, the till unlocks itself within 30 s. |
+| Clock set back | Offline, a clock behind the lease's issue time or the latest time the till ran at (more than 15 min) locks it. A lease that just came from the server always counts, so a wrong clock never locks a till that's online. |
+
+- **The lock screen never says why.** It shows `LOCK_MESSAGE` in
+  `frontend/src/lib/license.ts` ("Error starting up: can't access central.",
+  to be reworded) and a short install code for support. Only a mistyped key,
+  a used-up key and no internet get their own words on the activation screen.
+- **Locked still syncs.** The database opens under the lock screen, the sync
+  worker keeps pushing sales, updates still install, and checkout and exchange
+  checkout refuse (`licenseBlocked`).
+- **`license.dat`** is sealed with AES-GCM under a key derived from the
+  fingerprint, and on Windows with DPAPI for the local machine. Copied to
+  another PC, it doesn't open (the till asks for the key; activating there
+  takes another seat).
+- **Database encryption** is ncruces's `adiantum` VFS. A plain database is
+  converted the first time it opens with a key: WAL checkpoint, backup into
+  `database.enc-tmp`, integrity check and row count of every table, then an
+  atomic rename (0.8 s for a 39 MB till on a Mac). If anything fails the plain
+  file stays and opens; it is retried next launch.
+- `VACUUM INTO` (admin backup and export) goes through `vacuumTarget`, which
+  gives it the key: backups are encrypted too.
+- **Opening a till's database elsewhere:** `go run ./cmd/kashi-db-unlock -db
+  <file> -key <key>` (the key is on the customer's page in kashi-license, or
+  `-install <id> -token <ADMIN_TOKEN>`) writes a plain copy.
+- Same PC, new Windows: activating with the same key returns the same install
+  and database key, so its databases still open.
+- **Off in development:** `licenseRequired` is false under `wails dev`
+  (unless `KASHI_LICENSE=1`) and in tests. `KASHI_LICENSE_URL` points a till at
+  another license server; harmless, since only the vendor key signs leases.
+  The release server URL is `licenseServerURL` in `license.go`
+  (`-ldflags -X main.licenseServerURL=...`).
 
 ## `.env`
 

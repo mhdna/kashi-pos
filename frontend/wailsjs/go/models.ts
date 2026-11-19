@@ -638,6 +638,26 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
+	export class LicenseStatus {
+	    required: boolean;
+	    state: string;
+	    code: string;
+	    licensedTo: string;
+	    warnHours: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LicenseStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.required = source["required"];
+	        this.state = source["state"];
+	        this.code = source["code"];
+	        this.licensedTo = source["licensedTo"];
+	        this.warnHours = source["warnHours"];
+	    }
+	}
 	
 	export class LinkStatus {
 	    internet: string;

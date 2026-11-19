@@ -1,0 +1,17 @@
+{
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAfsxyEHxYzg8AeBPCZuOtaKMw6DZWxEJlv2XxI9Z48f4=\n-----END PUBLIC KEY-----\n",
+  "lease": {
+    "v": 1,
+    "installId": "0b6f2c7e-1d2a-4c3b-9e8f-112233445566",
+    "fingerprint": "fp-golden",
+    "status": "on",
+    "licensedTo": "Golden Shop",
+    "issuedAt": "2026-11-17T09:00:00Z",
+    "validUntil": "2026-11-21T09:00:00Z",
+    "checkEverySeconds": 60
+  },
+  "signed": {
+    "p": "eyJ2IjoxLCJpbnN0YWxsSWQiOiIwYjZmMmM3ZS0xZDJhLTRjM2ItOWU4Zi0xMTIyMzM0NDU1NjYiLCJmaW5nZXJwcmludCI6ImZwLWdvbGRlbiIsInN0YXR1cyI6Im9uIiwibGljZW5zZWRUbyI6IkdvbGRlbiBTaG9wIiwiaXNzdWVkQXQiOiIyMDI2LTExLTE3VDA5OjAwOjAwWiIsInZhbGlkVW50aWwiOiIyMDI2LTExLTIxVDA5OjAwOjAwWiIsImNoZWNrRXZlcnlTZWNvbmRzIjo2MH0=",
+    "s": "zlbeZ03RQ7H/Im5NacpK6ed15jK9ybRg1ivNPL5XRcAU15j+ymEsHBUlGM1KpJ3iTsRizhoJbKOSYbN3WnNdDA=="
+  }
+}
