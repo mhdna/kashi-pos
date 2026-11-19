@@ -53,3 +53,17 @@ func TestFreeItemShowsItsPrice(t *testing.T) {
 		t.Fatalf("no deal name: %q", got)
 	}
 }
+
+// The salesperson line reads "Salesman" on both receipts.
+func TestReceiptSaysSalesman(t *testing.T) {
+	data := receiptPreviewData(designBase(), receiptModeSale)
+	drawn, _, _ := drawnTexts(t, data, "classic", "A")
+	all := strings.Join(drawn, "\n")
+	if !strings.Contains(all, "Salesman: ") || strings.Contains(all, "Salesperson") {
+		t.Fatalf("picture receipt: %q", drawn)
+	}
+	text := string(buildESCPosReceipt(data))
+	if !strings.Contains(text, "Salesman:") || strings.Contains(text, "Sold by") {
+		t.Fatalf("text receipt:\n%s", text)
+	}
+}

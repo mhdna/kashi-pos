@@ -38,7 +38,7 @@
           <k-icon icon="mdi-chevron-up" size="32" />
         </k-btn>
         <!-- The flip animation is off for now; set :animated back to true to restore it. -->
-        <FlipNumber class="visitor-count" :value="visitorCount" :animated="false" />
+        <FlipNumber class="visitor-count" :value="visitorCount" />
         <k-btn
           class="visitor-counter-btn"
           icon
