@@ -141,7 +141,7 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 				if !narrow {
 					c.rightRole(midR, y, cfg.mid(item, discount), cfg.size, cfg.numRole, image.Black)
 				}
-				c.rightRole(totalR, y, dollars(net), cfg.size, cfg.sumRole, image.Black)
+				c.rightRole(totalR, y, netText(item, net), cfg.size, cfg.sumRole, image.Black)
 			}
 			if i < len(lines)-1 {
 				y = bottom + 2
@@ -152,6 +152,7 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 			y, _ = c.textRole(c.margin+12, y, code, 10, roleBody, image.Black)
 			y += 4 + c.style.Gap/2
 		}
+		y = c.priceNote(y, item, c.margin+12, 10, 4+c.style.Gap/2)
 		subline := cfg.subline
 		if narrow {
 			// what the hidden middle column carried
@@ -220,12 +221,13 @@ func drawClassicDetailed(c *receiptCanvas, y int) (int, float64, float64) {
 		gross, discount, net := itemAmounts(item)
 		subtotal += gross
 		discountTotal += discount
-		y, _ = c.itemRow(y, item.Name, dollars(net), 11)
+		y, _ = c.itemRow(y, item.Name, netText(item, net), 11)
 		y += 5
 		if code := itemCodeText(item); code != "" {
 			y, _ = c.indented(y, "Code: "+code, 10)
 			y += 3
 		}
+		y = c.priceNote(y, item, c.margin+12, 10, 3)
 		qty := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
 		if item.Discount > 0 {
 			qty += fmt.Sprintf("  (-%.0f%% = -$%.2f)", item.Discount, discount)
@@ -336,13 +338,14 @@ func drawSupermarketRegister(c *receiptCanvas, y int) (int, float64, float64) {
 		for i, line := range lines {
 			bottom := t.put(y, 0, line, roleBody)
 			if i == len(lines)-1 {
-				t.putRight(y, t.cols, plainAmount(net), roleBodyBold)
+				t.putRight(y, t.cols, tapeNet(item, net), roleBodyBold)
 			}
 			y = t.step(bottom)
 		}
 		if code := itemCodeText(item); code != "" {
 			y = t.step(t.put(y, 2, code, roleBody))
 		}
+		y = t.priceNote(y, 2, item)
 		if item.Qty != 1 || item.Discount > 0 {
 			detail := fmt.Sprintf("  %s @ %s", qtyText(item.Qty), plainAmount(item.Price))
 			bottom := t.put(y, 0, detail, roleBody)
@@ -375,13 +378,14 @@ func drawSupermarketQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			bottom := t.put(y, qtyW+1, line, roleBody)
 			if i == len(lines)-1 {
-				t.putRight(y, t.cols, plainAmount(net), roleBodyBold)
+				t.putRight(y, t.cols, tapeNet(item, net), roleBodyBold)
 			}
 			y = t.step(bottom)
 		}
 		if code := itemCodeText(item); code != "" {
 			y = t.step(t.put(y, qtyW+1, code, roleBody))
 		}
+		y = t.priceNote(y, qtyW+1, item)
 		if item.Discount > 0 {
 			bottom := t.put(y, qtyW+1, fmt.Sprintf("DISC %s", percent(item.Discount)), roleBody)
 			t.putRight(y, t.cols, "-"+plainAmount(discount), roleBody)
@@ -407,7 +411,7 @@ func drawSupermarketCodes(c *receiptCanvas, y int) (int, float64, float64) {
 		for i, line := range lines {
 			bottom := t.put(y, 0, line, roleBody)
 			if i == len(lines)-1 {
-				t.putRight(y, t.cols, plainAmount(net), roleBodyBold)
+				t.putRight(y, t.cols, tapeNet(item, net), roleBodyBold)
 			}
 			y = t.step(bottom)
 		}
@@ -418,7 +422,7 @@ func drawSupermarketCodes(c *receiptCanvas, y int) (int, float64, float64) {
 			right += fmt.Sprintf("  -%s", percent(item.Discount))
 		}
 		t.putRight(y, t.cols, right, roleBody)
-		y = t.step(bottom) + 3
+		y = t.priceNote(t.step(bottom), 2, item) + 3
 	}
 	return y, subtotal, discountTotal
 }
@@ -444,13 +448,14 @@ func drawTypewriterTape(c *receiptCanvas, y int) (int, float64, float64) {
 			if i == 0 {
 				t.putRight(y, qtyW, qtyText(item.Qty), roleBody)
 				t.putRight(y, priceEnd, plainAmount(item.Price), roleBody)
-				t.putRight(y, t.cols, plainAmount(net), roleBodyBold)
+				t.putRight(y, t.cols, tapeNet(item, net), roleBodyBold)
 			}
 			y = t.step(t.put(y, nameStart, line, roleBody))
 		}
 		if code := itemCodeText(item); code != "" {
 			y = t.step(t.put(y, nameStart, code, roleBody))
 		}
+		y = t.priceNote(y, nameStart, item)
 		if item.Discount > 0 {
 			bottom := t.put(y, nameStart, fmt.Sprintf("LESS %s", percent(item.Discount)), roleBody)
 			t.putRight(y, t.cols, "-"+plainAmount(discount), roleBody)
@@ -476,13 +481,14 @@ func drawTypewriterItemized(c *receiptCanvas, y int) (int, float64, float64) {
 		for i, line := range lines {
 			bottom := t.put(y, 0, line, roleBodyBold)
 			if i == len(lines)-1 {
-				t.putRight(y, t.cols, plainAmount(net), roleBodyBold)
+				t.putRight(y, t.cols, tapeNet(item, net), roleBodyBold)
 			}
 			y = t.step(bottom)
 		}
 		if code := itemCodeText(item); code != "" {
 			y = t.step(t.put(y, 2, code, roleBody))
 		}
+		y = t.priceNote(y, 2, item)
 		bottom := t.put(y, 2, fmt.Sprintf("%s @ %s", qtyText(item.Qty), plainAmount(item.Price)), roleBody)
 		if item.Discount > 0 {
 			t.putRight(y, t.cols, plainAmount(gross), roleBody)
@@ -519,9 +525,14 @@ func drawBoutiqueCentered(c *receiptCanvas, y int) (int, float64, float64) {
 		if item.Discount > 0 {
 			calc += fmt.Sprintf("  ·  -%s", percent(item.Discount))
 		}
-		calc += "  ·  " + dollars(net)
+		calc += "  ·  " + netText(item, net)
 		y, _ = c.centerRole(y, calc, 10.5, roleBodyBold)
-		y += 10
+		y += 2
+		if note := priceNoteText(item); note != "" {
+			y, _ = c.centerRole(y, note, 10, roleBody)
+			y += 2
+		}
+		y += 8
 		if i < len(c.data.Items)-1 {
 			mid := c.margin + c.contentW/2
 			c.diamond(mid, y, 2)
@@ -538,7 +549,7 @@ func drawBoutiqueLedger(c *receiptCanvas, y int) (int, float64, float64) {
 		gross, discount, net := itemAmounts(item)
 		subtotal += gross
 		discountTotal += discount
-		amount := dollars(net)
+		amount := netText(item, net)
 		amtW, _ := c.measureRole(amount, 11.5, roleBodyBold)
 		lines := c.wrapText(item.Name, 14, roleName, c.contentW-amtW-16, c.contentW)
 		bottom := y
@@ -566,6 +577,7 @@ func drawBoutiqueLedger(c *receiptCanvas, y int) (int, float64, float64) {
 		for _, line := range c.wrapText(detail, 10, roleBody, c.contentW, c.contentW) {
 			y, _ = c.textRole(c.margin, y, line, 10, roleBody, image.Black)
 		}
+		y = c.priceNote(y, item, c.margin, 10, 0)
 		y += 12
 	}
 	return y, subtotal, discountTotal
@@ -580,7 +592,7 @@ func drawModernClean(c *receiptCanvas, y int) (int, float64, float64) {
 		gross, discount, net := itemAmounts(item)
 		subtotal += gross
 		discountTotal += discount
-		amount := dollars(net)
+		amount := netText(item, net)
 		amtW, _ := c.measureRole(amount, 11, roleName)
 		lines := c.wrapText(item.Name, 11, roleName, c.contentW-amtW-16, c.contentW)
 		bottom := y
@@ -606,7 +618,8 @@ func drawModernClean(c *receiptCanvas, y int) (int, float64, float64) {
 		if item.Discount > 0 {
 			c.rightRole(right, y, fmt.Sprintf("-%s  (-%s)", percent(item.Discount), dollars(discount)), 9.5, roleBody, image.Black)
 		}
-		y = bottom + 12
+		y = c.priceNote(bottom, item, c.margin, 9.5, 0)
+		y += 12
 	}
 	return y, subtotal, discountTotal
 }
@@ -639,7 +652,7 @@ func drawBistroMenu(c *receiptCanvas, y int) (int, float64, float64) {
 		gross, discount, net := itemAmounts(item)
 		subtotal += gross
 		discountTotal += discount
-		amount := dollars(net)
+		amount := netText(item, net)
 		amtW, _ := c.measureRole(amount, 11, roleBodyBold)
 		lines := c.wrapText(item.Name, 11.5, roleName, c.contentW-amtW-24, c.contentW-amtW-24)
 		lineH := c.lineHeight(11.5, roleName)
@@ -660,6 +673,7 @@ func drawBistroMenu(c *receiptCanvas, y int) (int, float64, float64) {
 			y, _ = c.textRole(c.margin+14, y, code, 9.5, roleBody, image.Black)
 			y += 2
 		}
+		y = c.priceNote(y, item, c.margin+14, 9.5, 2)
 		if item.Qty != 1 || item.Discount > 0 {
 			detail := fmt.Sprintf("%s × %s", qtyText(item.Qty), dollars(item.Price))
 			if item.Discount > 0 {
@@ -682,7 +696,7 @@ func drawBistroQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 		gross, discount, net := itemAmounts(item)
 		subtotal += gross
 		discountTotal += discount
-		amount := dollars(net)
+		amount := netText(item, net)
 		amtW, _ := c.measureRole(amount, 11, roleBodyBold)
 		nameW := right - amtW - 24 - nameX
 		lines := c.wrapText(item.Name, 11.5, roleName, nameW, nameW)
@@ -705,6 +719,7 @@ func drawBistroQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 			y, _ = c.textRole(nameX, y, code, 9.5, roleBody, image.Black)
 			y += 2
 		}
+		y = c.priceNote(y, item, nameX, 9.5, 2)
 		if item.Discount > 0 {
 			y, _ = c.textRole(nameX, y, fmt.Sprintf("%s off", percent(item.Discount)), 9.5, roleBody, image.Black)
 			y += 2
@@ -712,4 +727,68 @@ func drawBistroQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 		y += 9
 	}
 	return y, subtotal, discountTotal
+}
+
+// A unit a deal gave free prints FREE where its amount goes, and a line under
+// it with what it cost and the deal that made it free, instead of $0.00.
+
+// netText is a line's amount as it prints: FREE for a free unit.
+func netText(item invoiceItem, net float64) string {
+	if item.Free && net <= 0.005 {
+		return "FREE"
+	}
+	return dollars(net)
+}
+
+// tapeNet is netText on a register tape.
+func tapeNet(item invoiceItem, net float64) string {
+	if item.Free && net <= 0.005 {
+		return "FREE"
+	}
+	return plainAmount(net)
+}
+
+// priceNoteText is the line under a line that cost less than its price:
+// what it was and what it is now ("Was $50.00, now $45.00"), and for a free
+// unit "Was $20.00, now free (100% off, Buy 2 get 1)"; "" for a line paid in
+// full.
+func priceNoteText(item invoiceItem) string {
+	gross, _, net := itemAmounts(item)
+	if gross <= 0 || net >= gross-0.005 {
+		return ""
+	}
+	was := "Was " + dollars(gross)
+	if item.Free && net <= 0.005 {
+		why := "100% off"
+		if item.Deal != "" {
+			why += ", " + item.Deal
+		}
+		return was + ", now free (" + why + ")"
+	}
+	return was + ", now " + dollars(net)
+}
+
+// priceNote draws priceNoteText at x, wrapped to the paper, then gap.
+func (c *receiptCanvas) priceNote(y int, item invoiceItem, x int, size float64, gap int) int {
+	note := priceNoteText(item)
+	if note == "" {
+		return y
+	}
+	w := c.margin + c.contentW - x
+	for _, line := range c.wrapText(note, size, roleBody, w, w) {
+		y, _ = c.textRole(x, y, line, size, roleBody, image.Black)
+	}
+	return y + gap
+}
+
+// priceNote on a register tape, from col, wrapped to the tape.
+func (t tape) priceNote(y, col int, item invoiceItem) int {
+	note := priceNoteText(item)
+	if note == "" {
+		return y
+	}
+	for _, line := range wrapColumns(strings.ToUpper(note), t.cols-col) {
+		y = t.step(t.put(y, col, line, roleBody))
+	}
+	return y
 }

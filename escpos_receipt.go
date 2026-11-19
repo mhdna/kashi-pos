@@ -69,9 +69,16 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		gross, discount, lineTotal := itemAmounts(item)
 		subtotal += gross
 		totalDiscount += discount
-		writeESCPosLine(&out, sanitizeESCPos(item.Name), fmt.Sprintf("$%.2f", lineTotal), columns)
+		amount := fmt.Sprintf("$%.2f", lineTotal)
+		if item.Free && lineTotal <= 0.005 {
+			amount = "FREE"
+		}
+		writeESCPosLine(&out, sanitizeESCPos(item.Name), amount, columns)
 		if code := itemCodeText(item); code != "" {
 			writeESCPosText(&out, "  "+sanitizeESCPos(code))
+		}
+		if note := priceNoteText(item); note != "" {
+			writeESCPosText(&out, "  "+sanitizeESCPos(note))
 		}
 		qtyLine := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
 		if item.Discount > 0 {
