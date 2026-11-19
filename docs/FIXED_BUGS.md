@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-19: An updated till kept the old referral program (owner only)
+
+**Symptom:** Centro's referral program was set to give 15% to both the
+customer who shares the code and the new customer who uses it, but the
+receipt still said "you get 15% off your next visit" and the new customer
+paid full price.
+
+**Cause:** the till pulled the program while it was on 1.1.161, before it
+knew who a program rewards. Migration 000146 then added the field with
+'owner' as its value, and the till's cursor was already past the program, so
+it never fetched it again.
+
+**Fix:** migration 000147 forgets the program's sync cursor, so the next
+pull fetches it again (`db/migrations/000147_refetch_referral_program.up.sql`).
+On central the program's `updated_at` was touched so tills already updated
+re-read it. Test: `TestOldTillRefetchesReferralProgram`.
+
 ## 2026-11-19: An Arabic policy line ended with part of the English
 
 **Symptom:** with the exchange policy in English and Arabic, Centro's Arabic policy ended with "Items must be unworn, unused, unwashed..." in English.
