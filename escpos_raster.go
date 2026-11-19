@@ -265,7 +265,11 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y, totalsBox := c.decorStart("totals", y)
 	// Quieter than the total: regular weight, a size down.
 	for _, row := range rows {
-		y = c.row(y, row[2], row[0], row[0], row[1], 10, false)
+		if row[2] == "invoice_discount" {
+			y = c.dealRows(y, row[0], row[1])
+		} else {
+			y = c.row(y, row[2], row[0], row[0], row[1], 10, false)
+		}
 		y += c.gap(7)
 	}
 	c.markGroup("totals", totalsTop, y)

@@ -42,12 +42,19 @@ export function dealTerms(d: RewardDeal): string {
   return d.minTotal > 0 ? `${off} invoices of ${dollars(d.minTotal)} or more` : `${off} the whole invoice`;
 }
 
-// rewardsActiveCount: the referral code given, each deal picked, and a deal
-// that applied by itself (appliedName, from the quote) when it isn't one of
-// the picked ones. Only one invoice discount ever applies, so a picked deal
-// that won is counted once.
+// appliedDealNames are the deals the quote took off: one, or several joined
+// with " + " where the branch lets deals add up (invoiceDiscountsStacked).
+export function appliedDealNames(appliedName: string): string[] {
+  return appliedName ? appliedName.split(" + ") : [];
+}
+
+// rewardsActiveCount: the referral code given, each deal picked, and each
+// deal that applied by itself (appliedName, from the quote) that isn't one of
+// the picked ones, so a picked deal that applied is counted once.
 export function rewardsActiveCount(code: string, picked: string[], appliedName: string, pickedNames: string[] = []): number {
   let n = (code ? 1 : 0) + picked.length;
-  if (appliedName && !pickedNames.includes(appliedName)) n++;
+  for (const name of appliedDealNames(appliedName)) {
+    if (!pickedNames.includes(name)) n++;
+  }
   return n;
 }

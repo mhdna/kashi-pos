@@ -4,7 +4,6 @@ Things to maybe build later. Not built unless asked.
 
 ## Ideas
 
-- Deals that add up: a system setting to let the cashier's picked deals and the automatic ones compound (one after the other, e.g. Students 15% then 10% above $50) instead of the biggest taking over. Needs: the order they apply in, several deal lines on the receipt, returns and exchanges splitting each back, and kashi's reports (2026-11-19).
 
 
 - Smarter catch-up: pull first the products and clients something on the till depends on (recent invoices, held sales, quick access, rewards' owners), then the rest in the background, so a big central change never holds up the till (2026-11-18).
@@ -24,3 +23,5 @@ Things to maybe build later. Not built unless asked.
 - Receipt banners can hold an uploaded picture, printed in black and white (dithered); the drawn banners shipped first (2026-11-18).
 
 ## Done
+
+- Deals that add up, per branch (deals_stack): every deal that applies comes off one after the other (2026-11-19).

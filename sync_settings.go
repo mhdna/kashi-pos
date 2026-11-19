@@ -68,6 +68,7 @@ type branchSettingsPayload struct {
 	PriceEditRestricted           bool `json:"price_edit_restricted"`
 	DiscountToggle                bool `json:"discount_toggle"`
 	DiscountToggleDefaultOff      bool `json:"discount_toggle_default_off"`
+	DealsStack                    bool `json:"deals_stack"`
 	DealToggle                    bool `json:"deal_toggle"`
 	InvoiceRatingsEnabled         bool `json:"invoice_ratings_enabled"`
 	SoundsEnabled                 bool `json:"sounds_enabled"`
@@ -295,6 +296,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		PriceEditRestricted:           a.flagEnabled(ctx, priceEditRestrictedFlag),
 		DiscountToggle:                a.flagEnabled(ctx, discountToggleFlag),
 		DiscountToggleDefaultOff:      a.flagEnabled(ctx, discountToggleDefaultOffFlag),
+		DealsStack:                    a.flagEnabled(ctx, dealsStackFlag),
 		DealToggle:                    a.flagEnabled(ctx, dealToggleFlag),
 		InvoiceRatingsEnabled:         a.flagEnabledDefaultOn(ctx, invoiceRatingsFlag),
 		SoundsEnabled:                 a.soundsEnabled(),

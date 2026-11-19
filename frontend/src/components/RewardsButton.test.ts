@@ -131,6 +131,21 @@ describe("RewardsButton", () => {
     expect(find("rewards-badge")?.textContent).toBe("1");
   });
 
+  it("where the branch lets deals add up, several can be picked, and each applied one shows", async () => {
+    listDeals.mockResolvedValue([students, staff, auto]);
+    const w = await mountButton({ stack: true, appliedName: "15% off $100 + Students 15%" });
+    await openDialog();
+    find("deal-students")!.click();
+    await flushPromises();
+    find("deal-staff")!.click();
+    await flushPromises();
+    expect(w.emitted("update:picked")?.at(-1)).toEqual([["students", "staff"]]);
+    expect(document.querySelectorAll(".reward-card--on").length).toBe(2);
+    expect(find("auto-auto")?.className).toContain("reward-card--applied");
+    // Two picked, one more applied by itself.
+    expect(find("rewards-badge")?.textContent).toBe("3");
+  });
+
   it("picking a deal turns it on for the sale, and the button shows it", async () => {
     const w = await mountButton();
     expect(find("rewards-badge")).toBeNull();

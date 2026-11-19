@@ -100,6 +100,67 @@ func bestInvoiceDiscount(rules []db.InvoiceDiscount, total int64, now time.Time,
 	return best
 }
 
+// invoiceDiscountsStacked is the sale's invoice discounts when a branch lets
+// them add up (deals_stack): every rule that applies (its minimum judged on
+// the sale before any of them, a picked one only when picked) comes off one
+// after the other. Percents go first, biggest first, each on what is left;
+// then fixed amounts, biggest first, never past what is left. The names are
+// joined in that order ("Students 15% + 10% above $50"); one rule alone is
+// what bestInvoiceDiscount would give.
+func invoiceDiscountsStacked(rules []db.InvoiceDiscount, total int64, now time.Time, roundingMode string, picked ...string) invoiceDiscount {
+	if total <= 0 {
+		return invoiceDiscount{}
+	}
+	var on []db.InvoiceDiscount
+	for _, r := range rules {
+		if total < r.MinTotal || !invoiceDiscountInForce(r, now) {
+			continue
+		}
+		if r.CashierPicks != 0 && !slices.Contains(picked, r.Uid) {
+			continue
+		}
+		if (r.Kind == invoiceDiscountPercent && r.Percent > 0) || (r.Kind == invoiceDiscountAmount && r.Amount > 0) {
+			on = append(on, r)
+		}
+	}
+	slices.SortFunc(on, func(a, b db.InvoiceDiscount) int {
+		if (a.Kind == invoiceDiscountPercent) != (b.Kind == invoiceDiscountPercent) {
+			if a.Kind == invoiceDiscountPercent {
+				return -1
+			}
+			return 1
+		}
+		if a.Kind == invoiceDiscountPercent && a.Percent != b.Percent {
+			return int(b.Percent - a.Percent)
+		}
+		if a.Kind == invoiceDiscountAmount && a.Amount != b.Amount {
+			return int(b.Amount - a.Amount)
+		}
+		// Same size: by name, so a receipt names them in the same order.
+		return strings.Compare(a.Name, b.Name)
+	})
+	left := total
+	var names []string
+	for _, r := range on {
+		if left <= 0 {
+			break
+		}
+		var cents int64
+		if r.Kind == invoiceDiscountPercent {
+			cents = percentOf(left, r.Percent, roundingMode)
+		} else {
+			cents = r.Amount
+		}
+		cents = min(cents, left)
+		if cents <= 0 {
+			continue
+		}
+		left -= cents
+		names = append(names, r.Name)
+	}
+	return invoiceDiscount{Name: strings.Join(names, " + "), Cents: total - left}
+}
+
 // invoiceDiscountInForce: valid_to is the first moment the rule is over.
 // A date the till can't read keeps the rule out rather than in.
 func invoiceDiscountInForce(r db.InvoiceDiscount, now time.Time) bool {
@@ -157,8 +218,9 @@ func spreadInvoiceDiscount(products []pricedInvoiceProduct, cents int64) []price
 }
 
 // applyInvoiceDiscount finds the sale's invoice discount and takes it off
-// its lines and its discounted subtotal. The buyer's referral reward
-// competes with the rules: it wins only when it takes off more, so a tie
+// its lines and its discounted subtotal: the biggest rule, or all of them
+// added up where the branch says so (deals_stack). The buyer's referral
+// reward competes with that: it wins only when it takes off more, so a tie
 // keeps the reward for a later sale.
 // picked are the uids of the rules the cashier picked for the sale.
 func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundingMode string, clientID int64, picked []string) error {
@@ -168,6 +230,10 @@ func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundin
 	}
 	now := time.Now()
 	best := bestInvoiceDiscount(rules, totals.DiscountedSubtotal, now, roundingMode, picked...)
+	// A branch can let its deals add up instead of the biggest taking over.
+	if v, err := q.GetFeatureFlag(a.ctx, dealsStackFlag); err == nil && v != 0 {
+		best = invoiceDiscountsStacked(rules, totals.DiscountedSubtotal, now, roundingMode, picked...)
+	}
 	reward, ok, err := usableReferralReward(a.ctx, q, clientID, now)
 	if err != nil {
 		return fmt.Errorf("load referral reward: %w", err)
