@@ -517,7 +517,7 @@ func TestReferralCodeOnTheReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, note := referralReceiptNote(program, shop.owner, receiptTexts{})
+	code, note := referralReceiptNote(program, shop.owner, receiptTexts{}, false)
 	if code != shop.ownerCode || !strings.Contains(note, "15% off your next visit") {
 		t.Fatalf("code %q note %q", code, note)
 	}
@@ -533,10 +533,10 @@ func TestReferralCodeOnTheReceipt(t *testing.T) {
 	}
 	walkIn := shop.owner
 	walkIn.Phone = "00000000"
-	if code, _ := referralReceiptNote(program, walkIn, receiptTexts{}); code != "" {
+	if code, _ := referralReceiptNote(program, walkIn, receiptTexts{}, false); code != "" {
 		t.Fatal("the walk-in got a code")
 	}
-	if code, _ := referralReceiptNote(db.ReferralProgram{RewardPercent: 15}, shop.owner, receiptTexts{}); code != "" {
+	if code, _ := referralReceiptNote(db.ReferralProgram{RewardPercent: 15}, shop.owner, receiptTexts{}, false); code != "" {
 		t.Fatal("referrals off still printed a code")
 	}
 	if code, _ := shop.app.receiptReferral(shop.owner.ID, receiptTexts{}); code != shop.ownerCode {

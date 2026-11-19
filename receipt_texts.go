@@ -26,6 +26,11 @@ var receiptSections = []string{receiptSectionPayments, receiptSectionPolicy, rec
 
 // receiptTexts is the stored JSON.
 type receiptTexts struct {
+	// ReferralRewardTo is who the referral program rewards (owner, friend
+	// or both), set when a receipt is drawn: the note's default wording
+	// follows it. Not part of the branch's design.
+	ReferralRewardTo string `json:"-"`
+
 	PaymentsTitle string   `json:"payments_title,omitempty"`
 	PolicyTitle   string   `json:"policy_title,omitempty"`
 	ReferralTitle string   `json:"referral_title,omitempty"`
@@ -120,7 +125,25 @@ func (t receiptTexts) socialsTitle() string  { return t.word("socials_title", de
 
 // referralNote is the line under the code, with the reward put in.
 func (t receiptTexts) referralNote(percent int64) string {
-	return strings.ReplaceAll(t.word("referral_note", defaultReferralNote), "{percent}", fmt.Sprintf("%d%%", percent))
+	return strings.ReplaceAll(t.word("referral_note", referralNoteDefault(t.ReferralRewardTo)), "{percent}", fmt.Sprintf("%d%%", percent))
+}
+
+// Who a referral code rewards (central's program).
+const (
+	referralRewardOwner  = "owner"
+	referralRewardFriend = "friend"
+	referralRewardBoth   = "both"
+)
+
+// referralNoteDefault is the note's wording for who the program rewards.
+func referralNoteDefault(rewardTo string) string {
+	switch rewardTo {
+	case referralRewardBoth:
+		return "Share this code with someone who hasn't shopped with us yet. When they use it, you both get {percent} off the whole invoice."
+	case referralRewardFriend:
+		return "Share this code with someone who hasn't shopped with us yet: they get {percent} off their first invoice."
+	}
+	return defaultReferralNote
 }
 
 // thanks is the last line: the branch's own, else the theme's, else the

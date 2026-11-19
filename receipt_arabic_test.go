@@ -63,8 +63,9 @@ func TestArabicWords(t *testing.T) {
 		t.Fatalf("customer: %q", got)
 	}
 	// The reported case: the referral note in Lebanese, its percent in Arabic digits.
-	note := t0.arabicWords("referral_note", "Give this code to a friend. When they shop with us for the first time, you get 15% off your next visit.")
-	if note != "عطي هيدا الكود لحدا ما اجا على المحل من قبل، بيربح انت وهوي حسم ١٥٪ على كامل الفاتورة." {
+	both := receiptTexts{ReferralRewardTo: referralRewardBoth}
+	note := both.arabicWords("referral_note", "Share this code with someone who hasn't shopped with us yet. When they use it, you both get 15% off the whole invoice.")
+	if note != "شارك هالكود مع حدا ما زارنا قبل، ولما يستعملو بتاخدوا انتو التنين حسم ١٥٪ على كامل الفاتورة." {
 		t.Fatalf("note: %q", note)
 	}
 	// The shop's own policy has no default Arabic; the default policy does.

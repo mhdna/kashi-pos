@@ -89,6 +89,9 @@ type Querier interface {
 	CountProductsByCode(ctx context.Context, searchPattern string) (int64, error)
 	CountProductsByCodeIndexed(ctx context.Context, searchPattern string) (int64, error)
 	CountProductsIndexed(ctx context.Context, searchPattern string) (int64, error)
+	// Whether a client's referral code has been used: a referral central has
+	// for them (any but a refusal), or a sale here that named their code.
+	CountReferralUsesOfOwner(ctx context.Context, arg CountReferralUsesOfOwnerParams) (int64, error)
 	CountReturnsForSale(ctx context.Context, salesInvoiceID int64) (int64, error)
 	CountSyncOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountSyncOutboxConfirmedElsewhere(ctx context.Context, syncedTo string) (int64, error)

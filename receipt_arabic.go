@@ -275,7 +275,7 @@ var arabicDefaults = map[string]string{
 	"policy_title":     "شروط التبديل",
 	"policy_text":      "فيك تبدل خلال ٣ أيام.",
 	"referral_title":   "الكود تبعك",
-	"referral_note":    "عطي هيدا الكود لحدا ما اجا على المحل من قبل، بيربح انت وهوي حسم {percent} على كامل الفاتورة.",
+	"referral_note":    "شارك هالكود مع حدا ما زارنا قبل، ولما يستعملو بتاخدوا انتو التنين حسم {percent} على كامل الفاتورة.",
 	"socials_title":    "تابعونا على:",
 	"thanks":           "يسلمو، نورتونا!",
 }
@@ -285,6 +285,19 @@ var arabicDefaults = map[string]string{
 var arabicLabelLines = map[string]bool{
 	"meta_customer": true, "meta_salesperson": true, "meta_date": true,
 	"referral_title": true, "received": true, "change": true,
+}
+
+// arabicReferralNote is the note's Lebanese Arabic for who the program
+// rewards: both (the default here), only the new customer, or only the
+// client who shared it.
+func arabicReferralNote(rewardTo string) string {
+	switch rewardTo {
+	case referralRewardBoth:
+		return arabicDefaults["referral_note"]
+	case referralRewardFriend:
+		return "شارك هالكود مع حدا ما زارنا قبل، وبياخد حسم {percent} على أول فاتورة إلو."
+	}
+	return "شارك هالكود مع حدا ما زارنا قبل، ولما يشتري فيه بتاخد انت حسم {percent} على زيارتك الجاية."
 }
 
 // arabicDigits writes the digits of s as Arabic-Indic ones (15 to ١٥).
@@ -311,6 +324,9 @@ func (t receiptTexts) arabicWords(key, value string) string {
 	info, _ := receiptElementByKey(key)
 	if ar == "" {
 		ar = arabicDefaults[key]
+		if key == "referral_note" {
+			ar = arabicReferralNote(t.ReferralRewardTo)
+		}
 		// The shop's own policy has no default Arabic: only the default
 		// English one does.
 		if key == "policy_text" && strings.TrimSpace(value) != defaultReturnPolicy {

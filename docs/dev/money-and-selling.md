@@ -293,6 +293,13 @@ sell at their typed price and show no chip. The cart sends the line's
   (`withReferralPick`), checked by `checkReferralCode`, so the discount never
   comes without the code being recorded. `TestReferralDiscountRandomized`.
 
+- ==A code is good once==: a client's code prints on their receipts until a
+  friend uses it (a referral central has for them, or a sale here that named
+  it: `referralCodeUsed`), and the till refuses a used code; central refuses
+  a second use too. The note's default wording follows who the program
+  rewards (`referralNoteDefault`, `arabicReferralNote`), and the code's block
+  prints white on black (`invertRect`).
+
 ## The Rewards button
 
 - One button in the cart header, **Rewards**, holds a sale's rewards: the deals

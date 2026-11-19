@@ -48,3 +48,10 @@ SELECT EXISTS (
     JOIN sales_invoices s ON s.invoice_id = i.id
     WHERE i.client_id = ? AND i.cancelled_at IS NULL
 ) AS has_sale;
+
+-- name: CountReferralUsesOfOwner :one
+-- Whether a client's referral code has been used: a referral central has
+-- for them (any but a refusal), or a sale here that named their code.
+SELECT
+    (SELECT COUNT(*) FROM referral_rewards WHERE owner_client_uid = sqlc.arg(owner_uid)) +
+    (SELECT COUNT(*) FROM invoices WHERE referral_code = sqlc.arg(code) AND sqlc.arg(code) <> '') AS uses;
