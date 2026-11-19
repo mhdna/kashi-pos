@@ -96,7 +96,7 @@ var receiptElements = []receiptElementInfo{
 	{Key: "website", Group: "header", Label: "Website", Can: canAll},
 
 	{Key: "meta_customer", Group: "meta", Label: "Customer", Default: "Customer", Can: canText | canCase | canSize | canBold | canHide},
-	{Key: "meta_salesperson", Group: "meta", Label: "Salesperson", Default: "Salesperson", Can: canText | canCase | canSize | canBold | canHide},
+	{Key: "meta_salesperson", Group: "meta", Label: "Salesman", Default: "Salesman", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "meta_date", Group: "meta", Label: "Date", Default: "Date", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "note_label", Group: "meta", Label: "Note", Default: "Note", Can: canText | canCase},
 

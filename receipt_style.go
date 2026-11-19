@@ -90,7 +90,7 @@ func (c *receiptCanvas) drawMeta(y int) int {
 	t := c.data.Texts
 	all := [][3]string{
 		{"meta_customer", "Customer", fallbackReceiptValue(c.data.Customer, receiptWalkInLabel)},
-		{"meta_salesperson", "Salesperson", formatReceiptSalesperson(c.data.Salesperson)},
+		{"meta_salesperson", "Salesman", formatReceiptSalesperson(c.data.Salesperson)},
 		{"meta_date", "Date", c.now().Format(t.dateLayout())},
 	}
 	type metaPair struct{ key, label, value string }
