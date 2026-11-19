@@ -303,29 +303,38 @@ func TestReferralNoteFollowsTheProgram(t *testing.T) {
 	}
 }
 
-// The code's block prints white on black so it stands out.
-func TestReferralBlockWhiteOnBlack(t *testing.T) {
+// The reported case: only the code's line prints white on black; the note
+// under it stays as it was.
+func TestReferralCodeLineWhiteOnBlack(t *testing.T) {
 	data := receiptPreviewData(designBase(), receiptModeReferral)
 	_, img, marks := drawnTexts(t, data, "classic", "A")
-	var top, bottom int
+	var title, note receiptMark
 	for _, m := range marks {
-		if m.Kind == "section" && m.Part == receiptSectionReferral {
-			top, bottom = m.Top, m.Bottom
+		if m.Kind == "line" && m.Part == "referral_title" {
+			title = m
+		}
+		if m.Kind == "line" && m.Part == "referral_note" {
+			note = m
 		}
 	}
-	if bottom <= top {
-		t.Fatal("no referral part")
+	if title.Bottom <= title.Top || note.Bottom <= note.Top {
+		t.Fatal("no referral lines")
 	}
-	dark := 0
-	b := img.Bounds()
-	for y := top; y < bottom; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			if r, _, _, _ := img.At(x, y).RGBA(); r < 0x8000 {
-				dark++
+	darkShare := func(top, bottom int) float64 {
+		dark, b := 0, img.Bounds()
+		for y := top; y < bottom; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				if r, _, _, _ := img.At(x, y).RGBA(); r < 0x8000 {
+					dark++
+				}
 			}
 		}
+		return float64(dark) / float64((bottom-top)*b.Dx())
 	}
-	if share := float64(dark) / float64((bottom-top)*b.Dx()); share < 0.5 {
-		t.Fatalf("the code's block is only %.0f%% black", share*100)
+	if s := darkShare(title.Top, title.Bottom); s < 0.5 {
+		t.Fatalf("the code's line is only %.0f%% black", s*100)
+	}
+	if s := darkShare(note.Top, note.Bottom); s > 0.3 {
+		t.Fatalf("the note is %.0f%% black: it should stay on white", s*100)
 	}
 }
