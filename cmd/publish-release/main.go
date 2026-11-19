@@ -210,6 +210,13 @@ func publish(args []string) error {
 	step("Uploading GB Cloud %s (%s): %.1f MB to send, the program is %.1f MB…",
 		*version, *flavor, float64(len(upload))/(1<<20), float64(len(content))/(1<<20))
 	status, answer, err := uploadRelease(baseURL, token, fields, filepath.Base(*file), upload, encoding)
+	// Central being deployed answers 502 for a minute or so: wait for it
+	// rather than fail.
+	for try := 1; err == nil && centralRestarting(status) && try <= restartRetries; try++ {
+		warn("Central isn't answering (status %d), most likely being updated; trying again in %s (%d of %d)…", status, restartRetryWait, try, restartRetries)
+		time.Sleep(restartRetryWait)
+		status, answer, err = uploadRelease(baseURL, token, fields, filepath.Base(*file), upload, encoding)
+	}
 	if err != nil {
 		return err
 	}
@@ -258,6 +265,19 @@ func publish(args []string) error {
 		*branches = "all"
 	}
 	return targetBranches(baseURL, token, created.Release.ID, *version, *flavor, *branches, *force)
+}
+
+// A deploy restarts central for about a minute: an upload it refuses that
+// way is tried again this many times, this far apart.
+const restartRetries = 12
+
+var restartRetryWait = 10 * time.Second
+
+// centralRestarting says whether an answer means central is being restarted
+// (its proxy's 502/503/504, or Cloudflare's 520 to 523).
+func centralRestarting(status int) bool {
+	return status == http.StatusBadGateway || status == http.StatusServiceUnavailable ||
+		status == http.StatusGatewayTimeout || (status >= 520 && status <= 523)
 }
 
 // releaseRef is a release as central's list gives it.

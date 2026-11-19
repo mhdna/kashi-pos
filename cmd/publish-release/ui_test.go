@@ -220,3 +220,16 @@ func TestFindRelease(t *testing.T) {
 		t.Fatalf("missing got %d", got)
 	}
 }
+
+func TestCentralRestarting(t *testing.T) {
+	for _, s := range []int{502, 503, 504, 520, 521, 522, 523} {
+		if !centralRestarting(s) {
+			t.Fatalf("%d should wait", s)
+		}
+	}
+	for _, s := range []int{200, 201, 400, 401, 409, 413, 500, 524} {
+		if centralRestarting(s) {
+			t.Fatalf("%d shouldn't wait", s)
+		}
+	}
+}
