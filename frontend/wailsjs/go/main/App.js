@@ -886,6 +886,10 @@ export function SetDealToggleEnabled(arg1) {
   return window['go']['main']['App']['SetDealToggleEnabled'](arg1);
 }
 
+export function SetDealsStackEnabled(arg1) {
+  return window['go']['main']['App']['SetDealsStackEnabled'](arg1);
+}
+
 export function SetDefaultBranch(arg1) {
   return window['go']['main']['App']['SetDefaultBranch'](arg1);
 }
