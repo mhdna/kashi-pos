@@ -212,7 +212,10 @@
             <div v-if="selected.payments?.length" class="settlement-list">
               <div v-for="payment in selected.payments" :key="`${payment.accountId}-${payment.amount}`" class="settlement-row">
                 <span>{{ settlementAccountName(payment) }}</span>
-                <span class="font-weight-bold">${{ cents(payment.amount) }}</span>
+                <span class="payment-amount" data-test="payment-amount">
+                  <span v-if="paymentLabels(payment).equivalent" class="payment-equivalent text-medium-emphasis">{{ paymentLabels(payment).equivalent }}</span>
+                  <span class="font-weight-bold">{{ paymentLabels(payment).main }}</span>
+                </span>
               </div>
               <div class="settlement-row settlement-total"><span>Total paid</span><span>${{ cents(selectedPaid) }}</span></div>
             </div>
@@ -338,6 +341,7 @@ const pageCache: { firstPage: { items: any[]; total: number; endReached: boolean
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from "vue";
+import { paymentLabels } from "@/lib/paymentDisplay";
 import { useRouter } from "vue-router";
 import {
   CancelInvoice,
@@ -944,5 +948,13 @@ onBeforeUnmount(() => {
 .invoice-totals { max-width: 360px; margin-left: auto; }
 @media (max-width: 560px) {
   .invoice-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.payment-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.payment-equivalent {
+  font-size: 0.85em;
 }
 </style>

@@ -53,3 +53,20 @@ func storedInvoiceLBPTotal(inv db.Invoice) (*int64, *int64) {
 	total, rate := inv.LbpTotal.Int64, inv.LbpRate.Int64
 	return &total, &rate
 }
+
+// paymentLBPUnits is an LBP payment as the cashier counted it, from the USD
+// cents it was stored as and the invoice's rate (LBP per USD): the nearest
+// 1,000 L.L., since a cent (about 900 L.L.) loses the rest and cash comes in
+// thousands. 60,000 L.L. stored as 67 cents at 89,500 is 59,965 before the
+// rounding. A refund keeps its sign. ok is false without a rate.
+func paymentLBPUnits(cents, rate int64) (units int64, ok bool) {
+	if rate <= 0 {
+		return 0, false
+	}
+	exact := absInt64(cents) * rate // LBP x 100
+	units = (exact + 50_000) / 100_000 * 1_000
+	if cents < 0 {
+		units = -units
+	}
+	return units, true
+}

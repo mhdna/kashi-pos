@@ -431,10 +431,17 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 	paymentList := make([]map[string]any, 0, len(payments))
 	for _, payment := range payments {
 		account := accountByID[payment.CashboxID]
-		paymentList = append(paymentList, map[string]any{
+		row := map[string]any{
 			"accountId": payment.CashboxID, "accountName": account.Name,
 			"currencyCode": account.CurrencyCode, "amount": payment.Amount,
-		})
+		}
+		// An LBP account's payment in LBP too, by the sale's own rate.
+		if strings.EqualFold(account.CurrencyCode, "LBP") && inv.LbpRate.Valid {
+			if units, ok := paymentLBPUnits(payment.Amount, inv.LbpRate.Int64); ok {
+				row["lbpAmount"] = units
+			}
+		}
+		paymentList = append(paymentList, row)
 	}
 	clientName := anonymousClientLabel
 	clientPhone := ""

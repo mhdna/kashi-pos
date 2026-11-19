@@ -11,4 +11,10 @@ describe("invoice details payments", () => {
     expect(src).not.toMatch(/section-label">\s*Settlement\s*</);
     expect(src).toContain("Total paid");
   });
+
+  it("the reported case: each payment reads through paymentLabels, LBP in L.L. with its dollars", () => {
+    expect(src).toMatch(/paymentLabels\(payment\)\.main/);
+    expect(src).toMatch(/paymentLabels\(payment\)\.equivalent/);
+    expect(src).not.toMatch(/\$\{\{ cents\(payment\.amount\) \}\}/);
+  });
 });
