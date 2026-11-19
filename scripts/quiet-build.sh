@@ -43,9 +43,9 @@ fi
 wait "$pid"; rc=$?
 secs=$(( $(date +%s) - start ))
 if [ "$rc" -eq 0 ]; then
-  say_ok "Built $label in ${secs}s"
+  say_ok "Built $label in ${secs}s, at $(date '+%H:%M:%S')"
 else
-  say_fail "Build failed: $label (after ${secs}s)"
+  say_fail "Build failed: $label (after ${secs}s, at $(date '+%H:%M:%S'))"
   tail -n 30 "$log"
   say_dim "Full build log: $log"
 fi

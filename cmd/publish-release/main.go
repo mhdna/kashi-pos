@@ -57,15 +57,24 @@ func main() {
 	case "keygen":
 		err = keygen(os.Args[2:])
 	case "publish":
+		started := time.Now()
+		step("Publishing, started %s", started.Format(stampLong))
 		err = publish(os.Args[2:])
+		if err == nil {
+			ok("Done at %s, in %s", time.Now().Format(stampLong), time.Since(started).Round(time.Second))
+		}
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
 	if err != nil {
 		fail(err.Error())
+		dim("Stopped at %s", time.Now().Format(stampLong))
 		os.Exit(1)
 	}
 }
+
+// stampLong is how publish says when: "Thu 19 Nov 2026, 12:53:56".
+const stampLong = "Mon 2 Jan 2006, 15:04:05"
 
 func defaultKeyPath() string {
 	if p := os.Getenv("KASHI_CLOUD_UPDATE_KEY"); p != "" {
@@ -260,7 +269,7 @@ func publish(args []string) error {
 		step("Making patches from the builds the tills run…")
 		publishPatches(baseURL, token, created.Release.ID, *version, *flavor, *file, content)
 	}
-	ok("Published GB Cloud %s (%s)", *version, *flavor)
+	ok("Published GB Cloud %s (%s) at %s", *version, *flavor, time.Now().Format("15:04:05"))
 	if *targetAll {
 		*branches = "all"
 	}
