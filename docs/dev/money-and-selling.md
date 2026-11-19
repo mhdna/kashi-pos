@@ -384,6 +384,10 @@ sell at their typed price and show no chip. The cart sends the line's
   (`chosenBanner`): the banner for the biggest deal on it (its place in a
   stacked deal name), then one for a deal on the items, buy X get Y, any
   invoice deal, then always; the first of equals.
+  More conditions: `item_discount` (an item on sale with its own discount)
+  and `referral` (a customer with a code to share); a till leaves out a
+  banner whose condition it doesn't know (older tills printed it always).
+  `{deal}` in a banner's words prints the deal's name (the title in capitals).
   `receiptBannerPresets` are the designer's ready-made ones, and
   `RenderBannerPreview` draws one alone for its gallery.
 - The renderer builds on its own (`scripts/receipt-render-files.txt`,
