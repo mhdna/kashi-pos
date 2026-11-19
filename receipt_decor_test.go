@@ -410,7 +410,7 @@ func TestDesignerItemDeal(t *testing.T) {
 	if !strings.Contains(out, "Blue Linen Shirt on us") || strings.Contains(out, "(FREE)") {
 		t.Fatalf("text receipt: %s", out)
 	}
-	items := itemsWithFreeTag(receiptTexts{Elements: map[string]receiptElement{"deal_free": {Text: "x"}}}, []invoiceItem{{Name: "Hat (FREE)"}, {Name: "Cap (FREE)", Free: true}})
+	items := itemsAsPrinted(receiptTexts{Elements: map[string]receiptElement{"deal_free": {Text: "x"}}}, []invoiceItem{{Name: "Hat (FREE)"}, {Name: "Cap (FREE)", Free: true}})
 	if items[0].Name != "Hat (FREE)" || items[1].Name != "Cap x" {
 		t.Fatalf("names %q %q", items[0].Name, items[1].Name)
 	}

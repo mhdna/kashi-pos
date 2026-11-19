@@ -223,7 +223,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y = c.divider("meta", y) + c.gap(10)
 
 	itemsTop := y
-	c.data.Items = c.itemsWithFreeTag(c.data.Items)
+	c.data.Items = c.itemsAsPrinted(c.data.Items)
 	y, itemsBox := c.decorStart("columns", y)
 	y, subtotal, discountTotal := c.layout.draw(c, y)
 	c.pendingWords = nil
