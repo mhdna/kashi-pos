@@ -77,6 +77,8 @@ type receiptElementInfo struct {
 	Can     int    `json:"can"`
 	// ArDefault is the line's Arabic unless the branch writes its own.
 	ArDefault string `json:"ar_default,omitempty"`
+	// DarkDefault: the line prints white on black unless the branch says not.
+	DarkDefault bool `json:"dark_default,omitempty"`
 }
 
 // receiptGroupInfo is one clickable part of the receipt: the elements it holds.
