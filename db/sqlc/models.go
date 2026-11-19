@@ -586,10 +586,12 @@ type QuickAccessItem struct {
 }
 
 type ReferralProgram struct {
-	ID             int64 `json:"id"`
-	Enabled        int64 `json:"enabled"`
-	RewardPercent  int64 `json:"rewardPercent"`
-	MinFriendSpend int64 `json:"minFriendSpend"`
+	ID             int64  `json:"id"`
+	Enabled        int64  `json:"enabled"`
+	RewardPercent  int64  `json:"rewardPercent"`
+	MinFriendSpend int64  `json:"minFriendSpend"`
+	RewardTo       string `json:"rewardTo"`
+	FriendPercent  int64  `json:"friendPercent"`
 }
 
 type ReferralReward struct {

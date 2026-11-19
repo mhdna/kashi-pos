@@ -1082,6 +1082,7 @@ export namespace main {
 	    rewardPercent: number;
 	    code: string;
 	    rewardOfferPercent: number;
+	    friendPercent: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ReferralInfo(source);
@@ -1093,6 +1094,7 @@ export namespace main {
 	        this.rewardPercent = source["rewardPercent"];
 	        this.code = source["code"];
 	        this.rewardOfferPercent = source["rewardOfferPercent"];
+	        this.friendPercent = source["friendPercent"];
 	    }
 	}
 	export class ResyncEntityReport {

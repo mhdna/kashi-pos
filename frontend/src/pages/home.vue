@@ -587,7 +587,14 @@ const referralCode = ref("");
 // The invoice discounts the cashier picked for this sale (RewardsButton);
 // the quote, the payment check and checkout all take them.
 const pickedDeals = ref<string[]>([]);
-const pickedDealsJson = computed(() => (pickedDeals.value.length ? JSON.stringify(pickedDeals.value) : ""));
+// The picks the quote, the payment check and checkout get: the deals picked
+// and the sale's referral code ("referral:CODE"), for the new customer's
+// discount where central's program gives one (the till decides; checkout
+// uses its own code, the same one).
+const pickedDealsJson = computed(() => {
+  const picks = [...pickedDeals.value, ...(referralCode.value ? [`referral:${referralCode.value}`] : [])];
+  return picks.length ? JSON.stringify(picks) : "";
+});
 const noteDraft = ref("");
 // The sale an exchange returns items from; its code names a held exchange.
 const exchangeState = ref<{ originalInvoiceId: number; originalInvoiceCode?: string } | null>(null);

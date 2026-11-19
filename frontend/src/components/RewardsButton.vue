@@ -104,6 +104,7 @@
             <div>
               <div class="reward-line">{{ modelValue }}</div>
               <div class="rewards-explain">{{ ownerName ? `Sent by ${ownerName}` : "Added to this sale" }}</div>
+              <div v-if="friendPercent > 0" class="rewards-explain text-error" data-test="referral-friend-off">{{ friendPercent }}% off this sale</div>
             </div>
             <k-btn variant="text" color="error" data-test="referral-remove" @click="removeCode">Remove</k-btn>
           </div>
@@ -154,6 +155,8 @@ const emit = defineEmits<{ "update:modelValue": [code: string]; "update:picked":
 
 const referralEnabled = ref(false);
 const rewardPercent = ref(0);
+// The new customer's percent off this sale, 0 when the program doesn't give one.
+const friendPercent = ref(0);
 const deals = ref<RewardDeal[]>([]);
 const dialog = ref(false);
 // The referral code is typed in a dialog of its own, opened from its card.
@@ -182,6 +185,7 @@ async function loadInfo() {
     const info = await GetReferralInfo(0);
     referralEnabled.value = Boolean(info.enabled);
     rewardPercent.value = Number(info.rewardPercent);
+    friendPercent.value = Number(info.friendPercent ?? 0);
   } catch {
     referralEnabled.value = false;
   }

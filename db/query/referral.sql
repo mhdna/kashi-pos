@@ -5,11 +5,12 @@ UPDATE clients SET referral_code = ? WHERE id = ?;
 SELECT * FROM clients WHERE referral_code = ? AND referral_code <> '' LIMIT 1;
 
 -- name: UpsertReferralProgram :exec
-INSERT INTO referral_program (id, enabled, reward_percent, min_friend_spend)
-VALUES (1, ?, ?, ?)
+INSERT INTO referral_program (id, enabled, reward_percent, min_friend_spend, reward_to, friend_percent)
+VALUES (1, ?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET
     enabled = excluded.enabled, reward_percent = excluded.reward_percent,
-    min_friend_spend = excluded.min_friend_spend;
+    min_friend_spend = excluded.min_friend_spend, reward_to = excluded.reward_to,
+    friend_percent = excluded.friend_percent;
 
 -- name: GetReferralProgram :one
 SELECT * FROM referral_program WHERE id = 1;

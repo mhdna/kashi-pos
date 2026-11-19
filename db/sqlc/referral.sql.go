@@ -49,7 +49,7 @@ func (q *Queries) GetClientByReferralCode(ctx context.Context, referralCode stri
 }
 
 const getReferralProgram = `-- name: GetReferralProgram :one
-SELECT id, enabled, reward_percent, min_friend_spend FROM referral_program WHERE id = 1
+SELECT id, enabled, reward_percent, min_friend_spend, reward_to, friend_percent FROM referral_program WHERE id = 1
 `
 
 func (q *Queries) GetReferralProgram(ctx context.Context) (ReferralProgram, error) {
@@ -60,6 +60,8 @@ func (q *Queries) GetReferralProgram(ctx context.Context) (ReferralProgram, erro
 		&i.Enabled,
 		&i.RewardPercent,
 		&i.MinFriendSpend,
+		&i.RewardTo,
+		&i.FriendPercent,
 	)
 	return i, err
 }
@@ -161,21 +163,30 @@ func (q *Queries) SetInvoiceReferral(ctx context.Context, arg SetInvoiceReferral
 }
 
 const upsertReferralProgram = `-- name: UpsertReferralProgram :exec
-INSERT INTO referral_program (id, enabled, reward_percent, min_friend_spend)
-VALUES (1, ?, ?, ?)
+INSERT INTO referral_program (id, enabled, reward_percent, min_friend_spend, reward_to, friend_percent)
+VALUES (1, ?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET
     enabled = excluded.enabled, reward_percent = excluded.reward_percent,
-    min_friend_spend = excluded.min_friend_spend
+    min_friend_spend = excluded.min_friend_spend, reward_to = excluded.reward_to,
+    friend_percent = excluded.friend_percent
 `
 
 type UpsertReferralProgramParams struct {
-	Enabled        int64 `json:"enabled"`
-	RewardPercent  int64 `json:"rewardPercent"`
-	MinFriendSpend int64 `json:"minFriendSpend"`
+	Enabled        int64  `json:"enabled"`
+	RewardPercent  int64  `json:"rewardPercent"`
+	MinFriendSpend int64  `json:"minFriendSpend"`
+	RewardTo       string `json:"rewardTo"`
+	FriendPercent  int64  `json:"friendPercent"`
 }
 
 func (q *Queries) UpsertReferralProgram(ctx context.Context, arg UpsertReferralProgramParams) error {
-	_, err := q.db.ExecContext(ctx, upsertReferralProgram, arg.Enabled, arg.RewardPercent, arg.MinFriendSpend)
+	_, err := q.db.ExecContext(ctx, upsertReferralProgram,
+		arg.Enabled,
+		arg.RewardPercent,
+		arg.MinFriendSpend,
+		arg.RewardTo,
+		arg.FriendPercent,
+	)
 	return err
 }
 

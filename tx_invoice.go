@@ -247,7 +247,11 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)
 		}
-		totals, err := a.priceInvoiceTotals(q, inventoryID, items, settings, roundingMode, customPricingEnabled, perUnitPricingEnabled, clientID, params.PickedDiscounts...)
+		// The new customer's referral discount follows the sale's own code,
+		// never one the picks carry alone: a sale can't take it without
+		// the code being recorded (and checked, below).
+		picks := withReferralPick(params.PickedDiscounts, params.ReferralCode)
+		totals, err := a.priceInvoiceTotals(q, inventoryID, items, settings, roundingMode, customPricingEnabled, perUnitPricingEnabled, clientID, picks...)
 		if err != nil {
 			return err
 		}

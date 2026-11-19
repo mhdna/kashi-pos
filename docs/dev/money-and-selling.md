@@ -282,6 +282,17 @@ sell at their typed price and show no chip. The cart sends the line's
 - Central's rules (on or off, percent, minimum spend, days, cap) live in kashi
   (`referral_program` on the till holds what it needs).
 
+- ==Who a code rewards== is central's choice (`reward_to`): the client who
+  shared it (`owner`, a percent off a later sale, as above), the new customer
+  (`friend`, `friend_percent` off the sale they use it on) or `both`. The new
+  customer's discount is one more invoice discount, "Referral 10%"
+  (`friendReferralRule`): it competes with the deals or adds up with them
+  (deals_stack), and its minimum is the program's minimum spend. The screen
+  sends the code among the picks (`referral:CODE`) so the quote and the
+  payment check price it; checkout uses only the sale's own code
+  (`withReferralPick`), checked by `checkReferralCode`, so the discount never
+  comes without the code being recorded. `TestReferralDiscountRandomized`.
+
 ## The Rewards button
 
 - One button in the cart header, **Rewards**, holds a sale's rewards: the deals
