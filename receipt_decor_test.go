@@ -398,8 +398,9 @@ func TestDesignerItemDeal(t *testing.T) {
 	if !drewText(own, "FREE GIFT") || drewText(own, "(FREE)") {
 		t.Fatalf("own tag: %q", own)
 	}
+	// Hidden, the tag after the name goes; the amount still says FREE.
 	off := render(`{"elements":{"deal_free":{"hide":true}}}`)
-	if drewText(off, "FREE") {
+	if drewText(off, "(FREE)") || drewText(off, "Blue Linen Shirt (FREE)") || !drewText(off, "FREE") {
 		t.Fatalf("hidden tag printed: %q", off)
 	}
 	// The text receipt follows, and an item that isn't free keeps its name.
