@@ -61,9 +61,9 @@ async function openDialog() {
   await flushPromises();
 }
 
+// The code has its own button beside Rewards.
 async function openCode() {
-  await openDialog();
-  find("rewards-referral")!.click();
+  find("referral-open")!.click();
   await flushPromises();
 }
 
@@ -105,11 +105,10 @@ describe("RewardsButton", () => {
     expect(find("auto-auto")?.tagName).not.toBe("BUTTON");
     expect(find("auto-auto")?.className).toContain("reward-card--locked");
     expect(find("auto-auto")?.querySelector("input, button")).toBeNull();
-    // The referral code is a card like the deals, its entry behind it.
-    expect(find("rewards-referral")?.classList.contains("reward-card")).toBe(true);
-    expect(find("rewards-referral")?.textContent).toContain("Referral code");
+    // The reported case: no referral card here; the Referral button beside
+    // Rewards holds the code.
+    expect(find("rewards-referral")).toBeNull();
     expect(find("referral-input")).toBeNull();
-    expect(find("rewards-referral")?.querySelector("svg, .k-icon")).toBeNull();
     expect(find("rewards-automatic")).toBeNull();
     expect(document.body.textContent).toContain("Choose");
     expect(document.body.textContent).not.toContain("For this sale");
@@ -200,8 +199,7 @@ describe("RewardsButton", () => {
     getInfo.mockResolvedValue({ enabled: true, rewardPercent: 15, code: "", rewardOfferPercent: 0 } as never);
     listeners.get("sync_applied:referral_program")?.();
     await flushPromises();
-    await openDialog();
-    expect(find("rewards-referral")).not.toBeNull();
+    expect(find("referral-open")).not.toBeNull();
   });
 
   it("drops a picked deal central took away", async () => {
@@ -261,12 +259,11 @@ describe("RewardsButton", () => {
     await flushPromises();
     expect(checkCode).toHaveBeenCalledWith("K7M4QH", 7);
     expect(w.emitted("update:modelValue")?.at(-1)).toEqual(["K7M4QH"]);
-    // The card shows the code and is on; its dialog closed.
+    // The Referral button shows it's on; its dialog closed.
     expect(find("referral-input")).toBeNull();
-    expect(find("referral-foot")?.textContent).toBe("K7M4QH");
-    expect(find("rewards-referral")?.className).toContain("reward-card--on");
-    expect(find("referral-tick")).not.toBeNull();
-    find("rewards-referral")!.click();
+    expect(find("referral-open")?.className).toContain("rewards-on");
+    expect(find("referral-open-tick")).not.toBeNull();
+    find("referral-open")!.click();
     await flushPromises();
     expect(find("referral-current")?.textContent).toContain("Sent by Rami");
     find("referral-remove")!.click();
@@ -304,7 +301,7 @@ describe("RewardsButton cards, the reported set", () => {
     await openDialog();
     // Two rows: what the cashier picks, then the locked ones on their own.
     const row = (sel: string) => [...find(sel)!.querySelectorAll(".reward-card")].map((c) => c.getAttribute("data-test"));
-    expect(row("rewards-pick-grid")).toEqual(["deal-s", "rewards-referral"]);
+    expect(row("rewards-pick-grid")).toEqual(["deal-s"]);
     expect(row("rewards-automatic-grid")).toEqual(["auto-t50", "auto-t100", "auto-t150"]);
     expect(find("auto-t100")?.className).toContain("reward-card--applied");
     expect(find("auto-t50")?.className).not.toContain("reward-card--applied");
