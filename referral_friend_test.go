@@ -288,9 +288,9 @@ func TestReferralCodeGoodOnce(t *testing.T) {
 // owner only; in English and Arabic.
 func TestReferralNoteFollowsTheProgram(t *testing.T) {
 	cases := map[string][2]string{
-		referralRewardBoth:   {"you both get 15% off the whole invoice", "بتاخدوا انتو التنين حسم ١٥٪"},
-		referralRewardFriend: {"they get 15% off their first invoice", "بياخد حسم ١٥٪ على أول فاتورة"},
-		referralRewardOwner:  {"you get 15% off your next visit", "بتاخد انت حسم ١٥٪ على زيارتك الجاية"},
+		referralRewardBoth:   {"you both get 15% off the whole invoice", "بتاخدوا انتو التنين حسم 15%"},
+		referralRewardFriend: {"they get 15% off their first invoice", "بياخد حسم 15% على أول فاتورة"},
+		referralRewardOwner:  {"you get 15% off your next visit", "بتاخد انت حسم 15% على زيارتك الجاية"},
 	}
 	for to, want := range cases {
 		texts := receiptTexts{ReferralRewardTo: to}
