@@ -295,6 +295,8 @@ sell at their typed price and show no chip. The cart sends the line's
   (`bestInvoiceDiscount`). The picks go to the quote, the payment check and
   checkout alike (`QuoteInvoiceTotalPicked`, `QuotePaymentStatusPicked`,
   `CheckoutInvoicePicked`); `TestPickedDiscountsRandomized` checks they agree.
+- The cashier picks ==one deal at a time==: picking another replaces it (it
+  takes over), since only the biggest discount ever comes off the invoice.
 - A new sale starts with nothing picked; a deal central takes away drops out
   of the picks.
 
