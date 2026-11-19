@@ -100,6 +100,36 @@ func bestInvoiceDiscount(rules []db.InvoiceDiscount, total int64, now time.Time,
 	return best
 }
 
+// friendReferralRule is the new customer's referral discount as one more
+// invoice discount, when the sale carries a referral code (referralPickPrefix
+// in the picks), central's program rewards the new customer, and the code is
+// one this customer may use (checkReferralCode: a first purchase, not their
+// own code...). As a rule it competes with the deals, the biggest winning,
+// or adds up with them where the branch lets deals add up; its minimum is
+// the program's minimum spend.
+func friendReferralRule(ctx context.Context, q *db.Queries, clientID int64, picked []string) (db.InvoiceDiscount, bool, error) {
+	code := referralFromPicks(picked)
+	if code == "" {
+		return db.InvoiceDiscount{}, false, nil
+	}
+	program, err := referralProgram(ctx, q)
+	if err != nil {
+		return db.InvoiceDiscount{}, false, err
+	}
+	if !referralRewardsFriend(program) {
+		return db.InvoiceDiscount{}, false, nil
+	}
+	if _, _, err := checkReferralCode(ctx, q, code, clientID); err != nil {
+		// A code this customer can't use takes nothing off; checkout's own
+		// check refuses it with the reason.
+		return db.InvoiceDiscount{}, false, nil
+	}
+	return db.InvoiceDiscount{
+		Uid: referralPickPrefix + code, Name: friendReferralLabel(program.FriendPercent),
+		Kind: invoiceDiscountPercent, Percent: program.FriendPercent, MinTotal: program.MinFriendSpend,
+	}, true, nil
+}
+
 // invoiceDiscountsStacked is the sale's invoice discounts when a branch lets
 // them add up (deals_stack): every rule that applies (its minimum judged on
 // the sale before any of them, a picked one only when picked) comes off one
@@ -227,6 +257,11 @@ func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundin
 	rules, err := q.ListInvoiceDiscounts(a.ctx)
 	if err != nil {
 		return fmt.Errorf("load invoice discounts: %w", err)
+	}
+	if friend, ok, err := friendReferralRule(a.ctx, q, clientID, picked); err != nil {
+		return err
+	} else if ok {
+		rules = append(rules, friend)
 	}
 	now := time.Now()
 	best := bestInvoiceDiscount(rules, totals.DiscountedSubtotal, now, roundingMode, picked...)

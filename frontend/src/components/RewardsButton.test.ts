@@ -158,6 +158,23 @@ describe("RewardsButton", () => {
     expect(find("referral-open-tick")).not.toBeNull();
   });
 
+  it("the reported case: a code for a new customer says what comes off this sale", async () => {
+    getInfo.mockResolvedValue({ enabled: true, rewardPercent: 15, code: "", rewardOfferPercent: 0, friendPercent: 10 } as never);
+    checkCode.mockResolvedValue({ code: "K7M4QH", ownerName: "Rami" } as never);
+    await mountButton({ modelValue: "K7M4QH" });
+    find("referral-open")!.click();
+    await flushPromises();
+    expect(find("referral-friend-off")?.textContent).toBe("10% off this sale");
+  });
+
+  it("no line about this sale when the program rewards only the client who shared it", async () => {
+    getInfo.mockResolvedValue({ enabled: true, rewardPercent: 15, code: "", rewardOfferPercent: 0, friendPercent: 0 } as never);
+    await mountButton({ modelValue: "K7M4QH" });
+    find("referral-open")!.click();
+    await flushPromises();
+    expect(find("referral-friend-off")).toBeNull();
+  });
+
   it("picking a deal turns it on for the sale, and the button shows it", async () => {
     const w = await mountButton();
     expect(find("rewards-badge")).toBeNull();

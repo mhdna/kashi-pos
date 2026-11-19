@@ -72,13 +72,68 @@ type syncedReferralProgram struct {
 	Enabled        bool  `json:"enabled"`
 	RewardPercent  int64 `json:"reward_percent"`
 	MinFriendSpend int64 `json:"min_friend_spend"`
+	// RewardTo is who a code rewards: owner (as before), friend or both;
+	// FriendPercent the new customer's percent off the sale they use it on.
+	RewardTo      string `json:"reward_to"`
+	FriendPercent int64  `json:"friend_percent"`
 }
 
 func applySyncedReferralProgram(ctx context.Context, q *db.Queries, p syncedReferralProgram) error {
+	to := p.RewardTo
+	if to != referralRewardFriend && to != referralRewardBoth {
+		to = referralRewardOwner
+	}
 	return q.UpsertReferralProgram(ctx, db.UpsertReferralProgramParams{
 		Enabled: boolToInt64(p.Enabled), RewardPercent: p.RewardPercent, MinFriendSpend: p.MinFriendSpend,
+		RewardTo: to, FriendPercent: p.FriendPercent,
 	})
 }
+
+// Who a referral code rewards.
+const (
+	referralRewardOwner  = "owner"
+	referralRewardFriend = "friend"
+	referralRewardBoth   = "both"
+)
+
+// referralRewardsFriend says whether the new customer gets the program's
+// friend percent off the sale they use a code on.
+func referralRewardsFriend(p db.ReferralProgram) bool {
+	return p.Enabled != 0 && p.FriendPercent > 0 && (p.RewardTo == referralRewardFriend || p.RewardTo == referralRewardBoth)
+}
+
+// referralPickPrefix marks the sale's referral code in its picked deals
+// ("referral:K7M4QH"): the quote, the payment check and checkout all carry
+// the picks, so the new customer's discount is priced the same by all three.
+const referralPickPrefix = "referral:"
+
+// referralFromPicks is the code among the picks (normalized), "" for none.
+func referralFromPicks(picked []string) string {
+	for _, p := range picked {
+		if strings.HasPrefix(p, referralPickPrefix) {
+			return normalizeReferralCode(strings.TrimPrefix(p, referralPickPrefix))
+		}
+	}
+	return ""
+}
+
+// withReferralPick is the picks with any referral code taken out and the
+// sale's own code (if any) put in.
+func withReferralPick(picked []string, code string) []string {
+	out := make([]string, 0, len(picked)+1)
+	for _, p := range picked {
+		if !strings.HasPrefix(p, referralPickPrefix) {
+			out = append(out, p)
+		}
+	}
+	if code = normalizeReferralCode(code); code != "" {
+		out = append(out, referralPickPrefix+code)
+	}
+	return out
+}
+
+// friendReferralLabel names the new customer's discount on the invoice.
+func friendReferralLabel(percent int64) string { return fmt.Sprintf("Referral %d%%", percent) }
 
 // syncedReferralReward is a reward as central has it.
 type syncedReferralReward struct {
@@ -253,6 +308,9 @@ type ReferralInfo struct {
 	Code          string `json:"code"`
 	// The client's usable reward, 0 when none.
 	RewardOfferPercent int64 `json:"rewardOfferPercent"`
+	// FriendPercent is what a new customer takes off the sale they use a
+	// code on, 0 when the program doesn't reward them.
+	FriendPercent int64 `json:"friendPercent"`
 }
 
 // GetReferralInfo answers for clientID (0 for none).
@@ -266,6 +324,9 @@ func (a *App) GetReferralInfo(clientID int64) (ReferralInfo, error) {
 		return info, err
 	}
 	info.Enabled, info.RewardPercent = program.Enabled != 0, program.RewardPercent
+	if referralRewardsFriend(program) {
+		info.FriendPercent = program.FriendPercent
+	}
 	if clientID <= 0 {
 		return info, nil
 	}
