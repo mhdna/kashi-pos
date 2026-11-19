@@ -2,7 +2,7 @@
   <k-menu v-model="menu" :close-on-content-click="false" location="bottom center">
     <template #activator="{ props }">
       <div class="header-btn-wrap">
-        <div class="header-btn-subtitle">Salesperson</div>
+        <div class="header-btn-subtitle">Salesman</div>
         <k-btn
           v-bind="props"
           size="small"
@@ -38,7 +38,7 @@ const menu = ref(false);
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
 
-const selectedName = computed(() => selected.value?.fullName.split(" ")[0] ?? "Salesperson");
+const selectedName = computed(() => selected.value?.fullName.split(" ")[0] ?? "Salesman");
 
 
 function pickById(id: number) {

@@ -7,7 +7,7 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// The till's screens call a sale with no client "Anonymous"; only the printed
+// The till's screens call a sale with no client "Walk-In"; only the printed
 // receipt says "Walk-in". The seeded walk-in pseudo-client is stored as
 // "Walk-in", so every screen path has to translate it.
 
@@ -19,11 +19,11 @@ func TestClientDisplayNameAndReceiptCustomerName(t *testing.T) {
 		wantScreen  string
 		wantReceipt string
 	}{
-		{"seeded walk-in client", db.Client{Name: "Walk-in", Phone: walkInClientPhone}, true, "Anonymous", "Walk-in"},
-		{"walk-in phone, renamed", db.Client{Name: "Someone", Phone: walkInClientPhone}, true, "Anonymous", "Walk-in"},
-		{"blank name", db.Client{Name: "  ", Phone: "70123456"}, true, "Anonymous", "Walk-in"},
+		{"seeded walk-in client", db.Client{Name: "Walk-in", Phone: walkInClientPhone}, true, "Walk-In", "Walk-in"},
+		{"walk-in phone, renamed", db.Client{Name: "Someone", Phone: walkInClientPhone}, true, "Walk-In", "Walk-in"},
+		{"blank name", db.Client{Name: "  ", Phone: "70123456"}, true, "Walk-In", "Walk-in"},
 		{"real client", db.Client{Name: "Rana", Phone: "70123456"}, true, "Rana", "Rana"},
-		{"client not found", db.Client{}, false, "Anonymous", "Walk-in"},
+		{"client not found", db.Client{}, false, "Walk-In", "Walk-in"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -69,8 +69,8 @@ func TestInvoiceDetailsSayAnonymousButReprintSaysWalkIn(t *testing.T) {
 		wantWalkIn  bool
 		wantReceipt string
 	}{
-		{"no client picked", 0, "Anonymous", true, "Walk-in"},
-		{"walk-in client picked", walkIn.ID, "Anonymous", true, "Walk-in"},
+		{"no client picked", 0, "Walk-In", true, "Walk-in"},
+		{"walk-in client picked", walkIn.ID, "Walk-In", true, "Walk-in"},
 		{"named client", named.ID, "Rana Haddad", false, "Rana Haddad"},
 	}
 	for _, tc := range cases {
@@ -116,7 +116,7 @@ func TestReceiptCustomerFromDetailsEdges(t *testing.T) {
 	if got := receiptCustomerFromDetails(map[string]any{}); got != "Walk-in" {
 		t.Fatalf("empty details = %q, want Walk-in", got)
 	}
-	if got := receiptCustomerFromDetails(map[string]any{"clientName": "Anonymous", "clientIsWalkIn": true}); got != "Walk-in" {
+	if got := receiptCustomerFromDetails(map[string]any{"clientName": "Walk-In", "clientIsWalkIn": true}); got != "Walk-in" {
 		t.Fatalf("walk-in details = %q, want Walk-in", got)
 	}
 	if got := receiptCustomerFromDetails(map[string]any{"clientName": "Rana", "clientIsWalkIn": false}); got != "Rana" {

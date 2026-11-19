@@ -98,8 +98,8 @@
         <k-chip v-if="item.cancelled" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</k-chip>
       </template>
       <template #item.clientId="{ item }">
-        <span class="invoice-cell-truncate" :title="item.clientName || 'Anonymous'">
-          {{ item.clientName || "Anonymous" }}
+        <span class="invoice-cell-truncate" :title="item.clientName || 'Walk-In'">
+          {{ item.clientName || "Walk-In" }}
         </span>
       </template>
       <template #item.salespersonName="{ item }">
@@ -107,7 +107,7 @@
           size="small"
           variant="text"
           prepend-icon="mdi-account-tie"
-          :title="item.salespersonName || 'Anonymous'"
+          :title="item.salespersonName || 'No salesman'"
         >
           {{ salespersonFirstName(item.salespersonName) }}
         </k-chip>
@@ -154,7 +154,7 @@
           </template>
           <k-list density="compact" min-width="190">
             <k-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
-            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesperson" @click.stop="startLineSalespersons(item)" />
+            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startLineSalespersons(item)" />
             <k-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
             <k-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
             <k-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" title="Cancel Invoice" base-color="error" @click.stop="requestCancel(item)" />
@@ -190,13 +190,13 @@
             <div>
               <dt>Client</dt>
               <dd>
-                {{ selected.clientName || "Anonymous" }}
+                {{ selected.clientName || "Walk-In" }}
                 <span class="invoice-facts-sub">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : "No phone number" }}</span>
               </dd>
             </div>
             <div>
-              <dt>Salesperson</dt>
-              <dd>{{ selected.salespersonName || "Anonymous" }}</dd>
+              <dt>Salesman</dt>
+              <dd>{{ selected.salespersonName || "No salesman" }}</dd>
             </div>
             <div>
               <dt>Points earned</dt>
@@ -393,7 +393,7 @@ const filterableHeaders: {
 }[] = [
   { headerKey: "invoiceCode", filterKey: "invoiceCode", placeholder: "Invoice code contains…" },
   { headerKey: "clientId", filterKey: "customer", placeholder: "Customer contains…" },
-  { headerKey: "salespersonName", filterKey: "salesperson", placeholder: "Salesperson contains…" },
+  { headerKey: "salespersonName", filterKey: "salesperson", placeholder: "Salesman contains…" },
   { headerKey: "settlementAccounts", filterKey: "paidTo", placeholder: "Payment account contains…" },
   { headerKey: "createdAt", filterKey: "date", placeholder: "Date, e.g. 2026-08-21" },
   { headerKey: "grandTotal", filterKey: "total", placeholder: "Amount, e.g. 25.00" },
@@ -457,7 +457,7 @@ function settlementAccountsLabel(accounts?: string[]) {
 }
 function salespersonFirstName(name?: string) {
   const trimmed = name?.trim();
-  return trimmed ? trimmed.split(/\s+/)[0] : "Anonymous";
+  return trimmed ? trimmed.split(/\s+/)[0] : "No salesman";
 }
 // The first column is each invoice's sync state with central, shown to every
 // user so cashiers can see their sales upload.
@@ -465,7 +465,7 @@ const baseHeaders = [
   { title: "", key: "syncState", sortable: false, width: "28px" },
   { title: "Invoice", key: "invoiceCode", width: "165px" },
   { title: "Customer", key: "clientId", width: "120px" },
-  { title: "Salesperson", key: "salespersonName", width: "120px" },
+  { title: "Salesman", key: "salespersonName", width: "120px" },
   { title: "Paid To", key: "settlementAccounts", sortable: false, width: "120px" },
   { title: "Date", key: "createdAt", width: "170px" },
   { title: "", key: "rating", sortable: false, width: "36px", align: "center" as const },

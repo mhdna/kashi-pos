@@ -128,7 +128,7 @@ describe("Change Salesperson", () => {
     mountDialog("salesperson", invoice);
     await flushPromises();
 
-    expect(dialog()?.textContent).toContain("Change Salesperson");
+    expect(dialog()?.textContent).toContain("Change Salesman");
     expect(selectText()).toBe("Rana Haddad");
     expect(selectText()).not.toMatch(/^\d+$/);
     expect(q(".k-select .k-progress-circular")).toBeTruthy(); // still loading…
@@ -177,7 +177,7 @@ describe("Change Salesperson", () => {
     listSalespersons.mockResolvedValue(ROSTER);
     mountDialog("salesperson", { id: 105, salespersonId: 42, salespersonName: "" });
     await flushPromises();
-    expect(selectText()).toBe("Former salesperson");
+    expect(selectText()).toBe("Former salesman");
     expect(body().textContent).not.toMatch(/\b42\b/);
   });
 
@@ -580,7 +580,7 @@ describe("the dialog's look: who it is now, and avatars", () => {
     listSalespersons.mockResolvedValue(ROSTER);
     mountDialog("salesperson", { id: 1, salespersonId: 9, salespersonName: "" });
     await flushPromises();
-    expect(now()).toBe("FS Former salesperson");
+    expect(now()).toBe("FS Former salesman");
     expect(now()).not.toMatch(/\b9\b/);
   });
 
@@ -588,7 +588,7 @@ describe("the dialog's look: who it is now, and avatars", () => {
     listSalespersons.mockResolvedValue(ROSTER);
     mountDialog("salesperson", { id: 1, salespersonId: 0 });
     await flushPromises();
-    expect(now()).toBe("Anonymous sale");
+    expect(now()).toBe("No salesman");
   });
 
   it("gives every salesperson row an avatar with their initials", async () => {
@@ -620,14 +620,14 @@ describe("the dialog's look: who it is now, and avatars", () => {
     searchClients.mockResolvedValue(CLIENTS);
     mountDialog("client", { id: 1, clientId: 0 });
     await flushPromises();
-    expect(now()).toBe("Anonymous");
+    expect(now()).toBe("Walk-In");
   });
 
   it("says Anonymous, with no avatar or phone, for the walk-in client", async () => {
     searchClients.mockResolvedValue(CLIENTS);
     mountDialog("client", { id: 1, clientId: 5, clientName: "Walk-in", clientPhone: "00000000", clientIsWalkIn: true });
     await flushPromises();
-    expect(now()).toBe("Anonymous");
+    expect(now()).toBe("Walk-In");
   });
 
   it("gives every client row an avatar, the phone on its second line", async () => {

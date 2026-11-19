@@ -1030,18 +1030,18 @@ const salespersons = ref<Salesperson[]>([]);
 function lineSalesperson(item: LineItem): { id: number; fullName: string } | null {
   const id = Number(item.salespersonId || 0);
   if (!id) return null;
-  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesperson" };
+  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesman" };
 }
 // The person picked for the open line, or null when it follows the invoice.
 const detailSalesperson = computed(() => {
   const id = Number(detailItem.value?.salespersonId || 0);
   if (!id) return null;
-  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesperson" };
+  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesman" };
 });
 // The dropdown's choices: the invoice's salesperson first, then everyone who
 // sells, plus a former salesperson the line still points at.
 const lineSalespersonOptions = computed(() => {
-  const options = [{ title: "Invoice salesperson", value: 0 }, ...salespersons.value.map((p) => ({ title: p.fullName, value: p.id }))];
+  const options = [{ title: "Invoice salesman", value: 0 }, ...salespersons.value.map((p) => ({ title: p.fullName, value: p.id }))];
   const current = detailSalesperson.value;
   if (current && !salespersons.value.some((p) => p.id === current.id)) options.push({ title: current.fullName, value: current.id });
   return options;

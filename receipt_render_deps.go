@@ -148,7 +148,7 @@ func orDefault(s, d string) string {
 // anonymousClientLabel is how the till's screens name a sale with no client.
 // Printed receipts keep receiptWalkInLabel instead.
 const (
-	anonymousClientLabel = "Anonymous"
+	anonymousClientLabel = "Walk-In"
 	receiptWalkInLabel   = "Walk-in"
 )
 

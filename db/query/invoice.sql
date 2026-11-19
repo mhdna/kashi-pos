@@ -75,15 +75,15 @@ SELECT invoice_id, sales_invoice_id FROM return_invoices;
 -- sqlc.arg(limit) rows instead of an OFFSET scan that re-walks and discards
 -- everything above it. Ordering is a stable id DESC so the cursor is
 -- unambiguous.
-SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name,
+SELECT i.*, COALESCE(s.full_name, 'No salesman') AS salesperson_name,
   EXISTS (SELECT 1 FROM sales_invoices si WHERE si.invoice_id = i.id) AS is_sale
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE i.id < sqlc.arg(cursor)
   AND (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
-  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
-  AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
+  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Walk-In' ELSE c.name END) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
+  AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'No salesman')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
   AND (COALESCE(sqlc.arg(date_filter), '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(sqlc.arg(date_filter)) || '%')
   AND (COALESCE(sqlc.arg(total_filter), '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(sqlc.arg(total_filter), '$', '')) || '%')
   AND (
@@ -115,8 +115,8 @@ FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
-  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
-  AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
+  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Walk-In' ELSE c.name END) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
+  AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'No salesman')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
   AND (COALESCE(sqlc.arg(date_filter), '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(sqlc.arg(date_filter)) || '%')
   AND (COALESCE(sqlc.arg(total_filter), '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(sqlc.arg(total_filter), '$', '')) || '%')
   AND (
@@ -141,14 +141,14 @@ WHERE (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE
   );
 
 -- name: ListInvoicesByDate :many
-SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.*, COALESCE(s.full_name, 'No salesman') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') = sqlc.arg(date)
 ORDER BY i.id DESC;
 
 -- name: ListInvoicesByDateRange :many
-SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.*, COALESCE(s.full_name, 'No salesman') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
@@ -157,7 +157,7 @@ ORDER BY i.id DESC;
 
 -- name: ListSalespersonProductSales :many
 SELECT COALESCE(sp.id, 0) AS salesperson_id,
-       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       COALESCE(sp.full_name, 'No salesman') AS salesperson_name,
        p.id AS product_id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code,
        CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS quantity,
        CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS revenue
@@ -179,7 +179,7 @@ ORDER BY sp.full_name, SUM(ip.quantity) DESC, p.name, p.id;
 -- in gross/items counts here). Same line-then-invoice salesperson fallback
 -- as ListSalespersonProductSales.
 SELECT COALESCE(sp.id, 0) AS salesperson_id,
-       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       COALESCE(sp.full_name, 'No salesman') AS salesperson_name,
        CAST(COUNT(DISTINCT i.id) AS INTEGER) AS invoice_count,
        CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS items_sold,
        CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS gross_amount

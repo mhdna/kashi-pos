@@ -104,10 +104,10 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		return nil, fmt.Errorf("database not initialized")
 	}
 	if salespersonID <= 0 {
-		return nil, fmt.Errorf("salesperson is required")
+		return nil, fmt.Errorf("salesman is required")
 	}
 	if _, err := a.store.GetSalespersonByID(a.ctx, salespersonID); err != nil {
-		return nil, fmt.Errorf("salesperson: %w", err)
+		return nil, fmt.Errorf("salesman: %w", err)
 	}
 	request, err := parseExchangeRequest(itemsJSON, policy.returnOnly)
 	if err != nil {

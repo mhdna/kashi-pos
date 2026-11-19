@@ -68,7 +68,7 @@ describe("line salesperson avatar", () => {
 
   it("names a salesperson who is no longer on the roster rather than hiding them", async () => {
     const w = await cart([line({ salespersonId: 77 })]);
-    expect(seller(w).attributes("title")).toBe("Sold by Former salesperson");
+    expect(seller(w).attributes("title")).toBe("Sold by Former salesman");
   });
 
   it("follows the line when it is changed or cleared", async () => {

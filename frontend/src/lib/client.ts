@@ -11,7 +11,7 @@ export interface Client {
 
 export function toClient(raw: Partial<Client> & Record<string, any>): Client {
   const loyaltyPoints = Number(raw.totalLoyaltyPoints ?? raw.points ?? 0);
-  const name = String(raw.name ?? "Anonymous");
+  const name = String(raw.name ?? "Walk-In");
   return {
     id: Number(raw.id ?? 0),
     name,
@@ -25,7 +25,7 @@ export function toClient(raw: Partial<Client> & Record<string, any>): Client {
 }
 
 export function anonymousClient(): Client {
-  return toClient({ id: 0, name: "Anonymous", phone: "", tier: "None" });
+  return toClient({ id: 0, name: "Walk-In", phone: "", tier: "None" });
 }
 
 export function preventClientNameNumber(event: KeyboardEvent): void {

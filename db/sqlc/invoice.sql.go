@@ -28,8 +28,8 @@ FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '%')
-  AND (COALESCE(?2, '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(?2) || '%')
-  AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?3) || '%')
+  AND (COALESCE(?2, '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Walk-In' ELSE c.name END) LIKE '%' || lower(?2) || '%')
+  AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'No salesman')) LIKE '%' || lower(?3) || '%')
   AND (COALESCE(?4, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?4) || '%')
   AND (COALESCE(?5, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?5, '$', '')) || '%')
   AND (
@@ -1490,7 +1490,7 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 }
 
 const listInvoicesByDate = `-- name: ListInvoicesByDate :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'No salesman') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') = ?1
@@ -1571,7 +1571,7 @@ func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListIn
 }
 
 const listInvoicesByDateRange = `-- name: ListInvoicesByDateRange :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'No salesman') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') >= ?1
@@ -1708,15 +1708,15 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 }
 
 const listInvoicesPage = `-- name: ListInvoicesPage :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'Anonymous') AS salesperson_name,
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'No salesman') AS salesperson_name,
   EXISTS (SELECT 1 FROM sales_invoices si WHERE si.invoice_id = i.id) AS is_sale
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE i.id < ?1
   AND (COALESCE(?2, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?2) || '%')
-  AND (COALESCE(?3, '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(?3) || '%')
-  AND (COALESCE(?4, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?4) || '%')
+  AND (COALESCE(?3, '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Walk-In' ELSE c.name END) LIKE '%' || lower(?3) || '%')
+  AND (COALESCE(?4, '') = '' OR lower(COALESCE(s.full_name, 'No salesman')) LIKE '%' || lower(?4) || '%')
   AND (COALESCE(?5, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?5) || '%')
   AND (COALESCE(?6, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?6, '$', '')) || '%')
   AND (
@@ -2011,7 +2011,7 @@ func (q *Queries) ListSalespersonDiscountSummary(ctx context.Context, arg ListSa
 
 const listSalespersonProductSales = `-- name: ListSalespersonProductSales :many
 SELECT COALESCE(sp.id, 0) AS salesperson_id,
-       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       COALESCE(sp.full_name, 'No salesman') AS salesperson_name,
        p.id AS product_id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code,
        CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS quantity,
        CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS revenue
@@ -2135,7 +2135,7 @@ func (q *Queries) ListSalespersonReturnSummary(ctx context.Context, arg ListSale
 
 const listSalespersonSalesSummary = `-- name: ListSalespersonSalesSummary :many
 SELECT COALESCE(sp.id, 0) AS salesperson_id,
-       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       COALESCE(sp.full_name, 'No salesman') AS salesperson_name,
        CAST(COUNT(DISTINCT i.id) AS INTEGER) AS invoice_count,
        CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS items_sold,
        CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS gross_amount

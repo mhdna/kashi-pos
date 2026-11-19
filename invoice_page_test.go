@@ -98,7 +98,7 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 	if walkIn == nil {
 		t.Fatalf("no walk-in page row (client id=%d): %#v", walkInClient.ID, page.Items)
 	}
-	if walkIn["clientName"] != "Anonymous" {
+	if walkIn["clientName"] != "Walk-In" {
 		t.Fatalf("walk-in row clientName = %v, want \"Anonymous\"", walkIn["clientName"])
 	}
 	settlementWalkIn, ok := walkIn["settlementAccounts"].([]string)
@@ -112,11 +112,12 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 		want    int
 	}{
 		{name: "customer", filters: `{"customer":"Second"}`, want: 1},
-		{name: "customer anonymous", filters: `{"customer":"anonym"}`, want: 1},
-		{name: "customer walk-in is gone", filters: `{"customer":"walk"}`, want: 0},
+		// A sale with no client is searched by the name the screen shows.
+		{name: "customer walk-in", filters: `{"customer":"walk"}`, want: 1},
+		{name: "customer anonymous is gone", filters: `{"customer":"anonym"}`, want: 0},
 		{name: "paid to", filters: `{"paidTo":"Visa"}`, want: 2},
 		{name: "combined", filters: `{"customer":"Second","paidTo":"Visa"}`, want: 1},
-		{name: "salesperson", filters: `{"salesperson":"Anonymous"}`, want: 3},
+		{name: "salesperson", filters: `{"salesperson":"No salesman"}`, want: 3},
 		{name: "invoice code", filters: fmt.Sprintf(`{"invoiceCode":%q}`, rowA["invoiceCode"]), want: 1},
 		{name: "date", filters: fmt.Sprintf(`{"date":%q}`, localDay(t, rowA["createdAt"].(string))), want: 3},
 		{name: "total", filters: fmt.Sprintf(`{"total":%q}`, fmt.Sprintf("%.2f", float64(quote.GrandTotalCents)/100)), want: 3},

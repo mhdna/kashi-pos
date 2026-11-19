@@ -34,7 +34,7 @@ func (a *App) returnSalespersonID(ctx context.Context, lines []db.InvoiceProduct
 	}
 	salespersons, err := a.store.ListSalespersons(ctx)
 	if err != nil || len(salespersons) == 0 {
-		return 0, fmt.Errorf("no salesperson configured to attribute the return to")
+		return 0, fmt.Errorf("no salesman configured to attribute the return to")
 	}
 	return salespersons[0].ID, nil
 }

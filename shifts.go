@@ -694,7 +694,7 @@ func (a *App) PrintCurrentCloseShiftSample() (map[string]any, error) {
 		return nil, fmt.Errorf("salespersons: %w", err)
 	}
 	if len(salespersons) == 0 {
-		return nil, fmt.Errorf("at least one salesperson is required to print a shift sample")
+		return nil, fmt.Errorf("at least one salesman is required to print a shift sample")
 	}
 
 	printData, _, err := a.buildShiftClosePrintData(

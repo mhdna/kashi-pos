@@ -447,7 +447,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 	if invoiceIsWalkIn {
 		loyaltyPointsEarned = 0
 	}
-	salespersonName := "Anonymous"
+	salespersonName := "No salesman"
 	if inv.SalespersonID > 0 {
 		if salesperson, salespersonErr := a.store.GetSalespersonByID(a.ctx, inv.SalespersonID); salespersonErr == nil {
 			salespersonName = salesperson.FullName
@@ -505,7 +505,7 @@ func (a *App) ChangeInvoiceLineSalesperson(invoiceID, lineID, salespersonID int6
 		return fmt.Errorf("database not initialized")
 	}
 	if salespersonID < 0 {
-		return fmt.Errorf("invalid salesperson")
+		return fmt.Errorf("invalid salesman")
 	}
 	if salespersonID > 0 {
 		if _, err := a.store.GetSalespersonByID(a.ctx, salespersonID); err != nil {

@@ -429,7 +429,7 @@ func (a *adminServer) createInvoiceAdjustment(ctx context.Context, input adminIn
 		return nil, fmt.Errorf("at least one returned or replacement item is required")
 	}
 	if input.SalespersonID <= 0 {
-		return nil, fmt.Errorf("salesperson is required")
+		return nil, fmt.Errorf("salesman is required")
 	}
 	originalID := input.OriginalInvoiceID
 	if originalID <= 0 {

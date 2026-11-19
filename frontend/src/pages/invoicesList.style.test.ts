@@ -10,7 +10,7 @@ const facts = src.slice(src.indexOf('<dl class="invoice-facts'), src.indexOf("</
 
 describe("invoice details overview", () => {
   it("is a list of labelled facts with no icons", () => {
-    for (const label of ["Client", "Salesperson", "Points earned", "Note"]) expect(facts).toContain(`<dt>${label}</dt>`);
+    for (const label of ["Client", "Salesman", "Points earned", "Note"]) expect(facts).toContain(`<dt>${label}</dt>`);
     expect(facts).not.toMatch(/<k-icon/);
     expect(src).not.toMatch(/invoice-overview-card|mdi-star-four-points-outline/);
   });

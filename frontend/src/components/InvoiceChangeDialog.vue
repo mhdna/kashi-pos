@@ -41,7 +41,7 @@ const search = ref<string | undefined>(undefined);
 const loading = ref(false);
 const saving = ref(false);
 
-const title = computed(() => (props.type === "client" ? "Change Client" : "Change Salesperson"));
+const title = computed(() => (props.type === "client" ? "Change Client" : "Change Salesman"));
 const saveDisabled = computed(() => {
   if (saving.value) return true;
   if (props.type === "client" && !value.value) return true;
@@ -53,18 +53,18 @@ const current = computed(() => {
   const inv = props.invoice;
   if (props.type === "salesperson") {
     const id = Number(inv?.salespersonId || 0);
-    if (!id) return { name: "", note: "Anonymous sale", color: undefined };
+    if (!id) return { name: "", note: "No salesman", color: undefined };
     const known = salespersons.value.find((s) => s.id === id);
-    const name = known?.fullName || inv?.salespersonName || "Former salesperson";
+    const name = known?.fullName || inv?.salespersonName || "Former salesman";
     return { name, note: "", color: salespersonColor(known ?? { fullName: name }) };
   }
   const id = Number(inv?.clientId || 0);
-  if (!id || inv?.clientIsWalkIn) return { name: "", note: "Anonymous", color: undefined };
+  if (!id || inv?.clientIsWalkIn) return { name: "", note: "Walk-In", color: undefined };
   const phone = inv?.clientPhone ? formatLebanesePhone(inv.clientPhone) : "";
   return { name: inv?.clientName || "Client", note: phone, color: CLIENT_COLOR };
 });
 const CLIENT_COLOR = "#1E88E5";
-// A picker row's own client or salesperson (the kit's slots type it unknown).
+// A picker row's own client or salesman (the kit's slots type it unknown).
 const rowOf = (item: { raw: unknown }) => item.raw as any;
 const pickedSalesperson = computed(() => salespersons.value.find((s) => s.id === value.value) ?? null);
 const pickedClient = computed(() => clients.value.find((c) => c.id === value.value) ?? null);
@@ -79,7 +79,7 @@ function withCurrentSalesperson(roster: SalespersonOption[]): SalespersonOption[
   const inv = props.invoice;
   const id = Number(inv?.salespersonId || 0);
   if (!id || roster.some((s) => s.id === id)) return roster;
-  return [{ id, fullName: inv?.salespersonName || "Former salesperson" }, ...roster];
+  return [{ id, fullName: inv?.salespersonName || "Former salesman" }, ...roster];
 }
 
 // The picked client stays in the list whatever the search returns, so the
@@ -106,7 +106,7 @@ async function refreshSalespersons() {
     const roster = await loadSalespersons();
     if (mine === request && props.modelValue) salespersons.value = withCurrentSalesperson(roster);
   } catch (e: any) {
-    if (mine === request) emit("error", e?.toString() || "Could not load salespersons");
+    if (mine === request) emit("error", e?.toString() || "Could not load salesmen");
   } finally {
     if (mine === request) loading.value = false;
   }
