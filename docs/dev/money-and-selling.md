@@ -264,6 +264,10 @@ sell at their typed price and show no chip. The cart sends the line's
 - The receipt prints the customer's code with a line saying what it gets them,
   only while central has referrals on at this branch (central switches them on
   per branch and feeds each branch its own `enabled`).
+- A till that was too old to read codes when central handed them out kept its
+  older clients without one; migration 000145 makes it fetch those clients
+  again (it forgets their version and the clients cursor, and the next pull's
+  completeness check fetches them).
 - **The friend's sale:** the cashier types the code with the Referral button
   in the cart header. The till takes it only for a customer (not the walk-in)
   with ==no earlier sale here==, holding no reward, using someone else's code.
