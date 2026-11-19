@@ -205,3 +205,18 @@ func TestShellMessagesUseBackgroundBadgesInColourAndMarksWithout(t *testing.T) {
 		t.Errorf("fail badge: %q", out)
 	}
 }
+
+// A publish run again for a version central already has finds that release,
+// so it can still set the tills to it.
+func TestFindRelease(t *testing.T) {
+	rs := []releaseRef{{ID: 116, Version: "1.1.155", Flavor: "standard"}, {ID: 117, Version: "1.1.157", Flavor: "standard"}, {ID: 118, Version: "1.1.157", Flavor: "compact"}}
+	if got := findRelease(rs, "1.1.157", "standard"); got != 117 {
+		t.Fatalf("got %d", got)
+	}
+	if got := findRelease(rs, "1.1.157", "compact"); got != 118 {
+		t.Fatalf("compact got %d", got)
+	}
+	if got := findRelease(rs, "1.1.200", "standard"); got != 0 {
+		t.Fatalf("missing got %d", got)
+	}
+}

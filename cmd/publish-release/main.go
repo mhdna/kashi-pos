@@ -223,6 +223,20 @@ func publish(args []string) error {
 		}
 		encoding = ""
 	}
+	// Already published (a run that uploaded it, then failed or was run
+	// again): nothing to upload, but the tills are still set to it, so a
+	// repeated publish-all(-force) finishes the job instead of failing.
+	if status == http.StatusConflict {
+		id, findErr := publishedReleaseID(baseURL, token, *version, *flavor)
+		if findErr != nil || id == 0 {
+			return errors.New(uploadFailure(status, answer, *version, *flavor))
+		}
+		ok("GB Cloud %s (%s) is already published; nothing to upload", *version, *flavor)
+		if *targetAll {
+			*branches = "all"
+		}
+		return targetBranches(baseURL, token, id, *version, *flavor, *branches, *force)
+	}
 	if status != http.StatusCreated {
 		return errors.New(uploadFailure(status, answer, *version, *flavor))
 	}
@@ -244,6 +258,34 @@ func publish(args []string) error {
 		*branches = "all"
 	}
 	return targetBranches(baseURL, token, created.Release.ID, *version, *flavor, *branches, *force)
+}
+
+// releaseRef is a release as central's list gives it.
+type releaseRef struct {
+	ID      int64  `json:"id"`
+	Version string `json:"version"`
+	Flavor  string `json:"flavor"`
+}
+
+// publishedReleaseID is the id of the release central already has for this
+// version and flavor, 0 when it has none.
+func publishedReleaseID(baseURL, token, version, flavor string) (int64, error) {
+	var list struct {
+		Releases []releaseRef `json:"releases"`
+	}
+	if err := apiJSON(http.MethodGet, baseURL+"/app_releases", token, nil, &list); err != nil {
+		return 0, err
+	}
+	return findRelease(list.Releases, version, flavor), nil
+}
+
+func findRelease(rs []releaseRef, version, flavor string) int64 {
+	for _, r := range rs {
+		if r.Version == version && r.Flavor == flavor {
+			return r.ID
+		}
+	}
+	return 0
 }
 
 type register struct {
