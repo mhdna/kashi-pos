@@ -117,6 +117,20 @@ describe("RewardsButton", () => {
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
 
+  it("the reported case: one deal at a time, a new pick takes over the one before", async () => {
+    const w = await mountButton();
+    await openDialog();
+    find("deal-students")!.click();
+    await flushPromises();
+    find("deal-staff")!.click();
+    await flushPromises();
+    expect(w.emitted("update:picked")?.at(-1)).toEqual([["staff"]]);
+    expect(find("deal-staff")?.getAttribute("aria-checked")).toBe("true");
+    expect(find("deal-students")?.getAttribute("aria-checked")).toBe("false");
+    expect(document.querySelectorAll(".reward-card--on").length).toBe(1);
+    expect(find("rewards-badge")?.textContent).toBe("1");
+  });
+
   it("picking a deal turns it on for the sale, and the button shows it", async () => {
     const w = await mountButton();
     expect(find("rewards-badge")).toBeNull();

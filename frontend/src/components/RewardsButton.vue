@@ -198,9 +198,10 @@ const stops = ["sync_applied:referral_program", "sync_applied:invoice_discounts"
 );
 onUnmounted(() => stops.forEach((stop) => stop?.()));
 
+// One deal at a time: the till only ever takes the biggest off the invoice,
+// so picking a deal replaces the one picked before (it takes over).
 function togglePick(uid: string, on: boolean) {
-  const without = props.picked.filter((u) => u !== uid);
-  emit("update:picked", on ? [...without, uid] : without);
+  emit("update:picked", on ? [uid] : []);
 }
 
 const hint = computed(() => referralCodeHint(draft.value));
