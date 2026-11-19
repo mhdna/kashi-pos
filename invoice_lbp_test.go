@@ -78,3 +78,36 @@ func TestStampInvoiceLBPTotal(t *testing.T) {
 		t.Fatalf("refund %d, want %d", refund, -want)
 	}
 }
+
+// The reported case: 60,000 L.L. given back was shown as $-0.67. Stored as
+// cents it comes back as the LBP the cashier counted.
+func TestPaymentLBPUnits(t *testing.T) {
+	cases := []struct{ cents, rate, want int64 }{
+		{-67, 89_500, -60_000},
+		{335, 89_500, 300_000},
+		{0, 89_500, 0},
+		{100, 89_500, 90_000}, // $1 is 89,500: the nearest thousand
+		{1, 89_500, 1_000},
+	}
+	for _, c := range cases {
+		if got, ok := paymentLBPUnits(c.cents, c.rate); !ok || got != c.want {
+			t.Fatalf("%d cents at %d: %d", c.cents, c.rate, got)
+		}
+	}
+	if _, ok := paymentLBPUnits(100, 0); ok {
+		t.Fatal("no rate: no LBP")
+	}
+	// Every amount of thousands a cashier can count up to 10,000,000 L.L.
+	// comes back exactly through its cents, both ways.
+	for _, rate := range []int64{89_000, 89_500, 90_000} {
+		for units := int64(1_000); units <= 10_000_000; units += 1_000 {
+			cents := (units*100 + rate/2) / rate
+			if got, _ := paymentLBPUnits(cents, rate); got != units {
+				t.Fatalf("%d L.L. at %d: %d cents back to %d", units, rate, cents, got)
+			}
+			if got, _ := paymentLBPUnits(-cents, rate); got != -units {
+				t.Fatalf("refund of %d L.L. at %d: %d", units, rate, got)
+			}
+		}
+	}
+}
