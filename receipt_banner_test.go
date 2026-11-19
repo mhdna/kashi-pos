@@ -243,3 +243,35 @@ func TestBannerDealNameAndReferral(t *testing.T) {
 		t.Fatalf("plain sale: %q", d)
 	}
 }
+
+// The reported case: the generic deal banner says BUY 1 GET 1 or BUY 2 GET 1
+// after the deal on the invoice, however long the deal's own name.
+func TestBannerDealTitleBuyGet(t *testing.T) {
+	cases := map[string]string{
+		"Buy 2 get 1 free":                 "BUY 2 GET 1",
+		"Buy 2 get 1 free (otherwise 30%)": "BUY 2 GET 1",
+		"Buy 1 Get 1":                      "BUY 1 GET 1",
+		"buy3get2":                         "BUY 3 GET 2",
+		"Students 15%":                     "STUDENTS 15%",
+		"":                                 "",
+	}
+	for name, want := range cases {
+		if got := bannerDealTitle(name); got != want {
+			t.Fatalf("%q: %q, want %q", name, got, want)
+		}
+	}
+	texts := bannerTexts(receiptBanner{Style: "ribbon", Title: "{deal}", When: "item_deal"})
+	for _, deal := range []string{"Buy 1 Get 1", "Buy 2 get 1 free (otherwise 30%)"} {
+		data := receiptPreviewData(designBase(), receiptModeItemDeal)
+		data.Texts = texts
+		for i := range data.Items {
+			if data.Items[i].Deal != "" {
+				data.Items[i].Deal = deal
+			}
+		}
+		drawn, _, _ := drawnTexts(t, data, "classic", "A")
+		if want := bannerDealTitle(deal); !drewText(drawn, want) || drewText(drawn, "OTHERWISE") {
+			t.Fatalf("%s: %q", deal, drawn)
+		}
+	}
+}
