@@ -1,26 +1,20 @@
-// The sale screen's Salesperson and Client buttons are square grey tonal
-// buttons: no colour of their own, no rounded corners.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-for (const file of ["SalespersonsDialog.vue", "ClientButton.vue"]) {
-  const src = readFileSync(resolve(__dirname, file), "utf8");
-  const btn = src.slice(src.indexOf("<k-btn"), src.indexOf('class="header-fixed-width-btn"'));
-  describe(file, () => {
-    it("is a square tonal button with no colour", () => {
-      expect(btn).toMatch(/variant="tonal"/);
-      expect(btn).toMatch(/rounded="0"/);
-      expect(btn).not.toMatch(/\scolor="/);
-    });
+// The cart header (Salesperson, Client, Rewards, Referral) fits beside the
+// invoice number on a till's screen: narrow buttons, small labels, small gaps.
+describe("cart header stays narrow", () => {
+  const read = (f: string) => readFileSync(resolve(__dirname, f), "utf8");
+  it("Salesperson and Client buttons are 92px", () => {
+    for (const f of ["ClientButton.vue", "SalespersonsDialog.vue"]) {
+      expect(read(f), f).toMatch(/\.header-fixed-width-btn \{\s*width: 92px;/);
+    }
   });
-}
-
-describe("salesperson picker corners", () => {
-  it("tiles and the menu card are square", () => {
-    const grid = readFileSync(resolve(__dirname, "SalespersonGrid.vue"), "utf8");
-    const dialog = readFileSync(resolve(__dirname, "SalespersonsDialog.vue"), "utf8");
-    expect(grid).toMatch(/\.sp-tile \{[^}]*border-radius: 0;/);
-    expect(dialog).toContain('<k-card class="salespersons-grid" rounded="0">');
+  it("labels above the buttons are small, and the row's gaps tight", () => {
+    for (const f of ["ClientButton.vue", "SalespersonsDialog.vue", "RewardsButton.vue"]) {
+      expect(read(f), f).toMatch(/\.header-btn-subtitle \{\s*font-size: 0\.72rem;/);
+    }
+    expect(read("../pages/home.vue")).toContain('class="required-assignees d-flex align-center ga-1"');
   });
 });

@@ -73,14 +73,16 @@ async function loadSalespersons() {
   align-items: center;
 }
 .header-btn-subtitle {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   line-height: 1.2;
   color: rgba(var(--k-theme-on-surface), 0.6);
   margin-bottom: 2px;
 }
 .header-fixed-width-btn {
-  width: 108px;
+  width: 92px;
   height: 35px;
+  padding-inline: 6px !important;
+  font-size: 0.85rem;
 }
 .header-fixed-width-btn-label {
   min-width: 0;

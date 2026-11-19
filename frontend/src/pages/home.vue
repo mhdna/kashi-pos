@@ -15,10 +15,10 @@
               <k-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</k-card-subtitle>
             </div>
             <div class="d-flex flex-column align-end">
-              <div class="d-flex align-center ga-2">
+              <div class="d-flex align-center ga-1">
                 <ToggleTheme />
                 <div
-                  class="required-assignees d-flex align-center ga-2"
+                  class="required-assignees d-flex align-center ga-1"
                   :class="{ 'required-assignees--missing': missingAssignmentFlash }"
                 >
                   <SalespersonsDialog v-if="pageMode !== 'settlement'" />

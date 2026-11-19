@@ -302,7 +302,7 @@ defineExpose({ loadInfo });
 .rewards-pair {
   display: flex;
   align-items: flex-start;
-  gap: 4px;
+  gap: 0;
 }
 .referral-tick-badge {
   position: absolute;
@@ -317,7 +317,7 @@ defineExpose({ loadInfo });
 }
 
 .header-btn-subtitle {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   line-height: 1.2;
   color: rgba(var(--k-theme-on-surface), 0.6);
   margin-bottom: 2px;
