@@ -848,7 +848,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Salespersons can tap a line's discount (30%) to turn it off or on"
+                label="Salesmen can tap a line's discount (30%) to turn it off or on"
                 @update:model-value="setDiscountToggleEnabled"
               />
               <k-switch
@@ -865,7 +865,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Salespersons can tap a line's deal (B2G1) to turn it off or on"
+                label="Salesmen can tap a line's deal (B2G1) to turn it off or on"
                 @update:model-value="setDealToggleEnabled"
               />
             </k-card-text>
@@ -930,7 +930,7 @@
           <k-card v-show="panelMatches('behavior-salesperson-per-invoice')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-tie-outline" size="20" />
-              Salesperson per invoice
+              Salesman per invoice
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -938,10 +938,10 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Require picking a salesperson on every invoice"
+                label="Require picking a salesman on every invoice"
                 @update:model-value="setSalespersonPerInvoiceRequired"
               />
-              <div class="settings-note mt-1">Off: the last salesperson carries over.</div>
+              <div class="settings-note mt-1">Off: the last salesman carries over.</div>
             </k-card-text>
           </k-card>
 
@@ -1507,7 +1507,7 @@
           <k-card v-show="panelMatches('admin-salespersons')" class="settings-card settings-card--wide">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-tie" size="20" />
-              Salespersons
+              Salesmen
               <k-spacer />
               <k-btn
                 v-if="!salespersonsSyncManaged"
@@ -1515,7 +1515,7 @@
                 size="small"
                 @click="openSalespersonDialog()"
               >
-                <k-icon start icon="mdi-plus" /> Add salesperson
+                <k-icon start icon="mdi-plus" /> Add salesman
               </k-btn>
             </k-card-title>
             <div v-if="salespersonsSyncManaged" class="settings-note px-4">
@@ -1803,8 +1803,8 @@
             !salespersonNameEditable
               ? "Attendance ID"
               : editingSalesperson
-                ? "Edit Salesperson"
-                : "New Salesperson"
+                ? "Edit Salesman"
+                : "New Salesman"
           }}
         </k-card-title>
         <k-card-text>
@@ -1843,7 +1843,7 @@
 
     <k-dialog v-model="deleteSalespersonDialog" max-width="400">
       <k-card>
-        <k-card-title>Delete Salesperson</k-card-title>
+        <k-card-title>Delete Salesman</k-card-title>
         <k-card-text>Delete {{ deleteSalespersonTarget?.fullName }}?</k-card-text>
         <k-card-actions>
           <k-btn variant="text" @click="deleteSalespersonDialog = false">Cancel</k-btn>
@@ -2153,21 +2153,21 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
   "behavior-stock": { tab: "behaviour", title: "Selling beyond stock", keywords: "oversell stock allow warn block sell more than in stock negative" },
   "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder pictures qr phone checkout" },
-  "behavior-discount-toggle": { tab: "behaviour", title: "Turn discounts or deals off at the till", keywords: "discount deal toggle turn off on remove salesperson default off b2g1 percent" },
+  "behavior-discount-toggle": { tab: "behaviour", title: "Turn discounts or deals off at the till", keywords: "discount deal toggle turn off on remove salesman default off b2g1 percent" },
   "behavior-price-edit-codes": { tab: "behaviour", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
   "behavior-sounds": { tab: "display", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
   "behavior-invoice-ratings": { tab: "behaviour", title: "Client ratings", keywords: "rating review feedback emoji loved okay not great whatsapp poll invoices list" },
   "behavior-client-required": { tab: "behaviour", title: "Client on every invoice", keywords: "require client select checkout invoice anonymous prefer not to say" },
-  "behavior-always-anonymous": { tab: "behaviour", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
-  "behavior-salesperson-per-invoice": { tab: "behaviour", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
+  "behavior-always-anonymous": { tab: "behaviour", title: "Always Walk-In client", keywords: "always anonymous client toggle button prefer not to say" },
+  "behavior-salesperson-per-invoice": { tab: "behaviour", title: "Salesman per invoice", keywords: "salesman per invoice require force clear carry forward previous cashier pick" },
   "behavior-non-admin-month-nav": { tab: "behaviour", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
   "behavior-visitor-counter": { tab: "behaviour", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
   "admin-app-updates": { tab: "general", title: "App updates", keywords: "update upgrade version install roll back rollback previous release download" },
-  "admin-page-access": { tab: "pages", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
+  "admin-page-access": { tab: "pages", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salesmen permissions" },
   "admin-change-password": { tab: "users", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
   "admin-cashier-pin": { tab: "users", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },
   "admin-users": { tab: "users", title: "Users", keywords: "users username role status add user edit delete akuvox userid" },
-  "admin-salespersons": { tab: "users", title: "Salespersons", keywords: "salespersons full name attendance id add edit delete" },
+  "admin-salespersons": { tab: "users", title: "Salesmen", keywords: "salesmen full name attendance id add edit delete" },
 };
 
 const settingsSearch = ref("");
@@ -2465,7 +2465,7 @@ const pageUnlockLabels: Record<string, string> = {
   products: "Products",
   transfers: "Transfers",
   attendance: "Attendance",
-  salespersons: "Salespersons",
+  salespersons: "Salesmen",
 };
 const adminSettingsSaving = ref(false);
 const samplePrinting = ref(false);
@@ -3270,12 +3270,12 @@ async function setSalespersonPerInvoiceRequired(value: boolean | null) {
     setSalespersonPerInvoiceRequiredState(enabled);
     notify(
       enabled
-        ? "Salesperson must now be picked on every invoice"
-        : "Salesperson now carries forward between invoices",
+        ? "Salesman must now be picked on every invoice"
+        : "Salesman now carries forward between invoices",
     );
   } catch {
     form.salespersonPerInvoiceRequired = previous;
-    notify("Failed to update salesperson requirement", "red");
+    notify("Failed to update salesman requirement", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3618,10 +3618,10 @@ async function saveSalesperson() {
     }
     await UpdateSalespersonAttendanceID(id, salespersonAttendanceUserId.value);
     salespersonDialog.value = false;
-    notify(editing ? "Salesperson updated" : "Salesperson created");
+    notify(editing ? "Salesman updated" : "Salesman created");
     await loadSalespersons();
   } catch {
-    notify("Failed to save salesperson", "red");
+    notify("Failed to save salesman", "red");
   } finally {
     savingSalesperson.value = false;
   }
@@ -3636,10 +3636,10 @@ async function deleteSalesperson() {
   try {
     await DeleteSalesperson(deleteSalespersonTarget.value.id);
     deleteSalespersonDialog.value = false;
-    notify("Salesperson deleted");
+    notify("Salesman deleted");
     await loadSalespersons();
   } catch {
-    notify("Could not delete salesperson", "red");
+    notify("Could not delete salesman", "red");
   }
 }
 

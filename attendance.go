@@ -442,7 +442,7 @@ func (a *App) CreateManualAttendanceEvent(salespersonID int64, eventAt, eventTyp
 		return nil, fmt.Errorf("database not initialized")
 	}
 	if salespersonID <= 0 {
-		return nil, fmt.Errorf("salesperson is required")
+		return nil, fmt.Errorf("salesman is required")
 	}
 	eventType = strings.ToUpper(strings.TrimSpace(eventType))
 	if eventType != "IN" && eventType != "OUT" {
@@ -454,7 +454,7 @@ func (a *App) CreateManualAttendanceEvent(salespersonID int64, eventAt, eventTyp
 	}
 	var name, attendanceUserID string
 	if err := a.conn.QueryRowContext(a.ctx, `SELECT full_name, attendance_user_id FROM salespersons WHERE id = ?`, salespersonID).Scan(&name, &attendanceUserID); err != nil {
-		return nil, fmt.Errorf("salesperson not found: %w", err)
+		return nil, fmt.Errorf("salesman not found: %w", err)
 	}
 	centralURL, err := a.syncCentralAPIURL()
 	if err != nil {

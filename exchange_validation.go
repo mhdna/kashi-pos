@@ -231,7 +231,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 	for requestIndex, requested := range request.returnedItems {
 		if requested.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, requested.SalespersonID); err != nil {
-				return result, fmt.Errorf("salesperson for returned item %s: %w", requested.Code, err)
+				return result, fmt.Errorf("salesman for returned item %s: %w", requested.Code, err)
 			}
 		}
 		product, err := lineProduct(a, q, requested)
@@ -302,7 +302,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 	for requestIndex, line := range request.replacements {
 		if line.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, line.SalespersonID); err != nil {
-				return result, fmt.Errorf("salesperson for replacement %s: %w", line.Code, err)
+				return result, fmt.Errorf("salesman for replacement %s: %w", line.Code, err)
 			}
 		}
 		product, err := lineProduct(a, q, line)

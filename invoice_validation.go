@@ -157,7 +157,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		}
 		if item.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, item.SalespersonID); err != nil {
-				return nil, 0, 0, nil, fmt.Errorf("salesperson for item %s: %w", item.Code, err)
+				return nil, 0, 0, nil, fmt.Errorf("salesman for item %s: %w", item.Code, err)
 			}
 		}
 		var product db.Product

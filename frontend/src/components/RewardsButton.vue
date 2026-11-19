@@ -36,8 +36,8 @@
       <k-card>
         <k-card-title>Rewards</k-card-title>
         <k-card-text class="rewards-body">
-          <div v-if="pickable.length || referralEnabled" class="rewards-heading">Choose</div>
-          <div v-if="pickable.length || referralEnabled" class="rewards-grid" data-test="rewards-pick-grid">
+          <div v-if="pickable.length" class="rewards-heading">Choose</div>
+          <div v-if="pickable.length" class="rewards-grid" data-test="rewards-pick-grid">
             <button
               v-for="d in pickable"
               :key="d.uid"
@@ -63,21 +63,6 @@
               <span class="reward-size">{{ dealSize(d) }}</span>
             </button>
 
-            <button
-              v-if="referralEnabled"
-              type="button"
-              class="reward-card reward-card--pick"
-              :class="{ 'reward-card--on': Boolean(modelValue) }"
-              aria-label="Referral code"
-              data-test="rewards-referral"
-              @click="openCode"
-            >
-              <span class="reward-top">
-                <span class="reward-line" data-test="referral-foot">{{ modelValue || "Referral code" }}</span>
-                <k-icon v-if="modelValue" icon="mdi-check-circle" size="22" class="reward-state-icon" data-test="referral-tick" />
-              </span>
-              <span class="reward-size">{{ rewardPercent }}%</span>
-            </button>
 
           </div>
 

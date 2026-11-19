@@ -656,7 +656,7 @@ func parseSalesItems(raw, unknownBarcode, unknownCode string) ([]salesInvoiceIte
 			return nil, fmt.Errorf("invalid or duplicate item %q", item.Code)
 		}
 		if item.SalespersonID < 0 {
-			return nil, fmt.Errorf("invalid salesperson for item %q", item.Code)
+			return nil, fmt.Errorf("invalid salesman for item %q", item.Code)
 		}
 		if len([]rune(item.Note)) > 2000 {
 			return nil, fmt.Errorf("note is too long for item %q", item.Code)

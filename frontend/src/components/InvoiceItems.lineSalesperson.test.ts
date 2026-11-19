@@ -56,7 +56,7 @@ describe("item details: who sold this line", () => {
     await openDetails();
     expect(soldBy().textContent).toContain("Sold by");
     expect(select().props("modelValue")).toBe(0);
-    expect(soldBy().textContent).toContain("Invoice salesperson");
+    expect(soldBy().textContent).toContain("Invoice salesman");
   });
 
   it("is a dropdown of names: no cards, no avatars", async () => {
@@ -68,7 +68,7 @@ describe("item details: who sold this line", () => {
 
   it("lists Invoice salesperson first, then the real salespeople, not attendance-only staff", async () => {
     await openDetails();
-    expect(titles()).toEqual(["Invoice salesperson", "Ali A", "Fatima G"]);
+    expect(titles()).toEqual(["Invoice salesman", "Ali A", "Fatima G"]);
   });
 
   it("shows the line's current salesperson as picked", async () => {
@@ -93,7 +93,7 @@ describe("item details: who sold this line", () => {
 
   it("names a salesperson the roster no longer has rather than showing an id", async () => {
     await openDetails(shirt({ salespersonId: 77 }));
-    expect(titles()).toContain("Former salesperson");
-    expect(soldBy().textContent).toContain("Former salesperson");
+    expect(titles()).toContain("Former salesman");
+    expect(soldBy().textContent).toContain("Former salesman");
   });
 });

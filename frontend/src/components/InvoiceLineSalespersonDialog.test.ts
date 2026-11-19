@@ -245,7 +245,7 @@ describe("Change Salesperson (invoice and items)", () => {
     it("clears the invoice's salesperson with the No salesperson tile", async () => {
       await mountDialog();
       await click(inv("default"));
-      expect(invoiceWho()).toBe("No salesperson");
+      expect(invoiceWho()).toBe("No salesman");
       await click(save());
       expect(changeInvoice.mock.calls).toEqual([[101, 0]]);
     });

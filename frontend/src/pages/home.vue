@@ -1634,7 +1634,7 @@ function flagMissingAssignment(): boolean {
   if (missingClient) pulseMissingClient();
   if (missingSalesperson) pulseSalesperson();
   notifyCheckoutBlocked(
-    [missingSalesperson && "Pick salesperson", missingClient && "Pick client"].filter(Boolean).join(" · "),
+    [missingSalesperson && "Pick salesman", missingClient && "Pick client"].filter(Boolean).join(" · "),
     "mdi-account-alert",
   );
   return true;

@@ -67,7 +67,7 @@ func (a *App) CreateSalesperson(fullName string) (map[string]any, error) {
 	}
 	name := strings.TrimSpace(fullName)
 	if name == "" {
-		return nil, fmt.Errorf("salesperson name is required")
+		return nil, fmt.Errorf("salesman name is required")
 	}
 	s, err := a.store.CreateSalesperson(a.ctx, name)
 	if err != nil {
@@ -82,7 +82,7 @@ func (a *App) UpdateSalesperson(id int64, fullName string) (map[string]any, erro
 	}
 	name := strings.TrimSpace(fullName)
 	if name == "" {
-		return nil, fmt.Errorf("salesperson name is required")
+		return nil, fmt.Errorf("salesman name is required")
 	}
 	s, err := a.store.UpdateSalesperson(a.ctx, db.UpdateSalespersonParams{ID: id, FullName: name})
 	if err != nil {

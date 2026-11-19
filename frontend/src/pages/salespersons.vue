@@ -1,7 +1,7 @@
 <template>
   <div class="salespersons-page pa-4">
     <div class="d-flex align-center mb-4 ga-3">
-      <h2 class="text-h6 font-weight-bold">Salespersons</h2>
+      <h2 class="text-h6 font-weight-bold">Salesmen</h2>
       <k-spacer />
       <template v-if="auth.isAdmin">
         <k-text-field
@@ -64,7 +64,7 @@
     <k-table class="salespersons-table">
       <thead>
         <tr>
-          <th>Salesperson</th>
+          <th>Salesman</th>
           <th class="text-right">Amount Sold</th>
           <th class="text-right">Invoices</th>
           <th class="text-right">Items Sold</th>

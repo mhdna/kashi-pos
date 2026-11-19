@@ -75,7 +75,7 @@ type receiptGroupInfo struct {
 
 var receiptGroups = []receiptGroupInfo{
 	{Key: "header", Label: "Shop and invoice number"},
-	{Key: "meta", Label: "Customer, salesperson and date"},
+	{Key: "meta", Label: "Customer, salesman and date"},
 	{Key: "columns", Label: "Items and column titles"},
 	{Key: "totals", Label: "Totals"},
 	{Key: "payments", Label: "Payment details", Section: receiptSectionPayments},

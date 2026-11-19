@@ -6,7 +6,7 @@
     :class="{ 'sp-grid--dense': dense }"
     :style="{ '--sp-columns': columns ?? 3 }"
     role="listbox"
-    aria-label="Salesperson"
+    aria-label="Salesman"
   >
     <button
       v-if="defaultLabel"
@@ -47,7 +47,7 @@ defineProps<{
   // The picked salesperson's id; 0 is the "default" tile, null/-1 is none.
   modelValue: number | null;
   // Adds a first tile that stands for "nobody in particular" (id 0), e.g.
-  // "Invoice salesperson". Left out when every pick must be a real person.
+  // "Invoice salesman". Left out when every pick must be a real person.
   defaultLabel?: string;
   // How many tiles per row (3 when left out).
   columns?: number;

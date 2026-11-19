@@ -50,7 +50,7 @@ const invoicePerson = computed(() => {
   if (!id) return null;
   const known = salespersons.value.find((s) => s.id === id);
   if (known) return known;
-  return { id, fullName: id === savedInvoiceId.value && props.invoice?.salespersonName ? props.invoice.salespersonName : "Former salesperson" };
+  return { id, fullName: id === savedInvoiceId.value && props.invoice?.salespersonName ? props.invoice.salespersonName : "Former salesman" };
 });
 const invoiceName = computed(() => invoicePerson.value?.fullName ?? "");
 // One item is the whole sale, so the items are only listed from two up.
@@ -76,7 +76,7 @@ function personFor(line: Line): { id: number; fullName: string } | null {
   if (!id) return null;
   const known = salespersons.value.find((s) => s.id === id);
   if (known) return known;
-  return { id, fullName: id === line.salespersonId && line.salespersonName ? line.salespersonName : "Former salesperson" };
+  return { id, fullName: id === line.salespersonId && line.salespersonName ? line.salespersonName : "Former salesman" };
 }
 const rowChanged = (line: Line) => changes.value.some((c) => c.lineId === line.lineId);
 
@@ -160,7 +160,7 @@ async function save() {
     <k-card class="line-sp-dialog">
       <div class="line-sp-header">
         <div class="line-sp-header__text">
-          <div class="text-h6">Change Salesperson</div>
+          <div class="text-h6">Change Salesman</div>
           <div v-if="invoice?.invoiceCode" class="text-body-2 text-medium-emphasis">Invoice {{ invoice.invoiceCode }}</div>
         </div>
       </div>
@@ -174,7 +174,7 @@ async function save() {
             <SalespersonGrid
               :salespersons="salespersons"
               :model-value="invoiceId"
-              default-label="No salesperson"
+              default-label="No salesman"
               @update:model-value="pickInvoice"
             />
           </div>
@@ -192,7 +192,7 @@ async function save() {
                   <InitialsAvatar :name="personFor(line)!.fullName" :color="salespersonColor(personFor(line)!)" :size="28" />
                   <span class="line-sp-who__name">{{ personFor(line)!.fullName }}</span>
                 </template>
-                <span v-else class="line-sp-who__name line-sp-who__name--muted">{{ invoiceName ? `Invoice: ${invoiceName}` : "No salesperson" }}</span>
+                <span v-else class="line-sp-who__name line-sp-who__name--muted">{{ invoiceName ? `Invoice: ${invoiceName}` : "No salesman" }}</span>
                 <k-icon :icon="openLine === line.lineId ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" class="line-sp-chevron" />
               </span>
             </button>
