@@ -86,6 +86,18 @@ var spaceMonoBold []byte
 //go:embed assets/fonts/extra/SpecialElite-Regular.ttf
 var specialEliteRegular []byte
 
+//go:embed assets/fonts/arabic/Vazirmatn-Regular.ttf
+var vazirmatnRegular []byte
+
+//go:embed assets/fonts/arabic/Vazirmatn-Bold.ttf
+var vazirmatnBold []byte
+
+//go:embed assets/fonts/arabic/NotoNaskhArabic-Regular.ttf
+var notoNaskhArabicRegular []byte
+
+//go:embed assets/fonts/arabic/NotoNaskhArabic-Bold.ttf
+var notoNaskhArabicBold []byte
+
 // receiptFont is one font a line can be set in.
 type receiptFont struct {
 	Key   string `json:"key"`
@@ -127,7 +139,14 @@ var receiptFonts = []receiptFont{
 	{Key: "lobster", Label: "Lobster", Kind: "script", Scale: 1.05, Regular: lobsterRegular, Bold: lobsterRegular},
 	{Key: "pacifico", Label: "Pacifico", Kind: "script", Scale: 0.92, Regular: pacificoRegular, Bold: pacificoRegular},
 	{Key: "dancing-script", Label: "Dancing Script", Kind: "script", Scale: 1.2, Regular: dancingScriptRegular, Bold: dancingScriptBold},
+	// Arabic and Latin both: Arabic lines are drawn in one of these.
+	{Key: "vazirmatn", Label: "Vazirmatn (Arabic)", Kind: "arabic", Scale: 1, Regular: vazirmatnRegular, Bold: vazirmatnBold},
+	{Key: "noto-naskh-arabic", Label: "Noto Naskh (Arabic)", Kind: "arabic", Scale: 1.05, Regular: notoNaskhArabicRegular, Bold: notoNaskhArabicBold},
 }
+
+// arabicFontDefault is the font Arabic lines are drawn in unless the line's
+// own font is an Arabic one.
+const arabicFontDefault = "vazirmatn"
 
 func receiptFontByKey(key string) (receiptFont, bool) {
 	for _, f := range receiptFonts {
