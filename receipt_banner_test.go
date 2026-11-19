@@ -106,13 +106,22 @@ func TestNormalizeReceiptBanners(t *testing.T) {
 		{Style: "ribbon", Title: "  BUY 1 GET 1 ", When: "item_deal", Place: "bottom"},
 		{Style: "nope", Title: "X"},
 		{Style: "frame", Title: "  "},
-		{Style: "stars", Title: long, Subtitle: long, When: "weird", Place: "side"},
+		{Style: "stars", Title: long, Subtitle: long, Place: "side"},
+		// A condition this till doesn't know: left out, never printed always.
+		{Style: "stars", Title: "FUTURE", When: "weird"},
 		{Style: "stamp", Title: "A", When: "deal: "},
 		{Style: "stamp", Title: "B", When: "deal:Students 15%"},
 		{Style: "frame", Title: "C"},
 	})
-	if len(out) != 5 {
+	// Kept: the first, the long always one, Students and C; the bad style,
+	// the empty title, a deal with no name and the unknown condition go.
+	if len(out) != 4 {
 		t.Fatalf("%d banners kept", len(out))
+	}
+	for _, b := range out {
+		if b.Title == "FUTURE" {
+			t.Fatal("a banner with an unknown condition was kept")
+		}
 	}
 	// No more than receiptBannerMax are kept.
 	many := make([]receiptBanner, receiptBannerMax+3)
@@ -128,8 +137,8 @@ func TestNormalizeReceiptBanners(t *testing.T) {
 	if len([]rune(out[1].Title)) != receiptBannerTitleMax || len([]rune(out[1].Subtitle)) != receiptBannerSubtitleMax || out[1].When != "" || out[1].Place != "" {
 		t.Fatalf("second: %+v", out[1])
 	}
-	if out[2].When != "" || out[3].When != "deal:Students 15%" {
-		t.Fatalf("whens: %q %q", out[2].When, out[3].When)
+	if out[2].When != "deal:Students 15%" || out[3].Title != "C" {
+		t.Fatalf("kept: %+v", out[2:])
 	}
 	// Presets are all valid, and draw on their own.
 	if n := min(len(receiptBannerPresets), receiptBannerMax); len(normalizeReceiptBanners(receiptBannerPresets[:n])) != n {
@@ -185,5 +194,52 @@ func TestOneBannerForStackedDeals(t *testing.T) {
 		if got := draw(name); len(got) != 1 || got[0] != want {
 			t.Fatalf("%q: printed %q, want only %q", name, got, want)
 		}
+	}
+}
+
+// An item on sale (its own discount) shows the item-discount banner; a plain
+// sale and a deal's lines don't.
+func TestItemDiscountBanner(t *testing.T) {
+	texts := bannerTexts(receiptBanner{Style: "ribbon", Title: "SALE", When: "item_discount"})
+	draw := func(items []invoiceItem) bool {
+		data := receiptPreviewData(designBase(), receiptModeSale)
+		data.Texts = texts
+		data.Items = items
+		drawn, _, _ := drawnTexts(t, data, "classic", "A")
+		return drewText(drawn, "SALE")
+	}
+	if !draw([]invoiceItem{{Name: "Shirt", Price: 20, Qty: 1, Discount: 10}}) {
+		t.Fatal("an item on sale printed no banner")
+	}
+	if draw([]invoiceItem{{Name: "Shirt", Price: 20, Qty: 1}}) {
+		t.Fatal("a plain sale printed the sale banner")
+	}
+	if draw([]invoiceItem{{Name: "Shirt", Price: 20, Qty: 1, Discount: 100, Deal: "Buy 2 get 1", Free: true}}) {
+		t.Fatal("a deal's free line printed the sale banner")
+	}
+}
+
+// A banner can name its deal: {deal} prints the deal's name, the title in
+// capitals; the referral banner prints for a customer with a code to share.
+func TestBannerDealNameAndReferral(t *testing.T) {
+	texts := bannerTexts(
+		receiptBanner{Style: "ribbon", Title: "{deal}", Subtitle: "{deal} today", When: "item_deal"},
+		receiptBanner{Style: "stamp", Title: "SHARE YOUR CODE", When: "referral"},
+	)
+	draw := func(mode string) []string {
+		data := receiptPreviewData(designBase(), mode)
+		data.Texts = texts
+		drawn, _, _ := drawnTexts(t, data, "classic", "A")
+		return drawn
+	}
+	// The reported case: the buy 2 get 1 view's banner says BUY 2 GET 1.
+	if d := draw(receiptModeItemDeal); !drewText(d, "BUY 2 GET 1") || !drewText(d, "Buy 2 get 1 today") || drewText(d, "SHARE YOUR CODE") {
+		t.Fatalf("item deal: %q", d)
+	}
+	if d := draw(receiptModeReferral); !drewText(d, "SHARE YOUR CODE") {
+		t.Fatalf("referral: %q", d)
+	}
+	if d := draw(receiptModeSale); drewText(d, "SHARE YOUR CODE") || drewText(d, "BUY 2 GET 1") {
+		t.Fatalf("plain sale: %q", d)
 	}
 }

@@ -29,7 +29,10 @@ type receiptBanner struct {
 	Subtitle string `json:"subtitle,omitempty"`
 	// When: "" always, "item_deal" a sale with a deal on its items (buy 2
 	// get 1), "deal" a sale with a deal on the invoice, "deal:<name>" a sale
-	// with that deal, on the invoice or its items.
+	// with that deal, on the invoice or its items, "item_discount" a sale
+	// with an item on sale (its own discount), "referral" a customer with a
+	// referral code to share. Any other is left out. Title and Subtitle may
+	// hold {deal}: the deal's name (the title's in capitals).
 	When string `json:"when,omitempty"`
 	// Place: "" under the shop's name, "bottom" at the end of the receipt.
 	Place string `json:"place,omitempty"`
@@ -112,10 +115,14 @@ func normalizeReceiptBanners(in []receiptBanner) []receiptBanner {
 			continue
 		}
 		switch {
-		case b.When == "item_deal" || b.When == "deal":
+		case b.When == "" || b.When == "item_deal" || b.When == "deal" || b.When == "item_discount" || b.When == "referral":
 			n.When = b.When
 		case strings.HasPrefix(b.When, "deal:") && strings.TrimSpace(strings.TrimPrefix(b.When, "deal:")) != "":
 			n.When = "deal:" + clipRunes(strings.TrimPrefix(b.When, "deal:"), 120)
+		default:
+			// A condition this till doesn't know (from a newer central) leaves
+			// the banner out, rather than printing it on every receipt.
+			continue
 		}
 		if b.Place == "bottom" {
 			n.Place = "bottom"
@@ -161,6 +168,18 @@ func (c *receiptCanvas) bannerRank(b receiptBanner) (int, bool) {
 		return 100, itemDeal("")
 	case b.When == "deal":
 		return 200, c.data.InvoiceDiscount.Cents > 0
+	case b.When == "referral":
+		// The customer has a referral code to share (printed at the end).
+		return 275, c.data.ReferralCode != ""
+	case b.When == "item_discount":
+		// An item on sale: a line with its own discount (a deal's lines are
+		// the deal banners').
+		for _, item := range c.data.Items {
+			if item.Discount > 0 && item.Deal == "" {
+				return 250, true
+			}
+		}
+		return 0, false
 	case strings.HasPrefix(b.When, "deal:"):
 		name := strings.TrimPrefix(b.When, "deal:")
 		if i := slices.Index(c.invoiceDealNames(), name); i >= 0 {
@@ -169,6 +188,34 @@ func (c *receiptCanvas) bannerRank(b receiptBanner) (int, bool) {
 		return 50, itemDeal(name)
 	}
 	return 0, false
+}
+
+// bannerDealName is the deal a banner is about: its own deal, the deal on
+// the items, or the biggest one on the invoice; "" for none.
+func (c *receiptCanvas) bannerDealName(b receiptBanner) string {
+	if name, ok := strings.CutPrefix(b.When, "deal:"); ok {
+		return name
+	}
+	for _, item := range c.data.Items {
+		if item.Deal != "" && (b.When == "item_deal" || b.When == "") {
+			return item.Deal
+		}
+	}
+	if names := c.invoiceDealNames(); len(names) > 0 {
+		return names[0]
+	}
+	return ""
+}
+
+// withDealName fills {deal} in a banner's words: the title in capitals.
+func (c *receiptCanvas) withDealName(b receiptBanner) receiptBanner {
+	if !strings.Contains(b.Title+b.Subtitle, "{deal}") {
+		return b
+	}
+	name := c.bannerDealName(b)
+	b.Title = strings.TrimSpace(strings.ReplaceAll(b.Title, "{deal}", strings.ToUpper(name)))
+	b.Subtitle = strings.TrimSpace(strings.ReplaceAll(b.Subtitle, "{deal}", name))
+	return b
 }
 
 // chosenBanner is the one banner this receipt prints, -1 for none: the best
@@ -191,7 +238,7 @@ func (c *receiptCanvas) drawBanners(y int, place string) int {
 		return y
 	}
 	top := y
-	y = c.drawBanner(y, c.data.Texts.Banners[i]) + c.gap(12)
+	y = c.drawBanner(y, c.withDealName(c.data.Texts.Banners[i])) + c.gap(12)
 	c.markGroup(fmt.Sprintf("banner-%d", i), top, y)
 	return y
 }
