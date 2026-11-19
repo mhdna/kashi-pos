@@ -312,6 +312,13 @@ func leaveKiosk() {
 		kiosk.threadID = 0
 	}
 	kiosk.mu.Unlock()
+	// The till's window lets go of the top and hides now: closing can take
+	// a moment, and a black window held on top of everything (with the
+	// keys locked) looked like a frozen PC.
+	if window := kiosk.window.Swap(0); window != 0 {
+		pSetWindowPos.Call(window, hwndNoTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate)
+		pShowWindow.Call(window, swHide)
+	}
 	if !kioskKeepShellOff.Load() {
 		startExplorer()
 	}
