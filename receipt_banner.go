@@ -349,29 +349,29 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 	switch b.Style {
 	case "ribbon":
 		// A black band with notched ends, white letters.
-		face, _ := c.fitFace(b.titleFont("jost"), b.Title, 64, c.contentW-90)
+		face, _ := c.fitFace(b.titleFont("jost"), b.Title, 50, c.contentW-90)
 		m := face.Metrics()
 		subH := 0
 		if b.Subtitle != "" {
-			subH = 30
+			subH = 24
 		}
-		h := m.Ascent.Ceil() + m.Descent.Ceil() + 26 + subH
+		h := m.Ascent.Ceil() + m.Descent.Ceil() + 14 + subH
 		top, bot := y, y+h
-		notch := 22
+		notch := 18
 		c.fillPolygon([]image.Point{{left, top}, {right, top}, {right - notch, top + h/2}, {right, bot}, {left, bot}, {left + notch, top + h/2}}, color.Black)
-		ty := c.bannerText(face, b.Title, left+notch, right-notch, top+10, white)
-		sub(ty, "jost-regular", 26, white, left+notch, right-notch)
+		ty := c.bannerText(face, b.Title, left+notch, right-notch, top+6, white)
+		sub(ty, "jost-regular", 21, white, left+notch, right-notch)
 		return bot
 	case "burst":
 		// A black band with zigzag edges.
-		face, _ := c.fitFace(b.titleFont("manrope"), b.Title, 60, c.contentW-40)
+		face, _ := c.fitFace(b.titleFont("manrope"), b.Title, 46, c.contentW-40)
 		m := face.Metrics()
 		subH := 0
 		if b.Subtitle != "" {
-			subH = 30
+			subH = 24
 		}
-		zig := 12
-		h := m.Ascent.Ceil() + m.Descent.Ceil() + 30 + subH
+		zig := 9
+		h := m.Ascent.Ceil() + m.Descent.Ceil() + 16 + subH
 		top, bot := y+zig, y+zig+h
 		pts := []image.Point{}
 		for x := left; x <= right; x += zig * 2 {
@@ -383,36 +383,36 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		}
 		pts = append(pts, image.Point{left, bot})
 		c.fillPolygon(pts, color.Black)
-		ty := c.bannerText(face, b.Title, left, right, top+12, white)
-		sub(ty, "jost-regular", 26, white, left, right)
+		ty := c.bannerText(face, b.Title, left, right, top+6, white)
+		sub(ty, "jost-regular", 21, white, left, right)
 		return bot + zig
 	case "stamp":
 		// A thick rounded frame, heavy serif letters.
-		face, _ := c.fitFace(b.titleFont("playfair"), b.Title, 58, c.contentW-60)
+		face, _ := c.fitFace(b.titleFont("playfair"), b.Title, 44, c.contentW-60)
 		top := y
-		ty := c.bannerText(face, b.Title, left, right, top+18, black)
-		ty = sub(ty+2, "jost", 24, black, left, right)
-		bot := ty + 18
+		ty := c.bannerText(face, b.Title, left, right, top+11, black)
+		ty = sub(ty, "jost", 20, black, left, right)
+		bot := ty + 11
 		for t := 0; t < 5; t++ {
 			c.styledBoxAt(left+t, top+t, right-t, bot-t, "solid", 1, 16-t)
 		}
 		return bot
 	case "frame":
 		// A double-lined box, an elegant serif title.
-		face, _ := c.fitFace(b.titleFont("cormorant"), b.Title, 72, c.contentW-60)
+		face, _ := c.fitFace(b.titleFont("cormorant"), b.Title, 54, c.contentW-60)
 		top := y
-		ty := c.bannerText(face, b.Title, left, right, top+14, black)
+		ty := c.bannerText(face, b.Title, left, right, top+10, black)
 		if b.Subtitle != "" {
 			c.fillRect(left+c.contentW/3, ty+2, right-c.contentW/3, ty+4, color.Black)
-			ty = sub(ty+10, "lora", 24, black, left, right)
+			ty = sub(ty+7, "lora", 20, black, left, right)
 		}
-		bot := ty + 16
+		bot := ty + 11
 		c.styledBoxAt(left, top, right, bot, "solid", 3, 0)
 		c.styledBoxAt(left+7, top+7, right-7, bot-7, "solid", 1, 0)
 		return bot
 	case "ornament":
 		// The title between rules, with diamonds.
-		face, _ := c.fitFace(b.titleFont("playfair"), b.Title, 56, c.contentW-140)
+		face, _ := c.fitFace(b.titleFont("playfair"), b.Title, 44, c.contentW-140)
 		top := y
 		m := face.Metrics()
 		mid := top + (m.Ascent.Ceil()+m.Descent.Ceil())/2
@@ -425,25 +425,25 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		c.fillPolygon(diamond(x0-4, mid, 5), color.Black)
 		c.fillPolygon(diamond(x1+4, mid, 5), color.Black)
 		ty := c.bannerText(face, b.Title, left, right, top, black)
-		return sub(ty+4, "lora", 24, black, left, right) + 6
+		return sub(ty+2, "lora", 20, black, left, right) + 4
 	case "stars":
 		// Rows of stars around a bold title.
-		face, _ := c.fitFace(b.titleFont("manrope"), b.Title, 58, c.contentW-20)
+		face, _ := c.fitFace(b.titleFont("manrope"), b.Title, 44, c.contentW-20)
 		top := y
 		row := func(cy int) {
 			for i, x := 0, left+18; x < right; i, x = i+1, x+44 {
-				r := 9
+				r := 7
 				if i%2 == 1 {
-					r = 6
+					r = 5
 				}
 				c.fillPolygon(star(x, cy, r), color.Black)
 			}
 		}
-		row(top + 10)
-		ty := c.bannerText(face, b.Title, left, right, top+26, black)
-		ty = sub(ty, "jost", 24, black, left, right)
-		row(ty + 14)
-		return ty + 26
+		row(top + 7)
+		ty := c.bannerText(face, b.Title, left, right, top+17, black)
+		ty = sub(ty, "jost", 20, black, left, right)
+		row(ty + 10)
+		return ty + 18
 	}
 	return y
 }
