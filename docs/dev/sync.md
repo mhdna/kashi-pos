@@ -398,6 +398,20 @@ Newer features wait for central to announce them in its `hello` (for example
 `quick_access`, `sync_changed`), and an older central answering 404 on a route (like
 `/branch/app_update`, `/branch/sync/report`, `/branch/clients_batch`) makes that feature fall back or stay quiet instead of erroring.
 
+## Adding a branch on a till
+
+Each branch on a till has its own database (`branches.json` lists them), so
+`CreateBranch` starts an empty one. When the branch open at the time syncs
+with the same central, the new one ==copies central's products (with their
+sale options) and clients from it== first (`seedCatalogFromBranch` in
+`branch_seed.go`): only rows central sent (a uid and a version), never the
+walk-in client or the other branch's own clients, and loyalty points start at
+zero. The first sync then runs the full check on those two (ids and versions
+against central) and fetches only what is missing or newer; everything that
+is the branch's own (stock, price lists, quick access, cashboxes, users) is
+pulled as before. The copy runs before the new branch knows its central, so
+no sync runs meanwhile.
+
 ## Re-provisioning a branch
 
 `PullBranchHistory` (Settings → Import branch history from central) imports a branch's own past invoices, expenses, loans
