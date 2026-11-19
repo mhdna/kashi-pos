@@ -69,7 +69,7 @@ var receiptBannerStyles = []receiptBannerStyleInfo{
 var receiptBannerPresets = []receiptBanner{
 	{Style: "ribbon", Title: "BUY 1 GET 1", Subtitle: "FREE", When: "item_deal"},
 	{Style: "burst", Title: "BUY 2 GET 1", Subtitle: "The third one is on us", When: "item_deal"},
-	{Style: "stamp", Title: "STUDENT DEAL", Subtitle: "15% off the whole invoice", When: "deal"},
+	{Style: "ribbon", Title: "STUDENT DEAL", When: "deal"},
 	{Style: "frame", Title: "SALE", Subtitle: "Up to 50% off"},
 	{Style: "ornament", Title: "Thank You", Subtitle: "See you again soon", Place: "bottom"},
 	{Style: "stars", Title: "NEW SEASON", Subtitle: "Fresh arrivals in store"},
@@ -409,19 +409,28 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 	}
 	switch b.Style {
 	case "ribbon":
-		// A black band with notched ends, white letters.
+		// A black band with notched ends, white letters. Every ribbon is as
+		// tall as its title at full size: a longer title that has to shrink
+		// to fit ("STUDENT DEAL" beside "BUY 1 GET 1") is centred in the same
+		// band, so two receipts' ribbons match.
 		face, _ := c.fitFace(b.titleFont("jost"), b.Title, 50, c.contentW-90)
-		m := face.Metrics()
+		full := face
+		if f, err := c.bannerFace(b.titleFont("jost"), 50); err == nil {
+			full = f
+		}
+		fm, m := full.Metrics(), face.Metrics()
+		titleH := fm.Ascent.Ceil() + fm.Descent.Ceil()
+		shift := (titleH - (m.Ascent.Ceil() + m.Descent.Ceil())) / 2
 		subH := 0
 		if b.Subtitle != "" {
 			subH = 24
 		}
-		h := m.Ascent.Ceil() + m.Descent.Ceil() + 14 + subH
+		h := titleH + 14 + subH
 		top, bot := y, y+h
 		notch := 18
 		c.fillPolygon([]image.Point{{left, top}, {right, top}, {right - notch, top + h/2}, {right, bot}, {left, bot}, {left + notch, top + h/2}}, color.Black)
-		ty := c.bannerText(face, b.Title, left+notch, right-notch, top+6, white)
-		sub(ty, "jost-regular", 21, white, left+notch, right-notch)
+		c.bannerText(face, b.Title, left+notch, right-notch, top+6+shift, white)
+		sub(top+6+titleH, "jost-regular", 21, white, left+notch, right-notch)
 		return bot
 	case "burst":
 		// A black band with zigzag edges.

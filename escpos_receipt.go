@@ -52,7 +52,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		writeESCPosCentered(&out, data.Website, columns, false)
 	}
 	out.WriteString(separator + "\n")
-	writeESCPosLine(&out, "Salesman:", fallbackReceiptValue(data.Salesperson, "Not specified"), columns)
+	writeESCPosLine(&out, "Salesman:", formatReceiptSalesperson(data.Salesperson), columns)
 	writeESCPosLine(&out, data.Texts.word("meta_customer", "Customer")+":", fallbackReceiptValue(data.Customer, receiptWalkInLabel), columns)
 	if data.RegisterName != "" {
 		writeESCPosLine(&out, "Register:", data.RegisterName, columns)
