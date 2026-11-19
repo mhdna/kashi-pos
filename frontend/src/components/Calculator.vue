@@ -14,8 +14,9 @@
     />
 
     <div class="calculator-display-row mb-3 mt-2">
-    <!-- + and - choose the next amount's direction by hand: + counts it as
-         given by the customer, - as change handed back, whatever is owed. -->
+    <!-- + and - (the next amount's direction by hand) are hidden for now.
+    <!~~ + and - choose the next amount's direction by hand: + counts it as
+         given by the customer, - as change handed back, whatever is owed. ~~>
     <k-btn
       class="calculator-sign"
       :class="{ 'calculator-sign--plus-on': forcedSign === '+' }"
@@ -36,6 +37,7 @@
       @click="toggleSign('-')"
       ><k-icon icon="mdi-minus" size="26"
     /></k-btn>
+    -->
     <k-card class="calculator-display pa-2" variant="outlined" rounded="lg">
       <k-btn
         class="calculator-display-clear"

@@ -167,7 +167,9 @@ describe("Calculator shows the invoice total only when the big number is not it"
 });
 
 // + and - on the keypad pick the next amount's direction by hand.
-describe("Calculator + and - keys", () => {
+// The + and - keys are hidden for now (commented out in Calculator.vue); their
+// tests wait here for them to come back.
+describe.skip("Calculator + and - keys", () => {
   const key = (sel: string) => document.body.querySelector<HTMLElement>(`[data-test="${sel}"]`)!;
   const digit = (d: string) =>
     [...document.body.querySelectorAll<HTMLElement>(".keypad-number")].find((b) => b.textContent?.trim() === d)!;
@@ -222,6 +224,17 @@ describe("Calculator + and - keys", () => {
 
 // A sale's payment check is priced with the deals the cashier picked, so the
 // calculator never says "paid" on a total checkout wouldn't charge.
+describe("Calculator + and - keys are hidden", () => {
+  it("shows neither", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(process.cwd(), "src/components/Calculator.vue"), "utf8");
+    const live = src.replace(/<!--[\s\S]*?-->/g, "");
+    expect(live).not.toContain('data-test="keypad-plus"');
+    expect(live).not.toContain('data-test="keypad-minus"');
+  });
+});
+
 describe("Calculator passes the picked deals to the payment check", () => {
   it("sends them, and asks again when they change", async () => {
     wrapper = mount(Calculator, {
