@@ -370,18 +370,18 @@ func (c *receiptCanvas) drawReferralPart(y int) (int, error) {
 	}
 	sectionTop := y
 	y, boxTop := c.decorStart("referral", y)
-	// The code stands out: the block is printed white on black.
-	blockTop := y
-	y += c.gap(12)
+	// The code stands out: its line (and its Arabic) is white on black.
+	bandTop := y
+	y += c.gap(8)
 	titleTop := y
 	y, _, _ = c.line(y, "referral_title", t.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false, "center")
 	c.markText(receiptPartReferralTitle, t.referralTitle(), titleTop, y, c.data.BodySize+1, true)
 	y += c.gap(8)
+	c.invertRect(c.margin, bandTop, c.margin+c.contentW, y)
+	y += c.gap(8)
 	noteTop := y
 	y, _, _ = c.lineWrapped(y, "referral_note", c.data.ReferralNote, c.data.BodySize-2.5, false, 2, "center")
 	c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)
-	y += c.gap(12)
-	c.invertRect(c.margin, blockTop, c.margin+c.contentW, y)
 	y = c.decorEnd("referral", y, boxTop, true)
 	y = c.divider("referral", y+c.gap(6)) + c.gap(10)
 	c.markSection(receiptSectionReferral, sectionTop, y)
