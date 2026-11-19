@@ -45,6 +45,9 @@ type receiptElement struct {
 	// empty uses arabicDefaults.
 	Lang   string `json:"lang,omitempty"`
 	TextAr string `json:"text_ar,omitempty"`
+	// Dark prints the line white on black; unset is the line's default
+	// (the referral code's lines are dark, the rest aren't).
+	Dark *bool `json:"dark,omitempty"`
 }
 
 // What an element can change.
@@ -58,6 +61,7 @@ const (
 	canFont               // its font
 	canShow               // print it: for a part that is off unless switched on
 	canArabic             // Arabic, or English and Arabic
+	canDark               // white on black
 )
 
 const canAll = canText | canCase | canSize | canBold | canAlign | canHide
@@ -208,6 +212,9 @@ func (t receiptTexts) element(key string) receiptElement {
 		if e.Lang == "" && info.Can&canArabic != 0 {
 			e.Lang = g.Lang
 		}
+		if e.Dark == nil && info.Can&canDark != 0 {
+			e.Dark = g.Dark
+		}
 	}
 	if e.Text == "" {
 		switch key {
@@ -345,6 +352,10 @@ func normalizeReceiptElements(in map[string]receiptElement, clean func(string) s
 		if info.Can&canArabic != 0 {
 			n.Lang = validReceiptLang(e.Lang)
 			n.TextAr = clean(e.TextAr)
+		}
+		if info.Can&canDark != 0 && e.Dark != nil {
+			d := *e.Dark
+			n.Dark = &d
 		}
 		if n != (receiptElement{}) {
 			out[key] = n
@@ -595,6 +606,10 @@ func normalizeReceiptGroups(in map[string]receiptElement) map[string]receiptElem
 		}
 		n.Font = validReceiptFont(g.Font)
 		n.Lang = validReceiptLang(g.Lang)
+		if g.Dark != nil {
+			d := *g.Dark
+			n.Dark = &d
+		}
 		if n != (receiptElement{}) {
 			out[key] = n
 		}
@@ -692,6 +707,9 @@ func (c *receiptCanvas) dealRows(y int, label, amount string) int {
 func (c *receiptCanvas) markLine(key, text string, top, bottom int, size float64, align string) {
 	if bottom <= top {
 		return
+	}
+	if c.data.Texts.elementDark(key) {
+		c.darkSpans = append(c.darkSpans, [2]int{top, bottom})
 	}
 	scale := c.bodyFactor()
 	if f, ok := receiptFontByKey(c.fontKey); ok {
@@ -854,4 +872,16 @@ func itemsAsPrinted(t receiptTexts, items []invoiceItem) []invoiceItem {
 		out[i] = item
 	}
 	return out
+}
+
+// darkByDefault are the lines printed white on black unless the branch says
+// otherwise: the referral code and its note, so the code stands out.
+var darkByDefault = map[string]bool{"referral_title": true, "referral_note": true}
+
+// elementDark says whether a line prints white on black.
+func (t receiptTexts) elementDark(key string) bool {
+	if e := t.element(key); e.Dark != nil {
+		return *e.Dark
+	}
+	return darkByDefault[key]
 }

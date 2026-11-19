@@ -205,7 +205,7 @@ func DesignerCatalog() map[string]any {
 		"elements":       receiptElements,
 		"date_formats":   formats,
 		"can": map[string]int{
-			"text": canText, "case": canCase, "size": canSize, "bold": canBold, "align": canAlign, "hide": canHide, "font": canFont, "arabic": canArabic, "show": canShow,
+			"text": canText, "case": canCase, "size": canSize, "bold": canBold, "align": canAlign, "hide": canHide, "font": canFont, "arabic": canArabic, "dark": canDark, "show": canShow,
 		},
 		"line_styles":    receiptLineStyles,
 		"banner_styles":  receiptBannerStyles,

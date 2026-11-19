@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
 	"math/rand"
 	"strings"
 	"testing"
@@ -303,38 +304,63 @@ func TestReferralNoteFollowsTheProgram(t *testing.T) {
 	}
 }
 
-// The reported case: only the code's line prints white on black; the note
-// under it stays as it was.
-func TestReferralCodeLineWhiteOnBlack(t *testing.T) {
-	data := receiptPreviewData(designBase(), receiptModeReferral)
-	_, img, marks := drawnTexts(t, data, "classic", "A")
-	var title, note receiptMark
-	for _, m := range marks {
-		if m.Kind == "line" && m.Part == "referral_title" {
-			title = m
-		}
-		if m.Kind == "line" && m.Part == "referral_note" {
-			note = m
-		}
-	}
-	if title.Bottom <= title.Top || note.Bottom <= note.Top {
-		t.Fatal("no referral lines")
-	}
-	darkShare := func(top, bottom int) float64 {
-		dark, b := 0, img.Bounds()
-		for y := top; y < bottom; y++ {
-			for x := b.Min.X; x < b.Max.X; x++ {
-				if r, _, _, _ := img.At(x, y).RGBA(); r < 0x8000 {
-					dark++
-				}
+func darkShareOf(img image.Image, top, bottom int) float64 {
+	dark, b := 0, img.Bounds()
+	for y := top; y < bottom; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			if r, _, _, _ := img.At(x, y).RGBA(); r < 0x8000 {
+				dark++
 			}
 		}
-		return float64(dark) / float64((bottom-top)*b.Dx())
 	}
-	if s := darkShare(title.Top, title.Bottom); s < 0.5 {
-		t.Fatalf("the code's line is only %.0f%% black", s*100)
+	return float64(dark) / float64(max(1, (bottom-top)*b.Dx()))
+}
+
+func lineMarks(marks []receiptMark, key string) []receiptMark {
+	var out []receiptMark
+	for _, m := range marks {
+		if m.Kind == "line" && m.Part == key {
+			out = append(out, m)
+		}
 	}
-	if s := darkShare(note.Top, note.Bottom); s > 0.3 {
-		t.Fatalf("the note is %.0f%% black: it should stay on white", s*100)
+	return out
+}
+
+// The reported case: the referral code's block is white on black by
+// default, the code and its note as one block; any line can be dark or not.
+func TestDarkLines(t *testing.T) {
+	render := func(elements map[string]receiptElement) (image.Image, []receiptMark) {
+		data := receiptPreviewData(designBase(), receiptModeReferral)
+		data.Texts = normalizeReceiptTexts(receiptTexts{Elements: elements})
+		data.ReferralNote = data.Texts.referralNote(sampleReferralPercent)
+		_, img, marks := drawnTexts(t, data, "classic", "A")
+		return img, marks
+	}
+	img, marks := render(nil)
+	title, note := lineMarks(marks, "referral_title")[0], lineMarks(marks, "referral_note")[0]
+	if s := darkShareOf(img, title.Top, note.Bottom); s < 0.5 {
+		t.Fatalf("the code's block is only %.0f%% black", s*100)
+	}
+	// One block: the rows between the code and the note are black too.
+	if s := darkShareOf(img, title.Bottom, note.Top); s < 0.9 {
+		t.Fatalf("a white stripe between the code and its note (%.0f%% black)", s*100)
+	}
+	thanks := lineMarks(marks, "thanks")[0]
+	if s := darkShareOf(img, thanks.Top, thanks.Bottom); s > 0.3 {
+		t.Fatal("the thank-you line is dark by default")
+	}
+	// Only the code's line: the note switched off.
+	off := false
+	img, marks = render(map[string]receiptElement{"referral_note": {Dark: &off}})
+	note = lineMarks(marks, "referral_note")[0]
+	if s := darkShareOf(img, note.Top, note.Bottom); s > 0.3 {
+		t.Fatalf("the note is %.0f%% black after switching it off", s*100)
+	}
+	// Any line: the thank-you line on black.
+	on := true
+	img, marks = render(map[string]receiptElement{"thanks": {Dark: &on}})
+	thanks = lineMarks(marks, "thanks")[0]
+	if s := darkShareOf(img, thanks.Top, thanks.Bottom); s < 0.5 {
+		t.Fatal("the thank-you line didn't go dark")
 	}
 }
