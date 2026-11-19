@@ -97,19 +97,14 @@ func aggregateReceiptPayments(payments []receiptPayment) []receiptPayment {
 	return aggregated
 }
 
+// formatReceiptSalesperson is the salesman as a receipt names him: his
+// first name only ("Rana Haddad" prints "Rana").
 func formatReceiptSalesperson(name string) string {
-	parts := strings.Fields(strings.TrimSpace(name))
+	parts := strings.Fields(name)
 	if len(parts) == 0 {
 		return "Not specified"
 	}
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	last := []rune(parts[len(parts)-1])
-	if len(last) == 0 {
-		return parts[0]
-	}
-	return parts[0] + " " + string(last[0]) + "."
+	return parts[0]
 }
 
 func receiptInvoiceLabel(receiptNo string) string {

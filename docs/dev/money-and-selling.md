@@ -393,7 +393,10 @@ sell at their typed price and show no chip. The cart sends the line's
 - ==Banners== (`banners`, `receipt_banner.go`, up to 4) are display lettering
   the till draws in black and white so they print crisp: ribbon, burst, stamp,
   frame, ornament or stars, a title and a line under it, in the looks' own
-  fonts, shrunk to fit the paper. `when` is empty (always), `item_deal` (a line
+  fonts, shrunk to fit the paper. A ribbon keeps the height of its title at
+  full size, so a long title ("STUDENT DEAL") is centred in a band as tall as
+  "BUY 1 GET 1". The receipt names the salesman by first name only
+  (`formatReceiptSalesperson`). `when` is empty (always), `item_deal` (a line
   has a buy X get Y deal), `deal` (a deal on the invoice) or `deal:<name>` (that
   deal, on the invoice or a line); `place` is under the shop's name or
   `bottom`. A branch keeps up to 12; ==one prints== per receipt
