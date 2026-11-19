@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-19: An Arabic policy line ended with part of the English
+
+**Symptom:** with the exchange policy in English and Arabic, Centro's Arabic policy ended with "Items must be unworn, unused, unwashed..." in English.
+
+**Cause:** to keep the name or code after a label ("الزبون: Maya Haddad"), the Arabic took whatever followed the line's English words. Centro's own policy starts with the default sentence, so the rest of its English was carried over as if it were such a name.
+
+**Fix:** only label lines (customer, salesman, date, the referral code, payments) keep what follows their words; prose such as the policy is the branch's Arabic alone (`arabicLabelLines`, `receipt_arabic.go`). Test: "the reported case: Centro's policy" in `TestArabicWords`.
+
 ## 2026-11-19: Close App left a black screen until the PC was restarted
 
 **Symptom:** on a Windows till, Quit → Close App left a black screen; the keyboard did nothing and only restarting the computer helped.

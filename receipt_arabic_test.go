@@ -71,6 +71,15 @@ func TestArabicWords(t *testing.T) {
 	if got := t0.arabicWords("policy_text", "No returns on sale items."); got != "" {
 		t.Fatalf("own policy: %q", got)
 	}
+	// The reported case: Centro's policy starts with the default sentence;
+	// its Arabic is the branch's alone, nothing of the English after it.
+	centro := arTexts(map[string]receiptElement{"policy_text": {Lang: "both", TextAr: "فيك تبدل خلال ٣ أيام. جيب هيدي الفاتورة معك."}})
+	if got := centro.arabicWords("policy_text", defaultReturnPolicy+" Items must be unworn, unused, with tags. Present this receipt."); got != "فيك تبدل خلال ٣ أيام. جيب هيدي الفاتورة معك." {
+		t.Fatalf("centro policy: %q", got)
+	}
+	if got := t0.arabicWords("referral_title", "YOUR CODE: K7M4QH"); got != "الكود تبعك K7M4QH" && got != "الكود تبعك: K7M4QH" {
+		t.Fatalf("referral title keeps its code: %q", got)
+	}
 	if got := t0.arabicWords("policy_text", defaultReturnPolicy); got != "فيك تبدل خلال ٣ أيام." {
 		t.Fatalf("default policy: %q", got)
 	}
