@@ -362,6 +362,18 @@ sell at their typed price and show no chip. The cart sends the line's
   titles, TOTAL) find their font through `pendingFont` when measured and
   drawn. Every line mark says which font it was drawn in, so central types
   over it in the same letters (it serves the files from `ReceiptFontFile`).
+- ==Arabic==: a line with words that can change size can be English (default),
+  Arabic (`lang: "ar"`) or both (`"both"`, the Arabic under the English),
+  per line or for a whole part (`groups`). Its Arabic is the branch's own
+  (`text_ar`) or `arabicDefaults`, in Lebanese Arabic, swapped in for the
+  English words so a name, date or code after them stays; `{percent}` prints
+  in Arabic digits (١٥٪); the shop's own policy has no default Arabic. Arabic
+  lines take the look's alignment mirrored and an Arabic font (Vazirmatn
+  unless the line's font is an Arabic one); rows put the amount on the left.
+  The drawing places one glyph per character, so `receipt_arabic.go` joins
+  the letters (Presentation Forms-B, lam-alef) and orders the line right to
+  left, Latin words and numbers inside kept left to right; vowel signs are
+  left out. The text receipt stays English (its code page has no Arabic).
 - ==Banners== (`banners`, `receipt_banner.go`, up to 4) are display lettering
   the till draws in black and white so they print crisp: ribbon, burst, stamp,
   frame, ornament or stars, a title and a line under it, in the looks' own

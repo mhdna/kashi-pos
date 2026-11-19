@@ -30,6 +30,9 @@ type receiptMark struct {
 	X1 int `json:"x1,omitempty"`
 	// Font is the font a line was drawn in (receiptFonts), for the designer.
 	Font string `json:"font,omitempty"`
+	// Lang is "ar" for a line's Arabic, so the designer types into its
+	// Arabic words.
+	Lang string `json:"lang,omitempty"`
 }
 
 // Text parts: one per receiptTexts wording.
