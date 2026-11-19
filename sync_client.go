@@ -177,35 +177,43 @@ func (c *centralClient) PostInvoice(ctx context.Context, path string, payloadJSO
 // uid is "" from a central that predates uid sync, or when the body can't be
 // read -- the push itself still succeeded, so that is never an error.
 func (c *centralClient) PostClient(ctx context.Context, path string, payloadJSON []byte) (string, error) {
+	uid, _, err := c.PostClientCode(ctx, path, payloadJSON)
+	return uid, err
+}
+
+// PostClientCode is PostClient that also returns the client's referral code
+// as central has it ("" from a central without codes).
+func (c *centralClient) PostClientCode(ctx context.Context, path string, payloadJSON []byte) (uid, code string, err error) {
 	if !c.enabled() {
-		return "", errCentralSyncDisabled
+		return "", "", errCentralSyncDisabled
 	}
 
 	req, err := c.newRequest(ctx, http.MethodPost, path, bytes.NewReader(payloadJSON))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", responseError(http.MethodPost, path, resp)
+		return "", "", responseError(http.MethodPost, path, resp)
 	}
 
 	var out struct {
 		Client struct {
-			UID string `json:"uid"`
+			UID          string `json:"uid"`
+			ReferralCode string `json:"referral_code"`
 		} `json:"client"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", nil
+		return "", "", nil
 	}
-	return out.Client.UID, nil
+	return out.Client.UID, out.Client.ReferralCode, nil
 }
 
 // postExpenseResponse is central's response body to POST /branch/expenses --

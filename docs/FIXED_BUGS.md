@@ -3,6 +3,22 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-19: A new customer's receipt printed no referral code (a reprint did)
+
+**Symptom:** a customer added at checkout got a receipt without their
+referral code; reprinting it a little later showed the code.
+
+**Cause:** central makes every client's code, and the till only learned it
+on the next sync, after the receipt had printed.
+
+**Fix:** the till makes the code itself at the customer's first sale,
+offline, prints it and sends it with the client; central keeps it for a
+client that push creates, and the till takes central's code from the answer
+when there is a clash (`sync_clients.go`, `referrals.go`, `sync_client.go`,
+`sync_worker.go`; central `api/branch_client.go`). Tests:
+`TestNewCustomerCodeOnFirstReceipt`, central
+`TestBranchClientKeepsTillReferralCode`.
+
 ## 2026-11-19: An updated till kept the old referral program (owner only)
 
 **Symptom:** Centro's referral program was set to give 15% to both the

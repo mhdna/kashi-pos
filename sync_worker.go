@@ -558,11 +558,12 @@ func (a *App) drainClientsOneByOne(ctx context.Context, client *centralClient, e
 // pushOneClient POSTs one client outbox row and applies the canonical uid
 // Central answers with.
 func (a *App) pushOneClient(ctx context.Context, client *centralClient, path string, entry db.SyncOutbox) error {
-	uid, err := client.PostClient(ctx, path, []byte(entry.PayloadJson))
+	uid, code, err := client.PostClientCode(ctx, path, []byte(entry.PayloadJson))
 	if err != nil {
 		return err
 	}
 	a.adoptPushedClientUID(ctx, entry, uid)
+	a.adoptPushedReferralCode(ctx, entry, code)
 	return nil
 }
 
