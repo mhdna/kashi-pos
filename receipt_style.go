@@ -110,16 +110,31 @@ func (c *receiptCanvas) drawMeta(y int) int {
 			role = roleBodyBold
 		}
 		lineTop := y
-		switch {
-		case c.style.MetaRows:
-			c.textRole(c.margin, y, pair.label, size, role, image.Black)
-			y, _ = c.rightRole(c.margin+c.contentW, y, pair.value, size, roleBodyBold, image.Black)
-		case c.style.MetaCentered:
-			y, _ = c.centerRole(y, pair.label+": "+pair.value, size, role)
-		default:
-			y, _ = c.left(y, pair.label+": "+pair.value, size, bold)
+		lang, arAlign := t.arabicLang(pair.key, "left")
+		if c.style.MetaCentered {
+			_, arAlign = t.arabicLang(pair.key, "center")
 		}
-		c.markLine(pair.key, pair.label, lineTop, y, size, "left")
+		ar := ""
+		if lang != "" {
+			ar = t.arabicWords(pair.key, pair.label+": "+pair.value)
+		}
+		if lang != receiptLangArabic || ar == "" {
+			switch {
+			case c.style.MetaRows:
+				c.textRole(c.margin, y, pair.label, size, role, image.Black)
+				y, _ = c.rightRole(c.margin+c.contentW, y, pair.value, size, roleBodyBold, image.Black)
+			case c.style.MetaCentered:
+				y, _ = c.centerRole(y, pair.label+": "+pair.value, size, role)
+			default:
+				y, _ = c.left(y, pair.label+": "+pair.value, size, bold)
+			}
+			c.markLine(pair.key, pair.label, lineTop, y, size, "left")
+			if lang == receiptLangBoth && ar != "" {
+				y = c.drawArabicLines(y+c.gap(2), pair.key, ar, size, bold, 0, arAlign)
+			}
+		} else {
+			y = c.drawArabicLines(y, pair.key, ar, size, bold, 0, arAlign)
+		}
 		restore()
 		y += c.gap(8)
 	}

@@ -40,18 +40,24 @@ type receiptElement struct {
 	Show bool `json:"show,omitempty"`
 	// Font is one of receiptFonts; "" the look's own.
 	Font string `json:"font,omitempty"`
+	// Lang is the line's language: "" English, "ar" Arabic, "both" English
+	// then Arabic under it (receipt_arabic.go). TextAr is its Arabic words;
+	// empty uses arabicDefaults.
+	Lang   string `json:"lang,omitempty"`
+	TextAr string `json:"text_ar,omitempty"`
 }
 
 // What an element can change.
 const (
-	canText  = 1 << iota // its words
-	canCase              // capitals
-	canSize              // size
-	canBold              // weight
-	canAlign             // alignment
-	canHide              // leave it out
-	canFont              // its font
-	canShow              // print it: for a part that is off unless switched on
+	canText   = 1 << iota // its words
+	canCase               // capitals
+	canSize               // size
+	canBold               // weight
+	canAlign              // alignment
+	canHide               // leave it out
+	canFont               // its font
+	canShow               // print it: for a part that is off unless switched on
+	canArabic             // Arabic, or English and Arabic
 )
 
 const canAll = canText | canCase | canSize | canBold | canAlign | canHide
@@ -65,6 +71,8 @@ type receiptElementInfo struct {
 	// that prints the shop's own data (its name, phone, policy).
 	Default string `json:"default"`
 	Can     int    `json:"can"`
+	// ArDefault is the line's Arabic unless the branch writes its own.
+	ArDefault string `json:"ar_default,omitempty"`
 }
 
 // receiptGroupInfo is one clickable part of the receipt: the elements it holds.
@@ -196,6 +204,9 @@ func (t receiptTexts) element(key string) receiptElement {
 		}
 		if e.Font == "" && info.Can&canFont != 0 {
 			e.Font = g.Font
+		}
+		if e.Lang == "" && info.Can&canArabic != 0 {
+			e.Lang = g.Lang
 		}
 	}
 	if e.Text == "" {
@@ -331,6 +342,10 @@ func normalizeReceiptElements(in map[string]receiptElement, clean func(string) s
 		if info.Can&canShow != 0 {
 			n.Show = e.Show
 		}
+		if info.Can&canArabic != 0 {
+			n.Lang = validReceiptLang(e.Lang)
+			n.TextAr = clean(e.TextAr)
+		}
 		if n != (receiptElement{}) {
 			out[key] = n
 		}
@@ -375,6 +390,17 @@ func (c *receiptCanvas) line(y int, key, value string, size float64, bold, title
 	}
 	defer c.useFont(e.Font)()
 	size, bold = c.elementStyle(key, size, bold)
+	lang, arAlign := c.data.Texts.arabicLang(key, align)
+	ar := ""
+	if lang != "" {
+		ar = c.data.Texts.arabicWords(key, value)
+	}
+	if lang == receiptLangArabic && ar != "" {
+		top := y
+		y = c.drawArabicLines(y, key, ar, size, bold, 2, arAlign)
+		c.markElement(key, top, y)
+		return y, true, nil
+	}
 	if e.Align != "" {
 		align = e.Align
 	}
@@ -394,6 +420,9 @@ func (c *receiptCanvas) line(y int, key, value string, size float64, bold, title
 	}
 	c.markElement(key, top, y)
 	c.markLine(key, value, top, y, size, align)
+	if lang == receiptLangBoth && ar != "" {
+		y = c.drawArabicLines(y+c.gap(2), key, ar, size, bold, 2, arAlign)
+	}
 	return y, true, err
 }
 
@@ -405,6 +434,17 @@ func (c *receiptCanvas) lineWrapped(y int, key, value string, size float64, bold
 	}
 	defer c.useFont(e.Font)()
 	size, bold = c.elementStyle(key, size, bold)
+	lang, arAlign := c.data.Texts.arabicLang(key, align)
+	ar := ""
+	if lang != "" {
+		ar = c.data.Texts.arabicWords(key, value)
+	}
+	if lang == receiptLangArabic && ar != "" {
+		top := y
+		y = c.drawArabicLines(y, key, ar, size, bold, spacing, arAlign)
+		c.markElement(key, top, y)
+		return y, true, nil
+	}
 	if e.Align != "" {
 		align = e.Align
 	}
@@ -413,6 +453,9 @@ func (c *receiptCanvas) lineWrapped(y int, key, value string, size float64, bold
 	y, err = c.wrappedAligned(y, value, size, bold, spacing, align)
 	c.markElement(key, top, y)
 	c.markLine(key, value, top, y, size, align)
+	if lang == receiptLangBoth && ar != "" {
+		y = c.drawArabicLines(y+c.gap(2), key, ar, size, bold, spacing, arAlign)
+	}
 	return y, true, err
 }
 
@@ -500,12 +543,21 @@ func (c *receiptCanvas) gridMidHeader(cfg gridConfig) string {
 // the canvas is cut to what was drawn.
 func (t receiptTexts) extraHeight() int {
 	extra := 320 * len(t.Banners)
+	for _, g := range t.Groups {
+		if g.Lang != "" {
+			extra += 900 // a part's every line in Arabic too
+		}
+	}
 	for _, e := range t.Elements {
 		grow := 1.0
 		if e.Size > 0 {
 			grow += e.Size / 4
 		}
 		extra += int(float64(80+6*receiptTextLen(e.Text)) * grow)
+		if e.Lang != "" {
+			// The Arabic line under it, or in its place.
+			extra += int(float64(90+6*receiptTextLen(e.TextAr)+6*60) * grow)
+		}
 	}
 	return extra
 }
@@ -542,6 +594,7 @@ func normalizeReceiptGroups(in map[string]receiptElement) map[string]receiptElem
 			n.Align = g.Align
 		}
 		n.Font = validReceiptFont(g.Font)
+		n.Lang = validReceiptLang(g.Lang)
 		if n != (receiptElement{}) {
 			out[key] = n
 		}
@@ -590,11 +643,25 @@ func (c *receiptCanvas) row(y int, key, word, label, amount string, size float64
 	defer c.useFont(c.data.Texts.element(key).Font)()
 	size, bold = c.elementStyle(key, size, bold)
 	top := y
+	lang, _ := c.data.Texts.arabicLang(key, "left")
+	ar := ""
+	if lang != "" {
+		ar = c.data.Texts.arabicWords(key, label)
+	}
+	if lang == receiptLangArabic && ar != "" {
+		// Mirrored: the amount on the left, the Arabic words on the right.
+		amountBottom, _ := c.text(c.margin, y, amount, size, bold, false)
+		labelBottom := c.drawArabicLines(y, key, ar, size, bold, 0, "right")
+		return max(amountBottom, labelBottom)
+	}
 	y, _ = c.twoCol(y, label, amount, size, bold)
 	c.markLine(key, word, top, y, size, "left")
 	if w, err := c.measure(word, size, bold, false); err == nil {
 		m := &c.marks[len(c.marks)-1]
 		m.X0, m.X1 = c.margin, c.margin+w
+	}
+	if lang == receiptLangBoth && ar != "" {
+		y = c.drawArabicLines(y+c.gap(2), key, ar, size, bold, 0, "right")
 	}
 	return y
 }

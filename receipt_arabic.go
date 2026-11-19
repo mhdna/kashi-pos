@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -237,4 +238,191 @@ func arabicVisual(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// --- Arabic lines on the receipt ---------------------------------------
+
+// Line languages (receiptElement.Lang).
+const (
+	receiptLangArabic = "ar"
+	receiptLangBoth   = "both"
+)
+
+func validReceiptLang(lang string) string {
+	if lang == receiptLangArabic || lang == receiptLangBoth {
+		return lang
+	}
+	return ""
+}
+
+// arabicDefaults are each line's Arabic words, in Lebanese Arabic, unless
+// the branch writes its own. {percent} is filled with the reward in Arabic
+// digits (١٥٪). A line with none here (the shop's name, its phone) prints
+// Arabic only when the branch writes it.
+var arabicDefaults = map[string]string{
+	"meta_customer":    "الزبون",
+	"meta_salesperson": "البياع",
+	"meta_date":        "التاريخ",
+	"subtotal":         "المجموع قبل الحسم",
+	"discount":         "الحسم",
+	"rounding":         "تدوير",
+	"items_count":      "عدد القطع",
+	"you_saved":        "وفرت",
+	"equivalent":       "بالليرة",
+	"payments_title":   "تفاصيل الدفع",
+	"received":         "دفعت",
+	"change":           "الباقي",
+	"policy_title":     "شروط التبديل",
+	"policy_text":      "فيك تبدل خلال ٣ أيام.",
+	"referral_title":   "الكود تبعك",
+	"referral_note":    "عطي هيدا الكود لحدا ما اجا على المحل من قبل، بيربح انت وهوي حسم {percent} على كامل الفاتورة.",
+	"socials_title":    "تابعونا على:",
+	"thanks":           "يسلمو، نورتونا!",
+}
+
+// arabicDigits writes the digits of s as Arabic-Indic ones (15 to ١٥).
+func arabicDigits(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			r = '٠' + (r - '0')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+var percentNumber = regexp.MustCompile(`(\d+)\s*%`)
+
+// arabicWords is a line's Arabic, from its English as printed (value): the
+// branch's own Arabic, else the default, with the English words in value
+// swapped for it so whatever follows them (a name, a date, a code) stays.
+// "" when the line has no Arabic.
+func (t receiptTexts) arabicWords(key, value string) string {
+	e := t.element(key)
+	ar := strings.TrimSpace(e.TextAr)
+	info, _ := receiptElementByKey(key)
+	if ar == "" {
+		ar = arabicDefaults[key]
+		// The shop's own policy has no default Arabic: only the default
+		// English one does.
+		if key == "policy_text" && strings.TrimSpace(value) != defaultReturnPolicy {
+			return ""
+		}
+	}
+	if ar == "" {
+		return ""
+	}
+	if strings.Contains(ar, "{percent}") {
+		pct := ""
+		if m := percentNumber.FindStringSubmatch(value); m != nil {
+			pct = arabicDigits(m[1]) + "٪"
+		}
+		ar = strings.ReplaceAll(ar, "{percent}", pct)
+	}
+	// The line's English words, as the receipt prints them, and what comes
+	// after them ("Customer: Maya Haddad" keeps ": Maya Haddad").
+	if def := info.Default; def != "" && !strings.Contains(def, "{") {
+		if en := t.word(key, def); en != "" {
+			if i := strings.Index(value, en); i >= 0 {
+				return ar + value[i+len(en):]
+			}
+		}
+	}
+	return ar
+}
+
+// arabicFontFor is the font an Arabic line is drawn in: the line's own when
+// it is an Arabic one, else arabicFontDefault.
+func arabicFontFor(own string) string {
+	if f, ok := receiptFontByKey(own); ok && f.Kind == "arabic" {
+		return own
+	}
+	return arabicFontDefault
+}
+
+// mirrorAlign is where an Arabic line goes for a look's English alignment:
+// what starts at the left in English starts at the right in Arabic.
+func mirrorAlign(align string) string {
+	switch align {
+	case "left":
+		return "right"
+	case "right":
+		return "left"
+	}
+	return "center"
+}
+
+// arabicLang is the line's language and the alignment its Arabic takes: the
+// branch's own alignment when set, else the look's mirrored.
+func (t receiptTexts) arabicLang(key, lookAlign string) (lang, align string) {
+	e := t.element(key)
+	if e.Align != "" {
+		return e.Lang, e.Align
+	}
+	return e.Lang, mirrorAlign(lookAlign)
+}
+
+// drawArabicLines draws Arabic text from y: wrapped to the paper in its
+// logical order, each line put right to left, aligned. It marks the line for
+// the designer as the element's Arabic.
+func (c *receiptCanvas) drawArabicLines(y int, key, text string, size float64, bold bool, spacing int, align string) int {
+	if strings.TrimSpace(text) == "" {
+		return y
+	}
+	defer c.useFont(arabicFontFor(c.data.Texts.element(key).Font))()
+	top := y
+	role := roleBody
+	if bold {
+		role = roleBodyBold
+	}
+	width := func(s string) int {
+		w, _ := c.measureRole(arabicVisual(s), size, role)
+		return w
+	}
+	var lines []string
+	for _, para := range strings.Split(text, "\n") {
+		current := ""
+		for _, w := range strings.Fields(para) {
+			next := strings.TrimSpace(current + " " + w)
+			if current != "" && width(next) > c.contentW {
+				lines = append(lines, current)
+				current = w
+				continue
+			}
+			current = next
+		}
+		lines = append(lines, current)
+	}
+	for i, l := range lines {
+		v := arabicVisual(l)
+		w := width(l)
+		x := c.margin + (c.contentW-w)/2
+		switch align {
+		case "left":
+			x = c.margin
+		case "right":
+			x = c.margin + c.contentW - w
+		}
+		y, _ = c.textRole(x, y, v, size, role, blackInk)
+		if i < len(lines)-1 {
+			y += spacing
+		}
+	}
+	c.markElement(key, top, y)
+	c.markLine(key, text, top, y, size, align)
+	c.marks[len(c.marks)-1].Lang = receiptLangArabic
+	return y
+}
+
+// Every line that can change size (drawn through line, lineWrapped, row, the
+// meta lines or the socials title) and has words can be Arabic.
+func init() {
+	for i := range receiptElements {
+		e := &receiptElements[i]
+		if e.Can&canText != 0 && e.Can&canSize != 0 {
+			e.Can |= canArabic
+			e.ArDefault = arabicDefaults[e.Key]
+		}
+	}
 }

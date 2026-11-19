@@ -859,6 +859,18 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	label := c.data.Texts.socialsTitle()
 	defer c.useFont(c.data.Texts.element("socials_title").Font)()
 	labelSize, labelBold := c.elementStyle("socials_title", c.data.BodySize-1, true)
+	// Arabic: the title in Arabic beside the icons, or (both) the Arabic
+	// title on its own line above the row.
+	if lang, _ := c.data.Texts.arabicLang("socials_title", "center"); lang != "" {
+		if ar := c.data.Texts.arabicWords("socials_title", label); ar != "" {
+			if lang == receiptLangBoth {
+				y = c.drawArabicLines(y, "socials_title", ar, labelSize, labelBold, 0, "center") + c.gap(4)
+			} else {
+				label = arabicVisual(ar)
+				defer c.useFont(arabicFontFor(c.data.Texts.element("socials_title").Font))()
+			}
+		}
+	}
 	labelWidth, err := c.measure(label, labelSize, labelBold, false)
 	if err != nil {
 		return y, err
