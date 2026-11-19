@@ -42,9 +42,10 @@ func itemCodeText(item invoiceItem) string {
 }
 
 // itemCodeUnderName is the code printed on its own line under an item's
-// name: none, the receipt doesn't print it any more (the Supermarket "With
-// codes" layout, which is about codes, still shows itemCodeText).
-func itemCodeUnderName(invoiceItem) string { return "" }
+// name: only when the design's "Code" item setting is on (itemsAsPrinted);
+// off by default. The Supermarket "With codes" layout, which is about codes,
+// always shows itemCodeText.
+func itemCodeUnderName(item invoiceItem) string { return item.PrintCode }
 
 // variantText joins an item's colour and size ("Navy · M"), or "".
 func variantText(item invoiceItem) string {
@@ -758,6 +759,9 @@ func tapeNet(item invoiceItem, net float64) string {
 // unit "Was $20.00, now free (100% off, Buy 2 get 1)"; "" for a line paid in
 // full.
 func priceNoteText(item invoiceItem) string {
+	if item.NoPriceNote {
+		return ""
+	}
 	gross, _, net := itemAmounts(item)
 	if gross <= 0 || net >= gross-0.005 {
 		return ""

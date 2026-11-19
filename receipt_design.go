@@ -36,6 +36,8 @@ type receiptElement struct {
 	Align string `json:"align,omitempty"`
 	// Hide leaves the line out.
 	Hide bool `json:"hide,omitempty"`
+	// Show prints a part that is left out unless asked for (canShow).
+	Show bool `json:"show,omitempty"`
 	// Font is one of receiptFonts; "" the look's own.
 	Font string `json:"font,omitempty"`
 }
@@ -49,6 +51,7 @@ const (
 	canAlign             // alignment
 	canHide              // leave it out
 	canFont              // its font
+	canShow              // print it: for a part that is off unless switched on
 )
 
 const canAll = canText | canCase | canSize | canBold | canAlign | canHide
@@ -100,6 +103,11 @@ var receiptElements = []receiptElementInfo{
 	{Key: "meta_date", Group: "meta", Label: "Date", Default: "Date", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "note_label", Group: "meta", Label: "Note", Default: "Note", Can: canText | canCase},
 
+	// What each item row prints besides its amounts (itemsAsPrinted).
+	{Key: "item_name", Group: "columns", Label: "Name", Can: canHide},
+	{Key: "item_variant", Group: "columns", Label: "Colour and size", Can: canHide},
+	{Key: "item_code", Group: "columns", Label: "Code", Can: canShow},
+	{Key: "item_price_note", Group: "columns", Label: "Before and after price", Can: canHide},
 	{Key: "deal_free", Group: "columns", Label: "Free item tag", Default: "(FREE)", Can: canText | canCase | canHide},
 	{Key: "col_item", Group: "columns", Label: "Item", Default: "ITEM", Can: canText | canCase},
 	{Key: "col_qty", Group: "columns", Label: "Quantity", Default: "QTY", Can: canText | canCase},
@@ -319,6 +327,9 @@ func normalizeReceiptElements(in map[string]receiptElement, clean func(string) s
 		}
 		if info.Can&canHide != 0 {
 			n.Hide = e.Hide
+		}
+		if info.Can&canShow != 0 {
+			n.Show = e.Show
 		}
 		if n != (receiptElement{}) {
 			out[key] = n
@@ -731,25 +742,48 @@ func (t receiptTexts) invoiceDiscountWords(d invoiceDiscount) string {
 // till names it so, and the branch can reword the tag or leave it off.
 const freeTag = " (FREE)"
 
-// itemsWithFreeTag is the items as they print: a free unit's tag in the
-// branch's words. Untouched, it is exactly the till's own name.
-func (c *receiptCanvas) itemsWithFreeTag(items []invoiceItem) []invoiceItem {
-	return itemsWithFreeTag(c.data.Texts, items)
+// itemsAsPrinted is the items as their rows print, after the designer's
+// item settings: the free unit's tag in the shop's words (or none), and which
+// of name, colour and size, code and the before-and-after line each row
+// shows. A row whose name is left out shows its code in its place when the
+// code is on, so it still says what was bought.
+func (c *receiptCanvas) itemsAsPrinted(items []invoiceItem) []invoiceItem {
+	return itemsAsPrinted(c.data.Texts, items)
 }
 
-func itemsWithFreeTag(t receiptTexts, items []invoiceItem) []invoiceItem {
-	e := t.element("deal_free")
-	if e.Text == "" && e.Case == "" && !e.Hide {
-		return items
-	}
+func itemsAsPrinted(t receiptTexts, items []invoiceItem) []invoiceItem {
+	free := t.element("deal_free")
+	hideName := t.elementHidden("item_name")
+	hideVariant := t.elementHidden("item_variant")
+	showCode := t.element("item_code").Show
+	hideNote := t.elementHidden("item_price_note")
 	out := make([]invoiceItem, len(items))
 	for i, item := range items {
-		if item.Free && strings.HasSuffix(item.Name, freeTag) {
-			item.Name = strings.TrimSuffix(item.Name, freeTag)
-			if !e.Hide {
-				item.Name += " " + t.word("deal_free", "(FREE)")
-			}
+		tagged := item.Free && strings.HasSuffix(item.Name, freeTag)
+		name := strings.TrimSuffix(item.Name, freeTag)
+		if !tagged {
+			name = item.Name
 		}
+		code := ""
+		if showCode {
+			code = itemCodeText(item)
+		}
+		if hideName {
+			name, code = code, ""
+		}
+		if tagged && !free.Hide {
+			tag := freeTag
+			if free.Text != "" || free.Case != "" {
+				tag = " " + t.word("deal_free", "(FREE)")
+			}
+			name = strings.TrimSpace(name + tag)
+		}
+		item.Name = name
+		item.PrintCode = code
+		if hideVariant {
+			item.Color, item.Size = "", ""
+		}
+		item.NoPriceNote = hideNote
 		out[i] = item
 	}
 	return out

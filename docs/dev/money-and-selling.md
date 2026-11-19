@@ -329,6 +329,14 @@ sell at their typed price and show no chip. The cart sends the line's
   as `receiptElements` allows for it; `date_format` picks the date. All of it
   lives in `receipt_texts.elements`; nothing set prints exactly as before
   (checked against every preview picture).
+- ==What each item row prints== is four elements of the Items part:
+  `item_name`, `item_variant` (colour and size) and `item_price_note` ("Was
+  $18.00, now $14.40") print unless left out (`hide`); `item_code` (the code,
+  or the barcode when there's none, under the name) prints only when switched
+  on (`show`, the `canShow` ability). `itemsAsPrinted` applies them once, before
+  any layout or the text receipt draws, so every look obeys them alike; a row
+  whose name is left out shows its code in its place when the code is on. The
+  Supermarket "With codes" look always shows codes. Amounts never change.
 - A whole ==part== can take capitals, size, bold and alignment at once
   (`groups`); a line's own setting wins. Each part can have a line above, its
   divider swapped or taken away (`below: "none"`) and a box, dotted, dashed,

@@ -55,6 +55,10 @@ type invoiceItem struct {
 	Deal         string  `json:"deal,omitempty"`
 	Free         bool    `json:"free,omitempty"`
 	DealDiscount float64 `json:"dealDiscount,omitempty"`
+	// Set by itemsAsPrinted from the receipt design, never sent: the code
+	// printed under the name ("" for none), and no before-and-after line.
+	PrintCode   string `json:"-"`
+	NoPriceNote bool   `json:"-"`
 }
 
 func formatInt(value int64) string {
