@@ -14,7 +14,7 @@
     !define INFO_PRODUCTNAME "GB Cloud"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "1.1.162.0"
+    !define INFO_PRODUCTVERSION "1.1.163.0"
 !endif
 !ifndef INFO_COPYRIGHT
     !define INFO_COPYRIGHT "Copyright © GB"
