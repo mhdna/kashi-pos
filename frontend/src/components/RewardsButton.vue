@@ -1,5 +1,6 @@
 <template>
-  <div v-if="visible" class="header-btn-wrap">
+  <div v-if="visible" class="rewards-pair">
+  <div class="header-btn-wrap">
     <div class="header-btn-subtitle">Rewards</div>
     <k-btn
       size="small"
@@ -13,6 +14,24 @@
       <k-icon icon="mdi-gift" size="22" class="flex-shrink-0" />
       <span v-if="activeCount > 0" class="rewards-badge" data-test="rewards-badge">{{ activeCount }}</span>
     </k-btn>
+  </div>
+  <!-- The referral code has its own button beside Rewards: it opens the code
+       straight away, without going through the Rewards dialog. -->
+  <div v-if="referralEnabled" class="header-btn-wrap">
+    <div class="header-btn-subtitle">Referral</div>
+    <k-btn
+      size="small"
+      variant="text"
+      aria-label="Referral code"
+      class="rewards-btn"
+      :class="{ 'rewards-on': Boolean(modelValue) }"
+      data-test="referral-open"
+      @click="openCode"
+    >
+      <k-icon icon="mdi-account-plus" size="22" class="flex-shrink-0" />
+      <k-icon v-if="modelValue" icon="mdi-check-circle" size="14" class="referral-tick-badge" data-test="referral-open-tick" />
+    </k-btn>
+  </div>
     <k-dialog v-model="dialog" max-width="780">
       <k-card>
         <k-card-title>Rewards</k-card-title>
@@ -280,6 +299,17 @@ defineExpose({ loadInfo });
 </script>
 
 <style scoped>
+.rewards-pair {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.referral-tick-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: #2e7d32;
+}
 .header-btn-wrap {
   display: flex;
   flex-direction: column;

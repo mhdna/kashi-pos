@@ -146,6 +146,19 @@ describe("RewardsButton", () => {
     expect(find("rewards-badge")?.textContent).toBe("3");
   });
 
+  it("the reported case: a Referral button beside Rewards opens the code straight away", async () => {
+    getInfo.mockResolvedValue({ enabled: true, rewardPercent: 15, code: "", rewardOfferPercent: 0 } as never);
+    const w = await mountButton();
+    expect(find("referral-open")).not.toBeNull();
+    find("referral-open")!.click();
+    await flushPromises();
+    expect(find("referral-input")).not.toBeNull();
+    // The Rewards dialog didn't open for it.
+    expect(document.body.textContent).not.toContain("Choose");
+    await w.setProps({ modelValue: "K7M4QH" });
+    expect(find("referral-open-tick")).not.toBeNull();
+  });
+
   it("picking a deal turns it on for the sale, and the button shows it", async () => {
     const w = await mountButton();
     expect(find("rewards-badge")).toBeNull();
