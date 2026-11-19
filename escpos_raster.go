@@ -375,14 +375,17 @@ func (c *receiptCanvas) drawReferralPart(y int) (int, error) {
 	}
 	sectionTop := y
 	y, boxTop := c.decorStart("referral", y)
-	// Dark lines' black reaches darkPad past them: room for it in the part.
+	// The code's black box reaches past its line: room for it in the part.
 	if t.elementDark("referral_title") {
-		y += darkPad
+		y += darkPad / 2
 	}
 	titleTop := y
 	y, _, _ = c.line(y, "referral_title", t.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false, "center")
 	c.markText(receiptPartReferralTitle, t.referralTitle(), titleTop, y, c.data.BodySize+1, true)
 	y += c.gap(8)
+	if t.elementDark("referral_title") {
+		y += darkPad / 2
+	}
 	noteTop := y
 	y, _, _ = c.lineWrapped(y, "referral_note", c.data.ReferralNote, c.data.BodySize-2.5, false, 2, "center")
 	c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)

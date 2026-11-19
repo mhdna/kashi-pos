@@ -431,6 +431,9 @@ func (c *receiptCanvas) line(y int, key, value string, size float64, bold, title
 	default:
 		y, err = c.center(y, value, size, bold, title)
 	}
+	if key == "referral_title" && c.data.ReferralCode != "" && c.data.Texts.elementDark(key) {
+		c.codeBox(value, top, y, size, bold, title, align)
+	}
 	c.markElement(key, top, y)
 	c.markLine(key, value, top, y, size, align)
 	if lang == receiptLangBoth && ar != "" {
@@ -710,7 +713,8 @@ func (c *receiptCanvas) markLine(key, text string, top, bottom int, size float64
 	if bottom <= top {
 		return
 	}
-	if c.data.Texts.elementDark(key) {
+	// The referral code's line is dark behind the code only (codeBox).
+	if key != "referral_title" && c.data.Texts.elementDark(key) {
 		c.darkSpans = append(c.darkSpans, [2]int{top, bottom})
 	}
 	scale := c.bodyFactor()
@@ -877,8 +881,8 @@ func itemsAsPrinted(t receiptTexts, items []invoiceItem) []invoiceItem {
 }
 
 // darkByDefault are the lines printed white on black unless the branch says
-// otherwise: the referral code and its note, so the code stands out.
-var darkByDefault = map[string]bool{"referral_title": true, "referral_note": true}
+// otherwise: the referral code's, where only the code itself is (codeBox).
+var darkByDefault = map[string]bool{"referral_title": true}
 
 // elementDark says whether a line prints white on black.
 func (t receiptTexts) elementDark(key string) bool {
@@ -886,4 +890,29 @@ func (t receiptTexts) elementDark(key string) bool {
 		return *e.Dark
 	}
 	return darkByDefault[key]
+}
+
+// codeBox prints the referral code itself white on black: the words before
+// it ("YOUR CODE:") stay as they are. value is the line as drawn, ending in
+// the code.
+func (c *receiptCanvas) codeBox(value string, top, bottom int, size float64, bold, title bool, align string) {
+	w, err := c.measure(value, size, bold, title)
+	if err != nil {
+		return
+	}
+	cw, err := c.measure(c.data.ReferralCode, size, bold, title)
+	if err != nil {
+		return
+	}
+	start := c.margin + (c.contentW-w)/2
+	switch align {
+	case "left":
+		start = c.margin
+	case "right":
+		start = c.margin + c.contentW - w
+	}
+	x1 := start + w
+	x0 := x1 - cw
+	pad := darkPad
+	c.invertRect(max(0, x0-pad), top-pad/2, min(c.margin+c.contentW+pad, x1+pad), bottom+pad/2)
 }
