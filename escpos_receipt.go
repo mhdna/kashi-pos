@@ -74,7 +74,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 			amount = "FREE"
 		}
 		writeESCPosLine(&out, sanitizeESCPos(item.Name), amount, columns)
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			writeESCPosText(&out, "  "+sanitizeESCPos(code))
 		}
 		if note := priceNoteText(item); note != "" {

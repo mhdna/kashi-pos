@@ -41,6 +41,11 @@ func itemCodeText(item invoiceItem) string {
 	return strings.TrimSpace(item.Barcode)
 }
 
+// itemCodeUnderName is the code printed on its own line under an item's
+// name: none, the receipt doesn't print it any more (the Supermarket "With
+// codes" layout, which is about codes, still shows itemCodeText).
+func itemCodeUnderName(invoiceItem) string { return "" }
+
 // variantText joins an item's colour and size ("Navy · M"), or "".
 func variantText(item invoiceItem) string {
 	var parts []string
@@ -148,7 +153,7 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 			}
 		}
 		y = bottom + 4 + c.style.Gap/2
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y, _ = c.textRole(c.margin+12, y, code, 10, roleBody, image.Black)
 			y += 4 + c.style.Gap/2
 		}
@@ -223,7 +228,7 @@ func drawClassicDetailed(c *receiptCanvas, y int) (int, float64, float64) {
 		discountTotal += discount
 		y, _ = c.itemRow(y, item.Name, netText(item, net), 11)
 		y += 5
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y, _ = c.indented(y, "Code: "+code, 10)
 			y += 3
 		}
@@ -342,7 +347,7 @@ func drawSupermarketRegister(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(bottom)
 		}
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y = t.step(t.put(y, 2, code, roleBody))
 		}
 		y = t.priceNote(y, 2, item)
@@ -382,7 +387,7 @@ func drawSupermarketQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(bottom)
 		}
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y = t.step(t.put(y, qtyW+1, code, roleBody))
 		}
 		y = t.priceNote(y, qtyW+1, item)
@@ -452,7 +457,7 @@ func drawTypewriterTape(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(t.put(y, nameStart, line, roleBody))
 		}
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y = t.step(t.put(y, nameStart, code, roleBody))
 		}
 		y = t.priceNote(y, nameStart, item)
@@ -485,7 +490,7 @@ func drawTypewriterItemized(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(bottom)
 		}
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y = t.step(t.put(y, 2, code, roleBody))
 		}
 		y = t.priceNote(y, 2, item)
@@ -513,7 +518,7 @@ func drawBoutiqueCentered(c *receiptCanvas, y int) (int, float64, float64) {
 			y, _ = c.centerRole(y, line, 14, roleName)
 		}
 		y += 1
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y, _ = c.centerRole(y, code, 10, roleBody)
 			y += 2
 		}
@@ -563,7 +568,7 @@ func drawBoutiqueLedger(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 1
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y, _ = c.textRole(c.margin, y, code, 10, roleBody, image.Black)
 			y += 1
 		}
@@ -606,7 +611,7 @@ func drawModernClean(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 3
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y, _ = c.textRole(c.margin, y, code, 9.5, roleBody, image.Black)
 			y += 2
 		}
@@ -669,7 +674,7 @@ func drawBistroMenu(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 3
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y, _ = c.textRole(c.margin+14, y, code, 9.5, roleBody, image.Black)
 			y += 2
 		}
@@ -715,7 +720,7 @@ func drawBistroQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 3
-		if code := itemCodeText(item); code != "" {
+		if code := itemCodeUnderName(item); code != "" {
 			y, _ = c.textRole(nameX, y, code, 9.5, roleBody, image.Black)
 			y += 2
 		}

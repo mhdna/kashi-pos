@@ -67,3 +67,28 @@ func TestReceiptSaysSalesman(t *testing.T) {
 		t.Fatalf("text receipt:\n%s", text)
 	}
 }
+
+// The item's code isn't printed under its name, on any look but the one that
+// is about codes, nor on the text receipt.
+func TestNoItemCodeUnderName(t *testing.T) {
+	data := receiptPreviewData(designBase(), receiptModeSale)
+	for _, theme := range receiptThemes() {
+		for _, layout := range theme.Layouts {
+			drawn, _, _ := drawnTexts(t, data, theme.ID, layout.ID)
+			all := strings.Join(drawn, "\n")
+			hasCode := strings.Contains(all, "SH-1042")
+			if theme.ID == "supermarket" && layout.ID == "C" {
+				if !hasCode {
+					t.Fatalf("the With codes layout lost its codes")
+				}
+				continue
+			}
+			if hasCode {
+				t.Fatalf("%s/%s still prints the code", theme.ID, layout.ID)
+			}
+		}
+	}
+	if text := string(buildESCPosReceipt(data)); strings.Contains(text, "SH-1042") {
+		t.Fatalf("text receipt prints the code:\n%s", text)
+	}
+}

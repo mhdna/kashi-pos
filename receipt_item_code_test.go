@@ -6,9 +6,10 @@ import (
 	"testing"
 )
 
-// Two products can share a name -- "Lady Leather Skirt" was both TNV551219
-// and TNV551219-16 -- so every receipt prints each item's code under its
-// name, the barcode when it has no code, and nothing when it has neither.
+// Receipts used to print each item's code under its name (two products can
+// share a name: "Lady Leather Skirt" was both TNV551219 and TNV551219-16).
+// They no longer do, except the Supermarket "With codes" layout, which still
+// prints the code, the barcode when there is no code, and nothing for neither.
 func itemCodeTestItems() []invoiceItem {
 	return []invoiceItem{
 		{Name: "Lady Leather Skirt", Code: "TNV551219-16", Barcode: "8000000113603", Price: 45, Discount: 30, Qty: 2},
@@ -99,6 +100,11 @@ func TestEveryReceiptLookPrintsItemCodeUnderName(t *testing.T) {
 						}
 					}
 					want := wantCodes[i]
+					// Codes aren't printed under names any more, except on the
+					// Supermarket "With codes" layout, which is about them.
+					if !(theme.ID == "supermarket" && layout.ID == "C") {
+						want = ""
+					}
 					if want == "" {
 						if len(found) != 0 {
 							t.Errorf("%dmm %s/%s: item %d has no code but printed %q", width, theme.ID, layout.ID, i, found[0].value)
@@ -126,12 +132,13 @@ func TestESCPosReceiptPrintsItemCodeUnderName(t *testing.T) {
 		GrandTotalCents: 9900, RoundingCurrency: testLBPReceiptCurrency, ReceiptWidth: 80,
 	})
 	text := string(payload)
-	for _, want := range []string{
-		"Lady Leather Skirt", "  TNV551219-16\n",
-		"Lady Leather Skirt", "  TNV551219\n",
-		"Wool Scarf", "  8000000000777\n",
-		"Gift Wrap",
-	} {
+	// Codes aren't printed under names any more: just the names, in order.
+	for _, code := range []string{"TNV551219", "8000000000777"} {
+		if strings.Contains(text, code) {
+			t.Fatalf("the text receipt prints %q: %q", code, payload)
+		}
+	}
+	for _, want := range []string{"Lady Leather Skirt", "Lady Leather Skirt", "Wool Scarf", "Gift Wrap"} {
 		at := strings.Index(text, want)
 		if at < 0 {
 			t.Fatalf("receipt is missing %q in order: %q", want, payload)
