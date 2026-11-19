@@ -94,7 +94,16 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	}
 	writeESCPosLine(&out, data.Texts.word("discount", "Discount"), fmt.Sprintf("-$%.2f", totalDiscount), columns)
 	if data.InvoiceDiscount.Cents > 0 {
-		writeESCPosLine(&out, sanitizeESCPos(data.Texts.invoiceDiscountWords(data.InvoiceDiscount)), fmt.Sprintf("-$%.2f", invoiceDisc), columns)
+		// Deals that added up ("A + B + C") take a line each when they don't
+		// fit beside the amount, the amount on the last.
+		amount := fmt.Sprintf("-$%.2f", invoiceDisc)
+		lines := splitDealWords(data.Texts.invoiceDiscountWords(data.InvoiceDiscount), func(s string) bool {
+			return utf8.RuneCountInString(sanitizeESCPos(s)) <= columns-utf8.RuneCountInString(amount)-1
+		})
+		for _, l := range lines[:len(lines)-1] {
+			writeESCPosText(&out, l)
+		}
+		writeESCPosLine(&out, sanitizeESCPos(lines[len(lines)-1]), amount, columns)
 	}
 	if math.Abs(rounding) > 0.005 {
 		writeESCPosLine(&out, data.Texts.word("rounding", "Rounding"), fmt.Sprintf("$%.2f", rounding), columns)

@@ -87,7 +87,23 @@ const (
 	// nothing new. Off (the default): only steps that really received
 	// something. Set from central's branch settings.
 	syncVerboseFlag = "sync_verbose"
+	// When on, every invoice deal that applies comes off, one after the
+	// other (invoiceDiscountsStacked), and the cashier can pick several.
+	// Off (the default): the biggest one takes over. Set from central.
+	dealsStackFlag = "deals_stack"
 )
+
+// SetDealsStackEnabled lets a branch's invoice deals add up.
+func (a *App) SetDealsStackEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, dealsStackFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
 
 // SetDiscountToggleEnabled lets salespersons turn a line's discount off/on.
 // Called both by the local Settings page and by an update_settings command

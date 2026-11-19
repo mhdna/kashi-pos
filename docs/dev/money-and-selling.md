@@ -297,6 +297,17 @@ sell at their typed price and show no chip. The cart sends the line's
   `CheckoutInvoicePicked`); `TestPickedDiscountsRandomized` checks they agree.
 - The cashier picks ==one deal at a time==: picking another replaces it (it
   takes over), since only the biggest discount ever comes off the invoice.
+- Unless the branch lets ==deals add up== (central's `deals_stack`, a feature
+  flag here): then every deal that applies comes off, one after the other
+  (`invoiceDiscountsStacked`). Percents first, biggest first, each on what is
+  left; then fixed amounts, biggest first, never past what is left; same size
+  by name. Each minimum is judged on the sale before any deal. The cashier can
+  pick several. The invoice keeps one deal: the names joined with " + " and the
+  total off, so returns, exchanges, sync and central's reports work as for one
+  deal. A referral reward still competes with that total. On the receipt the
+  names break onto their own lines when they don't fit beside the amount
+  (`splitDealWords`). `TestStackedDealsRandomized` checks quote, checkout and
+  what is stored against the rule written plainly.
 - A new sale starts with nothing picked; a deal central takes away drops out
   of the picks.
 

@@ -33,6 +33,7 @@
                   v-model:picked="pickedDeals"
                   :client-id="client.id"
                   :applied-name="quote?.invoiceDiscountName ?? ''"
+                  :stack="dealsStack"
                 />
                 <k-dialog v-model="noteDialog" max-width="760">
                   <k-card>
@@ -565,6 +566,8 @@ const priceEditRestricted = ref(false);
 // discount_toggle), and new lines can start with it off; deal_toggle does
 // the same for a line's deal chip.
 const discountToggleEnabled = ref(false);
+// The branch lets invoice deals add up (central's deals_stack).
+const dealsStack = ref(false);
 const discountToggleDefaultOff = ref(false);
 const dealToggleEnabled = ref(false);
 const priceEditCodes = ref<string[]>([]);
@@ -1893,6 +1896,7 @@ async function loadAppSettings() {
       .filter(Boolean);
     priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
     discountToggleEnabled.value = Boolean(settings?.discountToggleEnabled);
+    dealsStack.value = Boolean(settings?.dealsStack);
     discountToggleDefaultOff.value = Boolean(settings?.discountToggleDefaultOff);
     dealToggleEnabled.value = Boolean(settings?.dealToggleEnabled);
     unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");

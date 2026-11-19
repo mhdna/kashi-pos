@@ -588,6 +588,27 @@ func (c *receiptCanvas) row(y int, key, word, label, amount string, size float64
 	return y
 }
 
+// dealRows is the invoice deal's row: as row when its words fit beside the
+// amount, else a line per few deals (splitDealWords), the amount on the last.
+func (c *receiptCanvas) dealRows(y int, label, amount string) int {
+	defer c.useFont(c.data.Texts.element("invoice_discount").Font)()
+	size, bold := c.elementStyle("invoice_discount", 10, false)
+	amountW, err := c.measure(amount, size, bold, false)
+	if err != nil {
+		return c.row(y, "invoice_discount", label, label, amount, 10, false)
+	}
+	lines := splitDealWords(label, func(s string) bool {
+		w, err := c.measure(s, size, bold, false)
+		return err == nil && w+amountW+16 <= c.contentW
+	})
+	for _, l := range lines[:len(lines)-1] {
+		y, _ = c.text(c.margin, y, l, size, bold, false)
+		y += c.gap(2)
+	}
+	last := lines[len(lines)-1]
+	return c.row(y, "invoice_discount", last, last, amount, 10, false)
+}
+
 // markLine records where an element's line is and what it says, so the
 // designer can type over it on the paper.
 func (c *receiptCanvas) markLine(key, text string, top, bottom int, size float64, align string) {
@@ -674,6 +695,28 @@ func (c *receiptCanvas) markPendingWord(value string, x, top, bottom int, size f
 		}
 		return
 	}
+}
+
+// splitDealWords breaks the deal line's words into lines when they don't fit
+// (fits says whether a line fits beside the amount): deals that added up are
+// joined with " + ", and each line holds as many as fit, ending on " +". One
+// line, as it was, when they fit or there is nothing to break.
+func splitDealWords(words string, fits func(string) bool) []string {
+	if fits(words) || !strings.Contains(words, " + ") {
+		return []string{words}
+	}
+	parts := strings.Split(words, " + ")
+	var lines []string
+	cur := parts[0]
+	for _, p := range parts[1:] {
+		if next := cur + " + " + p; fits(next) {
+			cur = next
+			continue
+		}
+		lines = append(lines, cur+" +")
+		cur = p
+	}
+	return append(lines, cur)
 }
 
 // invoiceDiscountWords is the deal's line label in the branch's words;

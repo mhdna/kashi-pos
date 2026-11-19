@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dealSize, dealTerms, dealTitle, dealWhen, rewardsActiveCount, type RewardDeal } from "./rewards";
+import { appliedDealNames, dealSize, dealTerms, dealTitle, dealWhen, rewardsActiveCount, type RewardDeal } from "./rewards";
 
 const deal = (over: Partial<RewardDeal>): RewardDeal => ({ uid: "x", name: "X", kind: "percent", percent: 15, amount: 0, minTotal: 0, cashierPicks: false, ...over });
 
@@ -47,5 +47,17 @@ describe("dealTitle", () => {
     expect(dealTitle(deal({ name: "Staff $5", kind: "amount", amount: 500 }))).toBe("Staff");
     expect(dealTitle(deal({ name: "15%" }))).toBe("15%");
     expect(dealTitle(deal({ name: "VIP 20%", percent: 15 }))).toBe("VIP 20%");
+  });
+});
+
+describe("deals added up", () => {
+  it("the quote's joined name is each deal it took off", () => {
+    expect(appliedDealNames("20% above $150 + Students 15% + 10% above $50")).toEqual(["20% above $150", "Students 15%", "10% above $50"]);
+    expect(appliedDealNames("Students 15%")).toEqual(["Students 15%"]);
+    expect(appliedDealNames("")).toEqual([]);
+  });
+  it("counts each applied deal once, picked or not", () => {
+    expect(rewardsActiveCount("", ["s"], "20% above $150 + Students 15%", ["Students 15%"])).toBe(2);
+    expect(rewardsActiveCount("K7M4QH", ["s"], "20% above $150 + Students 15% + 10% above $50", ["Students 15%"])).toBe(4);
   });
 });

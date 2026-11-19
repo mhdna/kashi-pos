@@ -67,14 +67,14 @@
               v-for="d in automatic"
               :key="d.uid"
               class="reward-card reward-card--locked"
-              :class="{ 'reward-card--applied': d.name === appliedName }"
+              :class="{ 'reward-card--applied': applied.includes(d.name) }"
               :title="dealTerms(d)"
               :data-test="`auto-${d.uid}`"
             >
               <span class="reward-top">
                 <span class="reward-line">{{ dealWhen(d) }}</span>
                 <k-icon
-                  v-if="d.name === appliedName"
+                  v-if="applied.includes(d.name)"
                   icon="mdi-check-circle"
                   size="22"
                   class="reward-applied-icon"
@@ -138,13 +138,14 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { CheckReferralCode, GetReferralInfo, ListRewardDeals } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { normalizeReferralCode, referralCodeHint, referralCodeInput, referralCodeLength } from "@/lib/referralCode";
-import { dealSize, dealTerms, dealTitle, dealWhen, rewardsActiveCount, type RewardDeal } from "@/lib/rewards";
+import { appliedDealNames, dealSize, dealTerms, dealTitle, dealWhen, rewardsActiveCount, type RewardDeal } from "@/lib/rewards";
 
 // The sale's rewards: the deals the cashier picks (a student discount), the
 // referral code a new customer gives, and, for reference, the deals that
 // apply by themselves. modelValue is the referral code, picked the uids of
 // the deals picked; appliedName is the invoice discount the quote applied.
-const props = defineProps<{ modelValue: string; picked: string[]; clientId: number; appliedName?: string }>();
+// stack: the branch lets deals add up (deals_stack), so several can be picked.
+const props = defineProps<{ modelValue: string; picked: string[]; clientId: number; appliedName?: string; stack?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [code: string]; "update:picked": [uids: string[]] }>();
 
 const referralEnabled = ref(false);
@@ -159,6 +160,7 @@ const serverError = ref("");
 const ownerName = ref("");
 
 const pickable = computed(() => deals.value.filter((d) => d.cashierPicks));
+const applied = computed(() => appliedDealNames(props.appliedName ?? ""));
 // Smallest minimum first: $50, $100, $150.
 const automatic = computed(() => deals.value.filter((d) => !d.cashierPicks).sort((a, b) => a.minTotal - b.minTotal));
 const visible = computed(() => referralEnabled.value || deals.value.length > 0);
@@ -198,9 +200,15 @@ const stops = ["sync_applied:referral_program", "sync_applied:invoice_discounts"
 );
 onUnmounted(() => stops.forEach((stop) => stop?.()));
 
-// One deal at a time: the till only ever takes the biggest off the invoice,
-// so picking a deal replaces the one picked before (it takes over).
+// One deal at a time: unless the branch lets deals add up, the till takes
+// only the biggest off the invoice, so picking a deal replaces the one picked
+// before (it takes over). Adding up, the cashier picks as many as apply.
 function togglePick(uid: string, on: boolean) {
+  if (props.stack) {
+    const without = props.picked.filter((u) => u !== uid);
+    emit("update:picked", on ? [...without, uid] : without);
+    return;
+  }
   emit("update:picked", on ? [uid] : []);
 }
 
