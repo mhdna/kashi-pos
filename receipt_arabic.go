@@ -256,8 +256,8 @@ func validReceiptLang(lang string) string {
 }
 
 // arabicDefaults are each line's Arabic words, in Lebanese Arabic, unless
-// the branch writes its own. {percent} is filled with the reward in Arabic
-// digits (١٥٪). A line with none here (the shop's name, its phone) prints
+// the branch writes its own. {percent} is filled with the reward as the
+// English line has it (15%), not in Arabic-Indic digits. A line with none here (the shop's name, its phone) prints
 // Arabic only when the branch writes it.
 var arabicDefaults = map[string]string{
 	"meta_customer":    "الزبون",
@@ -300,18 +300,6 @@ func arabicReferralNote(rewardTo string) string {
 	return "شارك هالكود مع حدا ما زارنا قبل، ولما يشتري فيه بتاخد انت حسم {percent} على زيارتك الجاية."
 }
 
-// arabicDigits writes the digits of s as Arabic-Indic ones (15 to ١٥).
-func arabicDigits(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if r >= '0' && r <= '9' {
-			r = '٠' + (r - '0')
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
 var percentNumber = regexp.MustCompile(`(\d+)\s*%`)
 
 // arabicWords is a line's Arabic, from its English as printed (value): the
@@ -339,7 +327,7 @@ func (t receiptTexts) arabicWords(key, value string) string {
 	if strings.Contains(ar, "{percent}") {
 		pct := ""
 		if m := percentNumber.FindStringSubmatch(value); m != nil {
-			pct = arabicDigits(m[1]) + "٪"
+			pct = m[1] + "%"
 		}
 		ar = strings.ReplaceAll(ar, "{percent}", pct)
 	}
