@@ -1,11 +1,15 @@
 package main
 
 import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestUploadFailureSaysWhatToDo(t *testing.T) {
@@ -231,5 +235,42 @@ func TestCentralRestarting(t *testing.T) {
 		if centralRestarting(s) {
 			t.Fatalf("%d shouldn't wait", s)
 		}
+	}
+}
+
+// A dropped connection or a restarting central is tried again, and never
+// taken for a wrong password; a refused password is.
+func TestLoginTellsDownFromWrongPassword(t *testing.T) {
+	saved := restartRetryWait
+	restartRetryWait = time.Millisecond
+	t.Cleanup(func() { restartRetryWait = saved })
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		switch {
+		case calls == 1:
+			// Hang up without an answer: the EOF the reported case got.
+			hj, _ := w.(http.Hijacker)
+			conn, _, _ := hj.Hijack()
+			conn.Close()
+		case calls == 2:
+			w.WriteHeader(http.StatusBadGateway)
+		default:
+			w.Write([]byte(`{"access_token":"tok"}`))
+		}
+	}))
+	defer srv.Close()
+	token, err := login(srv.URL, "mahdi", "pw")
+	if err != nil || token != "tok" || calls != 3 {
+		t.Fatalf("token %q err %v after %d calls", token, err, calls)
+	}
+
+	wrong := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"incorrect password"}`))
+	}))
+	defer wrong.Close()
+	if _, err := login(wrong.URL, "mahdi", "bad"); !errors.Is(err, errWrongPassword) {
+		t.Fatalf("a refused password: %v", err)
 	}
 }

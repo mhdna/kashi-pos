@@ -539,6 +539,11 @@ func loginWithSavedPassword(baseURL, user string) (string, error) {
 			if err == nil {
 				return token, nil
 			}
+			// Only a refused password is worth asking again for; central
+			// unreachable is not the password's fault.
+			if !errors.Is(err, errWrongPassword) {
+				return "", err
+			}
 			fmt.Println("The password saved in the Keychain didn't log in:", err)
 		}
 	}
@@ -570,23 +575,49 @@ func askPassword(user string) string {
 	return string(raw)
 }
 
+// errWrongPassword is central refusing the name or password.
+var errWrongPassword = errors.New("wrong name or password")
+
+// login signs in to central. While central is restarting (no answer, or its
+// proxy's 502) it tries again, as an upload does; only a refusal of the
+// password is errWrongPassword.
 func login(baseURL, user, password string) (string, error) {
+	var token string
+	var err error
+	for try := 0; ; try++ {
+		var retry bool
+		token, retry, err = loginOnce(baseURL, user, password)
+		if !retry || try >= restartRetries {
+			return token, err
+		}
+		warn("Central isn't answering (%v), most likely being updated; trying again in %s (%d of %d)…", err, restartRetryWait, try+1, restartRetries)
+		time.Sleep(restartRetryWait)
+	}
+}
+
+func loginOnce(baseURL, user, password string) (token string, retry bool, err error) {
 	raw, _ := json.Marshal(map[string]string{"name": user, "password": password})
 	resp, err := (&http.Client{Timeout: 30 * time.Second}).Post(baseURL+"/users/login", "application/json", bytes.NewReader(raw))
 	if err != nil {
-		return "", fmt.Errorf("log in to central: %w", err)
+		return "", true, fmt.Errorf("log in to central: %w", err)
 	}
 	defer resp.Body.Close()
+	if centralRestarting(resp.StatusCode) {
+		return "", true, fmt.Errorf("log in to central: status %d", resp.StatusCode)
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusForbidden {
+		return "", false, fmt.Errorf("log in to central (status %d): %s: %w", resp.StatusCode, errorMessage(resp.Body), errWrongPassword)
+	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("log in to central failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
+		return "", false, fmt.Errorf("log in to central failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
 	}
 	var out struct {
 		AccessToken string `json:"access_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil || out.AccessToken == "" {
-		return "", errors.New("central's login answer had no token")
+		return "", false, errors.New("central's login answer had no token")
 	}
-	return out.AccessToken, nil
+	return out.AccessToken, false, nil
 }
 
 func errorMessage(r io.Reader) string {
