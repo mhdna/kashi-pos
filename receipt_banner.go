@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -207,13 +208,26 @@ func (c *receiptCanvas) bannerDealName(b receiptBanner) string {
 	return ""
 }
 
+// buyGetPattern finds "buy 2 get 1" in a deal's name.
+var buyGetPattern = regexp.MustCompile(`(?i)\bbuy\s*(\d+)\s*get\s*(\d+)`)
+
+// bannerDealTitle is a deal's name as a banner's title: in capitals, and
+// just "BUY 2 GET 1" for a buy X get Y deal, whatever else its name says
+// ("Buy 2 get 1 free (otherwise 30%)").
+func bannerDealTitle(name string) string {
+	if m := buyGetPattern.FindStringSubmatch(name); m != nil {
+		return "BUY " + m[1] + " GET " + m[2]
+	}
+	return strings.ToUpper(name)
+}
+
 // withDealName fills {deal} in a banner's words: the title in capitals.
 func (c *receiptCanvas) withDealName(b receiptBanner) receiptBanner {
 	if !strings.Contains(b.Title+b.Subtitle, "{deal}") {
 		return b
 	}
 	name := c.bannerDealName(b)
-	b.Title = strings.TrimSpace(strings.ReplaceAll(b.Title, "{deal}", strings.ToUpper(name)))
+	b.Title = strings.TrimSpace(strings.ReplaceAll(b.Title, "{deal}", bannerDealTitle(name)))
 	b.Subtitle = strings.TrimSpace(strings.ReplaceAll(b.Subtitle, "{deal}", name))
 	return b
 }
