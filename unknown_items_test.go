@@ -149,7 +149,6 @@ func TestUnknownProductCanBeANamedProduct(t *testing.T) {
 	}
 }
 
-
 // The reported case: the phone sent the pictures, the till saw them all in,
 // then its internet dropped before paying. Checkout lets the sale through on
 // what central already said, but only for that session and that many units.
