@@ -69,6 +69,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executeReviewAttendanceRequestCommand(cmd.Payload)
 	case "replace_shift_balance":
 		return a.executeReplaceShiftBalanceCommand(ctx, cmd.Payload)
+	case "repair_deal_sales":
+		return a.executeRepairDealSalesCommand(ctx, cmd.Payload)
 	case "change_invoice_settlement":
 		return a.executeChangeInvoiceSettlementCommand(ctx, cmd.Payload)
 	default:

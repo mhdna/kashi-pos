@@ -2,19 +2,25 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	db "kashi-pos/db/sqlc"
 )
 
 // rigIndependenceDaySale makes a sale the way the Centro till made it: the
-// deal off once, the missing $50s paid "On Coupon" (and "On Account"), and
-// the sale carrying one of the repair's client refs.
-func rigIndependenceDaySale(t *testing.T, shop dealShop, ref string, coupon, account int64, codes ...string) int64 {
+// deal off once (or not at all, picked false), the missing $50s paid "On
+// Coupon" (and "On Account"), and the sale carrying the client ref ref.
+func rigIndependenceDaySale(t *testing.T, shop dealShop, ref string, picked bool, coupon, account int64, codes ...string) int64 {
 	t.Helper()
 	ctx := context.Background()
-	sale, _ := shop.sellPicked(t, []string{"indep"}, codes...)
-	if sale.InvoiceDiscount.Cents != 5000 {
+	var picks []string
+	if picked {
+		picks = []string{"indep"}
+	}
+	sale, _ := shop.sellPicked(t, picks, codes...)
+	if want := map[bool]int64{true: 5000, false: 0}[picked]; sale.InvoiceDiscount.Cents != want {
 		t.Fatalf("sold with %+v", sale.InvoiceDiscount)
 	}
 	id := sale.InvoiceID
@@ -78,10 +84,24 @@ func shiftBalance(t *testing.T, shop dealShop, name string) int64 {
 	return v
 }
 
-// The reported case: the Centro till's shift shows On Coupon $150 and $50
-// on account for the Independence Day sales. After the update the deal is
-// in full on those sales and both are gone; cash is untouched.
-func TestRepairIndependenceDaySales(t *testing.T) {
+func repairCommand(t *testing.T, shop dealShop, sales map[string]int64) error {
+	t.Helper()
+	var p repairDealSalesPayload
+	p.Name = "Independence Day $50"
+	for ref, cents := range sales {
+		p.Sales = append(p.Sales, struct {
+			ClientRef string `json:"client_ref"`
+			Discount  int64  `json:"discount"`
+		}{ref, cents})
+	}
+	raw, _ := json.Marshal(p)
+	return shop.app.executeCommand(context.Background(), branchCommand{Type: "repair_deal_sales", Payload: raw})
+}
+
+// The reported case: the Centro till's shift shows On Coupon $200 and $50
+// on account for the Independence Day sales. Central's command gives those
+// sales the deal in full and both are gone; cash is untouched.
+func TestRepairDealSalesCommand(t *testing.T) {
 	ctx := context.Background()
 	shop := setUpDealShop(t)
 	shop.app.seedPlaceholderCashboxAccounts()
@@ -90,23 +110,28 @@ func TestRepairIndependenceDaySales(t *testing.T) {
 	addDiscount(t, shop, once)
 
 	// $220: 2 x $50 is due, $50 came off, $50 went On Coupon.
-	a := rigIndependenceDaySale(t, shop, independenceDayRepairs[0].clientRef, 5000, 0, "JACKET", "JACKET", "SOCKS")
+	a := rigIndependenceDaySale(t, shop, "ref-a", true, 5000, 0, "JACKET", "JACKET", "SOCKS")
 	// $300: 3 x $50 due, $50 off, $50 On Coupon and $50 On Account.
-	b := rigIndependenceDaySale(t, shop, independenceDayRepairs[1].clientRef, 5000, 5000, "JACKET", "JACKET", "JACKET")
+	b := rigIndependenceDaySale(t, shop, "ref-b", true, 5000, 5000, "JACKET", "JACKET", "JACKET")
+	// $100, the deal never picked: the whole $50 went On Coupon.
+	c := rigIndependenceDaySale(t, shop, "ref-c", false, 5000, 0, "JACKET")
 	// An ordinary sale with the deal: not touched.
 	plain, _ := shop.sellPicked(t, []string{"indep"}, "JACKET", "SOCKS")
 	cashBefore := shiftBalance(t, shop, "Cash")
 
-	shop.app.repairIndependenceDaySales(ctx)
+	sales := map[string]int64{"ref-a": 10000, "ref-b": 15000, "ref-c": 5000}
+	if err := repairCommand(t, shop, sales); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, c := range []struct {
 		id, disc, total int64
-	}{{a, 10000, 12000}, {b, 15000, 15000}} {
+	}{{a, 10000, 12000}, {b, 15000, 15000}, {c, 5000, 5000}} {
 		inv, err := shop.store.GetInvoiceByID(ctx, c.id)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if inv.InvoiceDiscount != c.disc || inv.GrandTotal != c.total || inv.DiscountedTotal != c.total {
+		if inv.InvoiceDiscount != c.disc || inv.GrandTotal != c.total || inv.DiscountedTotal != c.total || inv.InvoiceDiscountName != "Independence Day $50" {
 			t.Fatalf("invoice %d = discount %d, total %d / %d", c.id, inv.InvoiceDiscount, inv.GrandTotal, inv.DiscountedTotal)
 		}
 		lines, _ := shop.store.ListInvoiceProducts(ctx, c.id)
@@ -149,15 +174,18 @@ func TestRepairIndependenceDaySales(t *testing.T) {
 		t.Fatalf("ordinary sale changed: %+v", inv)
 	}
 
-	// Once only: a second start changes nothing.
-	shop.app.repairIndependenceDaySales(ctx)
+	// Sent again: nothing changes, and it still reports success.
+	if err := repairCommand(t, shop, sales); err != nil {
+		t.Fatal(err)
+	}
 	if inv, _ := shop.store.GetInvoiceByID(ctx, a); inv.InvoiceDiscount != 10000 || inv.GrandTotal != 12000 {
 		t.Fatalf("second run = %+v", inv)
 	}
 }
 
-// A sale that isn't as sold (a different payment split) is left alone.
-func TestRepairIndependenceDayLeavesOddSalesAlone(t *testing.T) {
+// A sale that isn't as sold (a different payment split), or isn't on the
+// till, is left alone, and the command fails naming it and why.
+func TestRepairDealSalesLeavesOddSalesAlone(t *testing.T) {
 	ctx := context.Background()
 	shop := setUpDealShop(t)
 	shop.app.seedPlaceholderCashboxAccounts()
@@ -165,8 +193,12 @@ func TestRepairIndependenceDayLeavesOddSalesAlone(t *testing.T) {
 	once.Repeats = false
 	addDiscount(t, shop, once)
 	// $50 is due on top but only $20 went On Coupon.
-	id := rigIndependenceDaySale(t, shop, independenceDayRepairs[0].clientRef, 2000, 0, "JACKET", "JACKET", "SOCKS")
-	shop.app.repairIndependenceDaySales(ctx)
+	id := rigIndependenceDaySale(t, shop, "ref-odd", true, 2000, 0, "JACKET", "JACKET", "SOCKS")
+	err := repairCommand(t, shop, map[string]int64{"ref-odd": 10000, "ref-gone": 5000})
+	if err == nil || !strings.Contains(err.Error(), "ref-odd: its coupon and on-account payments are $20.00, the deal adds $50.00") ||
+		!strings.Contains(err.Error(), "ref-gone: no such sale on this till") {
+		t.Fatalf("err = %v", err)
+	}
 	inv, _ := shop.store.GetInvoiceByID(ctx, id)
 	if inv.InvoiceDiscount != 5000 || inv.GrandTotal != 17000 {
 		t.Fatalf("odd sale changed: %+v", inv)
