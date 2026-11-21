@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"math"
 	"regexp"
@@ -400,6 +401,25 @@ func diamond(cx, cy, r int) []image.Point {
 
 // drawBanner draws one banner from y and returns the y under it.
 func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
+	// Arabic words are joined and set right to left, in a font that has the
+	// letters (the style's own fonts are Latin only).
+	// A Lebanese flag emoji in the subtitle is drawn as a small flag on each
+	// side of the words (no font has it, and the printer is black and white).
+	flagSub := strings.Contains(b.Subtitle, lebanonFlag)
+	b.Subtitle = strings.TrimSpace(strings.ReplaceAll(b.Subtitle, lebanonFlag, ""))
+	arabicSub := hasArabic(b.Subtitle)
+	if hasArabic(b.Title) && b.Font == "" {
+		b.Font = arabicFontDefault
+	}
+	b.Title, b.Subtitle = arabicVisual(b.Title), arabicVisual(b.Subtitle)
+	// An Arabic line under the title needs more room than a Latin one.
+	subLine := 24
+	if arabicSub {
+		subLine = 38
+		if flagSub {
+			subLine = 46
+		}
+	}
 	left, right := c.margin, c.margin+c.contentW
 	white := image.NewUniform(color.White)
 	black := image.NewUniform(color.Black)
@@ -407,9 +427,21 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		if b.Subtitle == "" {
 			return y
 		}
+		if arabicSub {
+			name = arabicFontDefault
+		}
 		face, err := c.fitFace(name, b.Subtitle, px, r-l-16)
 		if err != nil {
 			return y
+		}
+		if flagSub {
+			fh := face.Metrics().Ascent.Ceil() + 20
+			fw := fh * 3 / 2
+			tw := font.MeasureString(face, b.Subtitle).Ceil()
+			x0 := l + (r-l-tw)/2
+			fy := y + (face.Metrics().Ascent.Ceil()+face.Metrics().Descent.Ceil()-fh)/2
+			c.drawLebanonFlag(x0-fw-10, fy, fw, fh)
+			c.drawLebanonFlag(x0+tw+10, fy, fw, fh)
 		}
 		return c.bannerText(face, b.Subtitle, l, r, y, ink)
 	}
@@ -429,7 +461,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		shift := (titleH - (m.Ascent.Ceil() + m.Descent.Ceil())) / 2
 		subH := 0
 		if b.Subtitle != "" {
-			subH = 24
+			subH = subLine
 		}
 		h := titleH + 14 + subH
 		top, bot := y, y+h
@@ -449,7 +481,7 @@ func (c *receiptCanvas) drawBanner(y int, b receiptBanner) int {
 		m := face.Metrics()
 		subH := 0
 		if b.Subtitle != "" {
-			subH = 24
+			subH = subLine
 		}
 		zig := 9
 		h := m.Ascent.Ceil() + m.Descent.Ceil() + 16 + subH
@@ -559,4 +591,35 @@ func renderBannerPreview(b receiptBanner) ([]byte, error) {
 		bottom = 400
 	}
 	return encodeBilevelPNGLevel(c.img.SubImage(image.Rect(0, 0, raster80mmWidth, bottom)).(*image.RGBA), png.BestSpeed)
+}
+
+// lebanonFlag is the flag emoji, regional indicators L and B.
+const lebanonFlag = "\U0001F1F1\U0001F1E7"
+
+// drawLebanonFlag draws the flag in black and white at (x, y), w by h: a black
+// frame, the red stripes (top and bottom quarters) solid black and the cedar
+// in the white middle.
+func (c *receiptCanvas) drawLebanonFlag(x, y, w, h int) {
+	black := image.NewUniform(color.Black)
+	white := image.NewUniform(color.White)
+	draw.Draw(c.img, image.Rect(x, y, x+w, y+h), black, image.Point{}, draw.Src)
+	inner := h / 4
+	draw.Draw(c.img, image.Rect(x+1, y+inner, x+w-1, y+h-inner), white, image.Point{}, draw.Src)
+	// The cedar: four tiers, each wider than the one above, on a trunk.
+	cx, top, bot := x+w/2, y+inner+2, y+h-inner-2
+	span := bot - top
+	if span < 8 {
+		return
+	}
+	trunk := max(span/7, 2)
+	crown := span - trunk
+	maxHalf := w * 21 / 100
+	for i := 0; i < 4; i++ {
+		ty := top + i*crown/4
+		by := top + (i+1)*crown/4 + crown/8
+		by = min(by, top+crown)
+		half := (i + 1) * maxHalf / 4
+		c.fillPolygon([]image.Point{{cx, ty}, {cx + half, by}, {cx - half, by}}, color.Black)
+	}
+	draw.Draw(c.img, image.Rect(cx-1, top+crown-1, cx+1, bot), black, image.Point{}, draw.Src)
 }
