@@ -19,7 +19,7 @@ func (q *Queries) DeleteInvoiceDiscount(ctx context.Context, uid string) error {
 }
 
 const listInvoiceDiscounts = `-- name: ListInvoiceDiscounts :many
-SELECT uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks FROM invoice_discounts ORDER BY min_total, uid
+SELECT uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks, repeats FROM invoice_discounts ORDER BY min_total, uid
 `
 
 func (q *Queries) ListInvoiceDiscounts(ctx context.Context) ([]InvoiceDiscount, error) {
@@ -41,6 +41,7 @@ func (q *Queries) ListInvoiceDiscounts(ctx context.Context) ([]InvoiceDiscount, 
 			&i.ValidFrom,
 			&i.ValidTo,
 			&i.CashierPicks,
+			&i.Repeats,
 		); err != nil {
 			return nil, err
 		}
@@ -71,13 +72,13 @@ func (q *Queries) SetInvoiceDiscount(ctx context.Context, arg SetInvoiceDiscount
 }
 
 const upsertInvoiceDiscount = `-- name: UpsertInvoiceDiscount :exec
-INSERT INTO invoice_discounts (uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_discounts (uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks, repeats)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name, min_total = excluded.min_total, kind = excluded.kind,
     percent = excluded.percent, amount = excluded.amount,
     valid_from = excluded.valid_from, valid_to = excluded.valid_to,
-    cashier_picks = excluded.cashier_picks
+    cashier_picks = excluded.cashier_picks, repeats = excluded.repeats
 `
 
 type UpsertInvoiceDiscountParams struct {
@@ -90,6 +91,7 @@ type UpsertInvoiceDiscountParams struct {
 	ValidFrom    string `json:"validFrom"`
 	ValidTo      string `json:"validTo"`
 	CashierPicks int64  `json:"cashierPicks"`
+	Repeats      int64  `json:"repeats"`
 }
 
 func (q *Queries) UpsertInvoiceDiscount(ctx context.Context, arg UpsertInvoiceDiscountParams) error {
@@ -103,6 +105,7 @@ func (q *Queries) UpsertInvoiceDiscount(ctx context.Context, arg UpsertInvoiceDi
 		arg.ValidFrom,
 		arg.ValidTo,
 		arg.CashierPicks,
+		arg.Repeats,
 	)
 	return err
 }

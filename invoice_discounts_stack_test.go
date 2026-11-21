@@ -150,7 +150,11 @@ func stackReference(rules []db.InvoiceDiscount, total int64, picked []string, mo
 		if total < x.MinTotal || (x.CashierPicks != 0 && !slices.Contains(picked, x.Uid)) {
 			continue
 		}
-		on = append(on, r{x.Name, x.Percent, x.Amount})
+		amt := x.Amount
+		if x.Repeats != 0 && x.MinTotal > 0 {
+			amt *= total / x.MinTotal
+		}
+		on = append(on, r{x.Name, x.Percent, amt})
 	}
 	left := total
 	var names []string
@@ -205,6 +209,8 @@ func TestStackedDealsRandomized(t *testing.T) {
 			d.Kind, d.Percent = invoiceDiscountPercent, int64(1+rng.Intn(40))
 		} else {
 			d.Kind, d.Amount = invoiceDiscountAmount, int64(1+rng.Intn(60))*100
+			// Some come off again for every minimum reached.
+			d.Repeats = d.MinTotal > 0 && rng.Intn(2) == 0
 		}
 		addDiscount(t, shop, d)
 		uids = append(uids, d.UID)

@@ -118,6 +118,15 @@ describe("RewardsButton", () => {
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
 
+  it("the reported case: Independence Day $50 says it comes off for every $100", async () => {
+    const indep = { uid: "indep", name: "Independence Day $50", kind: "amount", percent: 0, amount: 5000, minTotal: 10000, cashierPicks: true, repeats: true };
+    listDeals.mockResolvedValue([indep] as never);
+    await mountButton();
+    await openDialog();
+    expect(find("deal-indep")?.querySelector(".reward-size")?.textContent).toBe("$50");
+    expect(find("deal-indep")?.getAttribute("title")).toBe("$50 off every $100 of the invoice");
+  });
+
   it("the reported case: one deal at a time, a new pick takes over the one before", async () => {
     const w = await mountButton();
     await openDialog();

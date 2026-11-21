@@ -10,6 +10,17 @@ describe("dealTerms", () => {
     expect(dealTerms(deal({ kind: "amount", amount: 500 }))).toBe("$5 off the whole invoice");
     expect(dealTerms(deal({ kind: "amount", amount: 250, minTotal: 4999 }))).toBe("$2.50 off invoices of $49.99 or more");
   });
+
+  it("the reported case: Independence Day $50 off every $100", () => {
+    const indep = deal({ name: "Independence Day $50", kind: "amount", amount: 5000, minTotal: 10000, repeats: true });
+    expect(dealTerms(indep)).toBe("$50 off every $100 of the invoice");
+    expect(dealWhen(indep)).toBe("Every $100");
+    expect(dealSize(indep)).toBe("$50");
+    // Repeating needs an amount and a minimum; otherwise it reads as before.
+    expect(dealTerms(deal({ kind: "amount", amount: 5000, repeats: true }))).toBe("$50 off the whole invoice");
+    expect(dealWhen(deal({ minTotal: 10000, repeats: true }))).toBe("> $100");
+    expect(dealTerms(deal({ kind: "amount", amount: 5000, minTotal: 10000, repeats: false }))).toBe("$50 off invoices of $100 or more");
+  });
 });
 
 describe("rewardsActiveCount", () => {
