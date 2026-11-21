@@ -19,6 +19,8 @@ import (
 // The total checked is the sale's after item discounts and deals, before
 // tax, and the discount comes off that, on top of them. When several rules
 // apply, the one that saves the customer most wins; they never add up.
+// An amount rule that repeats comes off once for every minimum the total
+// reaches: "$50 off every $100" takes $100 off a $250 sale.
 //
 // The discount is spread over the lines in proportion to what each costs
 // and taken off their line totals (invoice_products.invoice_discount holds
@@ -46,6 +48,8 @@ type syncedInvoiceDiscount struct {
 	// CashierPicks: the rule counts only when the cashier picks it for the
 	// sale (the Rewards button), like a student discount.
 	CashierPicks bool `json:"cashier_picks"`
+	// Repeats: the amount comes off once for every min_total reached.
+	Repeats bool `json:"repeats"`
 }
 
 func applySyncedInvoiceDiscount(ctx context.Context, q *db.Queries, item syncedInvoiceDiscount) error {
@@ -60,6 +64,7 @@ func applySyncedInvoiceDiscount(ctx context.Context, q *db.Queries, item syncedI
 		Percent: item.Percent, Amount: item.Amount,
 		ValidFrom: rfc3339OrEmpty(item.ValidFrom), ValidTo: rfc3339OrEmpty(item.ValidTo),
 		CashierPicks: boolToInt64(item.CashierPicks),
+		Repeats:      boolToInt64(item.Repeats),
 	})
 }
 
@@ -85,14 +90,7 @@ func bestInvoiceDiscount(rules []db.InvoiceDiscount, total int64, now time.Time,
 		if r.CashierPicks != 0 && !slices.Contains(picked, r.Uid) {
 			continue
 		}
-		var cents int64
-		switch r.Kind {
-		case invoiceDiscountPercent:
-			cents = percentOf(total, r.Percent, roundingMode)
-		case invoiceDiscountAmount:
-			cents = r.Amount
-		}
-		cents = min(cents, total)
+		cents := min(invoiceDiscountOff(r, total, roundingMode), total)
 		if cents > best.Cents {
 			best = invoiceDiscount{Name: r.Name, Cents: cents}
 		}
@@ -130,11 +128,33 @@ func friendReferralRule(ctx context.Context, q *db.Queries, clientID int64, pick
 	}, true, nil
 }
 
+// invoiceDiscountOff is what a rule takes off a sale of total: its percent
+// of it, or its amount, once for every min_total in it when it repeats.
+func invoiceDiscountOff(r db.InvoiceDiscount, total int64, roundingMode string) int64 {
+	switch r.Kind {
+	case invoiceDiscountPercent:
+		return percentOf(total, r.Percent, roundingMode)
+	case invoiceDiscountAmount:
+		return r.Amount * invoiceDiscountTimes(r, total)
+	}
+	return 0
+}
+
+// invoiceDiscountTimes is how many times an amount rule comes off: once, or
+// once per min_total the total reaches when it repeats.
+func invoiceDiscountTimes(r db.InvoiceDiscount, total int64) int64 {
+	if r.Repeats == 0 || r.MinTotal <= 0 {
+		return 1
+	}
+	return max(total/r.MinTotal, 1)
+}
+
 // invoiceDiscountsStacked is the sale's invoice discounts when a branch lets
 // them add up (deals_stack): every rule that applies (its minimum judged on
 // the sale before any of them, a picked one only when picked) comes off one
 // after the other. Percents go first, biggest first, each on what is left;
-// then fixed amounts, biggest first, never past what is left. The names are
+// then fixed amounts, biggest first (a repeating one counted by the sale
+// before any of them), never past what is left. The names are
 // joined in that order ("Students 15% + 10% above $50"); one rule alone is
 // what bestInvoiceDiscount would give.
 func invoiceDiscountsStacked(rules []db.InvoiceDiscount, total int64, now time.Time, roundingMode string, picked ...string) invoiceDiscount {
@@ -163,8 +183,10 @@ func invoiceDiscountsStacked(rules []db.InvoiceDiscount, total int64, now time.T
 		if a.Kind == invoiceDiscountPercent && a.Percent != b.Percent {
 			return int(b.Percent - a.Percent)
 		}
-		if a.Kind == invoiceDiscountAmount && a.Amount != b.Amount {
-			return int(b.Amount - a.Amount)
+		if a.Kind == invoiceDiscountAmount {
+			if x, y := a.Amount*invoiceDiscountTimes(a, total), b.Amount*invoiceDiscountTimes(b, total); x != y {
+				return int(y - x)
+			}
 		}
 		// Same size: by name, so a receipt names them in the same order.
 		return strings.Compare(a.Name, b.Name)
@@ -179,7 +201,7 @@ func invoiceDiscountsStacked(rules []db.InvoiceDiscount, total int64, now time.T
 		if r.Kind == invoiceDiscountPercent {
 			cents = percentOf(left, r.Percent, roundingMode)
 		} else {
-			cents = r.Amount
+			cents = r.Amount * invoiceDiscountTimes(r, total)
 		}
 		cents = min(cents, left)
 		if cents <= 0 {
@@ -333,6 +355,8 @@ type RewardDeal struct {
 	// by itself once the total reaches MinTotal (shown for reference, only
 	// central changes it).
 	CashierPicks bool `json:"cashierPicks"`
+	// Repeats: the amount comes off once for every MinTotal reached.
+	Repeats bool `json:"repeats"`
 }
 
 // ListRewardDeals is every invoice discount in force at this branch now,
@@ -351,7 +375,7 @@ func (a *App) ListRewardDeals() ([]RewardDeal, error) {
 		if !invoiceDiscountInForce(r, now) {
 			continue
 		}
-		out = append(out, RewardDeal{UID: r.Uid, Name: r.Name, Kind: r.Kind, Percent: r.Percent, Amount: r.Amount, MinTotal: r.MinTotal, CashierPicks: r.CashierPicks != 0})
+		out = append(out, RewardDeal{UID: r.Uid, Name: r.Name, Kind: r.Kind, Percent: r.Percent, Amount: r.Amount, MinTotal: r.MinTotal, CashierPicks: r.CashierPicks != 0, Repeats: r.Repeats != 0})
 	}
 	slices.SortStableFunc(out, func(x, y RewardDeal) int {
 		if x.CashierPicks != y.CashierPicks {

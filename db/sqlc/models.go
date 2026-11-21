@@ -420,6 +420,7 @@ type InvoiceDiscount struct {
 	ValidFrom    string `json:"validFrom"`
 	ValidTo      string `json:"validTo"`
 	CashierPicks int64  `json:"cashierPicks"`
+	Repeats      int64  `json:"repeats"`
 }
 
 type InvoiceIndex struct {

@@ -9,11 +9,17 @@ export type RewardDeal = {
   amount: number; // cents
   minTotal: number; // cents
   cashierPicks: boolean;
+  // repeats: the amount comes off again for every minTotal reached.
+  repeats?: boolean;
 };
 
 function dollars(cents: number): string {
   const v = cents / 100;
   return Number.isInteger(v) ? `$${v}` : `$${v.toFixed(2)}`;
+}
+
+function repeats(d: RewardDeal): boolean {
+  return Boolean(d.repeats) && d.kind === "amount" && d.minTotal > 0;
 }
 
 // dealSize is the deal's headline: "15%" or "$5".
@@ -32,6 +38,7 @@ export function dealTitle(d: RewardDeal): string {
 // dealWhen is a deal's condition in a few words: "Whole invoice", "> $50".
 // (A total of exactly the minimum counts too; the card's title says "or more".)
 export function dealWhen(d: RewardDeal): string {
+  if (repeats(d)) return `Every ${dollars(d.minTotal)}`;
   return d.minTotal > 0 ? `> ${dollars(d.minTotal)}` : "Whole invoice";
 }
 
@@ -39,6 +46,7 @@ export function dealWhen(d: RewardDeal): string {
 // "$5 off invoices of $100 or more".
 export function dealTerms(d: RewardDeal): string {
   const off = d.kind === "amount" ? `${dollars(d.amount)} off` : `${d.percent}% off`;
+  if (repeats(d)) return `${off} every ${dollars(d.minTotal)} of the invoice`;
   return d.minTotal > 0 ? `${off} invoices of ${dollars(d.minTotal)} or more` : `${off} the whole invoice`;
 }
 

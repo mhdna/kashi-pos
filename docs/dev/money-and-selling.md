@@ -56,7 +56,9 @@ LBP amounts.
   several apply, the one that saves most wins; they never add up. The discount
   is spread over the lines in proportion to their cost
   (`invoice_products.invoice_discount`), so a return credits what the line was
-  actually paid. Exchanges never earn one.
+  actually paid. Exchanges never earn one. An amount rule central marks
+  `repeats` comes off ==once per minimum reached==: "$50 off every $100" takes
+  $100 off a $250 sale (`invoiceDiscountTimes`).
 - **Discount/deal toggles** (`discount_toggle`, `deal_toggle`): let the
   salesperson turn a line's discount or deal off. `discount_toggle_default_off`
   makes lines start with the discount off. Off by default; central can push them.

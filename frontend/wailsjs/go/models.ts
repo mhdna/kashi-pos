@@ -1189,6 +1189,7 @@ export namespace main {
 	    amount: number;
 	    minTotal: number;
 	    cashierPicks: boolean;
+	    repeats: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new RewardDeal(source);
@@ -1203,6 +1204,7 @@ export namespace main {
 	        this.amount = source["amount"];
 	        this.minTotal = source["minTotal"];
 	        this.cashierPicks = source["cashierPicks"];
+	        this.repeats = source["repeats"];
 	    }
 	}
 	export class SalespersonProductSale {
