@@ -299,6 +299,7 @@ func (a *App) SyncUnknownItemSession(clientRef, slotsJSON string) (map[string]an
 	a.unknownMu.Lock()
 	a.unknownSessionRef = body.ClientRef
 	a.unknownDone = doneUnknownUnits(resp)
+	a.rememberUnknownStatusLocked(body.ClientRef, resp)
 	a.unknownMu.Unlock()
 	return unknownSessionResult(body.ClientRef, client.baseURL+"/u/"+resp.UploadToken, resp), nil
 }
@@ -317,6 +318,7 @@ func (a *App) UnknownItemSessionStatus(clientRef string) (map[string]any, error)
 	}
 	a.unknownMu.Lock()
 	a.unknownDone = doneUnknownUnits(resp)
+	a.rememberUnknownStatusLocked(clientRef, resp)
 	a.unknownMu.Unlock()
 	return unknownSessionResult(clientRef, "", resp), nil
 }
@@ -347,12 +349,33 @@ func (a *App) verifyUnknownPictures(itemsJSON string) (string, error) {
 	}
 	var resp unknownSessionResponse
 	if err := a.unknownCall(http.MethodGet, "/branch/unknown_sessions/status?client_ref="+url.QueryEscape(ref), nil, &resp); err != nil {
+		// The till's internet dropped after central said every picture was
+		// in: the pictures are on central already, so the sale goes through.
+		a.unknownMu.Lock()
+		known := a.unknownCompleteRef == ref && a.unknownCompleteUnits == units
+		a.unknownMu.Unlock()
+		if known {
+			return ref, nil
+		}
 		return "", fmt.Errorf("unknown items need central to take their pictures: %w", err)
 	}
+	a.unknownMu.Lock()
+	a.rememberUnknownStatusLocked(ref, resp)
+	a.unknownMu.Unlock()
 	if !resp.Complete || int64(len(resp.Slots)) != units {
 		return "", fmt.Errorf("pictures of the unknown items are missing")
 	}
 	return ref, nil
+}
+
+// rememberUnknownStatusLocked keeps whether central said ref has every
+// picture (unknownCompleteRef). Callers hold unknownMu.
+func (a *App) rememberUnknownStatusLocked(ref string, resp unknownSessionResponse) {
+	if resp.Complete {
+		a.unknownCompleteRef, a.unknownCompleteUnits = ref, int64(len(resp.Slots))
+	} else if a.unknownCompleteRef == ref {
+		a.unknownCompleteRef, a.unknownCompleteUnits = "", 0
+	}
 }
 
 // clearUnknownSession forgets the session once its sale is made.
@@ -363,6 +386,9 @@ func (a *App) clearUnknownSession(ref string) {
 	a.unknownMu.Lock()
 	if a.unknownSessionRef == ref {
 		a.unknownSessionRef = ""
+	}
+	if a.unknownCompleteRef == ref {
+		a.unknownCompleteRef, a.unknownCompleteUnits = "", 0
 	}
 	a.unknownMu.Unlock()
 }

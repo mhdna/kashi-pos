@@ -60,6 +60,11 @@ type App struct {
 	// unknownDone is how many units the till last saw finished; central holds a
 	// status call until that number changes.
 	unknownDone int
+	// unknownCompleteRef is the session central last said had every picture,
+	// for unknownCompleteUnits units: checkout trusts it when central can't be
+	// reached at that moment, since pictures already taken don't go away.
+	unknownCompleteRef   string
+	unknownCompleteUnits int64
 
 	pinMu             sync.Mutex
 	failedPINAttempts int
