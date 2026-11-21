@@ -3,6 +3,21 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-21: The "any deal" banner did not print for a deal on the items
+
+**Symptom:** with the Student deal active, the "STUDENT DEAL" banner did
+not appear on the receipt.
+
+**Cause:** the banner for "any deal" (`when: "deal"`) printed only when the
+invoice itself carried a discount (`InvoiceDiscount.Cents > 0`); a deal that
+sits on the items has none.
+
+**Fix:** `bannerRank` also counts a deal on any item. The ribbon is now an
+outline (a solid band printed grainy on thermal paper), and central keeps a
+global banner style and a per-banner `own_style`. Files: `receipt_banner.go`,
+`receipt_texts.go`; tests `receipt_banner_deal_test.go`,
+`receipt_banner_ribbon_test.go`.
+
 ## 2026-11-19: An exchange with two unknown items was refused
 
 **Symptom:** an exchange selling two "Unknown item" replacements at

@@ -52,6 +52,8 @@ type receiptTexts struct {
 	Order []string `json:"order,omitempty"`
 	// Banners are bands of display lettering (receipt_banner.go).
 	Banners []receiptBanner `json:"banners,omitempty"`
+	// BannerStyle is the design every banner follows unless it has its own.
+	BannerStyle string `json:"banner_style,omitempty"`
 }
 
 const (
@@ -104,6 +106,9 @@ func normalizeReceiptTexts(t receiptTexts) receiptTexts {
 	out.Decor = normalizeReceiptDecor(t.Decor)
 	out.Order = normalizeReceiptOrder(t.Order)
 	out.Banners = normalizeReceiptBanners(t.Banners)
+	if validBannerStyle(t.BannerStyle) {
+		out.BannerStyle = t.BannerStyle
+	}
 	return out
 }
 
