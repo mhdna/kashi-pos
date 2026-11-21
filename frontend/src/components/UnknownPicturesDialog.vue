@@ -12,6 +12,7 @@
 
       <template v-else-if="state === 'error'">
         <div class="text-body-2 py-3">{{ errorText }}</div>
+        <div class="text-body-2 text-medium-emphasis pb-3" data-test="unknown-retrying">Trying again by itself…</div>
         <k-btn color="primary" variant="tonal" @click="start">Try again</k-btn>
       </template>
 
@@ -90,6 +91,9 @@ const emit = defineEmits<{
 }>();
 
 const RETRY_MS = 1000;
+// With the till offline, the session can't open; it is tried again this
+// often, so the pictures the phone already sent count the moment it's back.
+const START_RETRY_MS = 3000;
 const state = ref<"starting" | "ready" | "error">("starting");
 const slots = ref<Slot[]>([]);
 const qrDataUrl = ref("");
@@ -168,6 +172,9 @@ async function start() {
     if (mine !== session) return;
     errorText.value = e instanceof Error ? e.message : String(e);
     state.value = "error";
+    setTimeout(() => {
+      if (mine === session && props.modelValue) void start();
+    }, START_RETRY_MS);
   }
 }
 

@@ -149,3 +149,77 @@ func TestUnknownProductCanBeANamedProduct(t *testing.T) {
 	}
 }
 
+
+// The reported case: the phone sent the pictures, the till saw them all in,
+// then its internet dropped before paying. Checkout lets the sale through on
+// what central already said, but only for that session and that many units.
+func TestVerifyUnknownPicturesWhenCentralDropsAfterComplete(t *testing.T) {
+	complete, down := true, false
+	central := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if down {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		if !strings.HasPrefix(r.URL.Path, "/branch/unknown_sessions/status") {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"complete": complete,
+			"slots":    []map[string]any{{"slot_ref": "1", "has_image": true}, {"slot_ref": "2", "has_image": complete}},
+		})
+	}))
+	defer central.Close()
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, central_api_url, branch_code) VALUES ('Test', 'key', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0, ?, 'B1')`, central.URL); err != nil {
+		t.Fatal(err)
+	}
+	cart := `[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":2}]`
+	app.unknownSessionRef = "sess-1"
+
+	// Offline before central ever said complete: refused.
+	down = true
+	if _, err := app.verifyUnknownPictures(cart); err == nil {
+		t.Fatal("let through with no word from central")
+	}
+	// The sale screen's poll sees every picture in; then the internet drops.
+	down = false
+	if st, err := app.UnknownItemSessionStatus("sess-1"); err != nil || st["complete"] != true {
+		t.Fatalf("status = %v, %v", st, err)
+	}
+	down = true
+	ref, err := app.verifyUnknownPictures(cart)
+	if err != nil || ref != "sess-1" {
+		t.Fatalf("offline after complete = (%q, %v), want sess-1", ref, err)
+	}
+	// Still offline, but the cart grew: the pictures central knows don't cover it.
+	if _, err := app.verifyUnknownPictures(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":3}]`); err == nil {
+		t.Fatal("a bigger cart was let through on an old answer")
+	}
+	// Another cart's session: not trusted.
+	app.unknownSessionRef = "sess-2"
+	if _, err := app.verifyUnknownPictures(cart); err == nil {
+		t.Fatal("another session's answer was trusted")
+	}
+	// Once the sale is made, the answer is forgotten.
+	app.unknownSessionRef = "sess-1"
+	app.clearUnknownSession("sess-1")
+	app.unknownSessionRef = "sess-1"
+	if _, err := app.verifyUnknownPictures(cart); err == nil {
+		t.Fatal("a finished sale's answer was reused")
+	}
+	// Central later says the session isn't complete (a unit came back): that wins.
+	down, complete = false, true
+	if _, err := app.UnknownItemSessionStatus("sess-1"); err != nil {
+		t.Fatal(err)
+	}
+	complete = false
+	if _, err := app.verifyUnknownPictures(cart); err == nil {
+		t.Fatal("incomplete was let through")
+	}
+	down = true
+	if _, err := app.verifyUnknownPictures(cart); err == nil {
+		t.Fatal("an answer central took back was trusted")
+	}
+}

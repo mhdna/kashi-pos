@@ -211,7 +211,9 @@ placeholder product at a typed price; before payment a phone photographs
 every unit (QR link from central), and the sale is held until each unit has a
 picture, unless a central user with the right permission lets it through. Someone
 in central names the items afterwards. `unknown_pictures_at_checkout` controls
-the photo step.
+the photo step. ==Offline at checkout==: if central already said the session had
+every picture for this many units (`unknownCompleteRef`), the sale goes through;
+the pictures dialog retries opening by itself every 3s while the till is offline.
 
 The cashier types the price, then **names the item** on the on-screen keyboard
 (`UnknownPriceDialog.vue`; a name is required, up to 80 letters). The price can
