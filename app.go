@@ -767,6 +767,7 @@ func (a *App) seedDefaults() {
 	a.seedPlaceholderCashboxAccounts()
 	a.seedSalespersons()
 	a.seedDefaults2()
+	a.repairIndependenceDaySales(context.Background())
 }
 
 func (a *App) seedSalespersons() {
