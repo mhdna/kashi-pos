@@ -55,7 +55,7 @@ describe("UnknownPicturesDialog", () => {
     await vi.advanceTimersByTimeAsync(3000);
     await flushPromises();
     expect(api.SyncUnknownItemSession).toHaveBeenCalledTimes(2);
-    expect(api.SyncUnknownItemSession.mock.calls[1][0]).toBe("pics-1");
+    expect(api.SyncUnknownItemSession.mock.calls[1]?.[0]).toBe("pics-1");
     expect(wrapper!.emitted("ready")).toHaveLength(1);
   });
 

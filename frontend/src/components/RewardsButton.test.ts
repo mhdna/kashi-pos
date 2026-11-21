@@ -28,9 +28,9 @@ const checkCode = vi.mocked(CheckReferralCode);
 const getInfo = vi.mocked(GetReferralInfo);
 const listDeals = vi.mocked(ListRewardDeals);
 
-const students = { uid: "students", name: "Students 15%", kind: "percent", percent: 15, amount: 0, minTotal: 0, cashierPicks: true };
-const staff = { uid: "staff", name: "Staff $5", kind: "amount", percent: 0, amount: 500, minTotal: 0, cashierPicks: true };
-const auto = { uid: "auto", name: "15% off $100", kind: "percent", percent: 15, amount: 0, minTotal: 10000, cashierPicks: false };
+const students = { uid: "students", name: "Students 15%", kind: "percent", percent: 15, amount: 0, minTotal: 0, cashierPicks: true, repeats: false };
+const staff = { uid: "staff", name: "Staff $5", kind: "amount", percent: 0, amount: 500, minTotal: 0, cashierPicks: true, repeats: false };
+const auto = { uid: "auto", name: "15% off $100", kind: "percent", percent: 15, amount: 0, minTotal: 10000, cashierPicks: false, repeats: false };
 
 let wrapper: VueWrapper | null = null;
 
