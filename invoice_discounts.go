@@ -22,6 +22,11 @@ import (
 // An amount rule that repeats comes off once for every minimum the total
 // reaches: "$50 off every $100" takes $100 off a $250 sale.
 //
+// A rule that replaces item discounts never comes off on top of the lines'
+// own discounts: the sale is also priced with every line at no discount of
+// its own and that rule in play, its minimum judged on that total, and the
+// cheaper of the two is charged ("$50 off every $100, else the 20%").
+//
 // The discount is spread over the lines in proportion to what each costs
 // and taken off their line totals (invoice_products.invoice_discount holds
 // each share), so a return or an exchange credits what the line was
@@ -50,6 +55,9 @@ type syncedInvoiceDiscount struct {
 	CashierPicks bool `json:"cashier_picks"`
 	// Repeats: the amount comes off once for every min_total reached.
 	Repeats bool `json:"repeats"`
+	// ReplacesItemDiscounts: never on top of the lines' own discounts; when
+	// it applies the lines go without them (see priceInvoiceTotals).
+	ReplacesItemDiscounts bool `json:"replaces_item_discounts"`
 }
 
 func applySyncedInvoiceDiscount(ctx context.Context, q *db.Queries, item syncedInvoiceDiscount) error {
@@ -65,6 +73,8 @@ func applySyncedInvoiceDiscount(ctx context.Context, q *db.Queries, item syncedI
 		ValidFrom: rfc3339OrEmpty(item.ValidFrom), ValidTo: rfc3339OrEmpty(item.ValidTo),
 		CashierPicks: boolToInt64(item.CashierPicks),
 		Repeats:      boolToInt64(item.Repeats),
+
+		ReplacesItemDiscounts: boolToInt64(item.ReplacesItemDiscounts),
 	})
 }
 
@@ -92,7 +102,7 @@ func bestInvoiceDiscount(rules []db.InvoiceDiscount, total int64, now time.Time,
 		}
 		cents := min(invoiceDiscountOff(r, total, roundingMode), total)
 		if cents > best.Cents {
-			best = invoiceDiscount{Name: r.Name, Cents: cents}
+			best = invoiceDiscount{Name: r.Name, Cents: cents, replacesItemDiscounts: r.ReplacesItemDiscounts != 0}
 		}
 	}
 	return best
@@ -193,6 +203,7 @@ func invoiceDiscountsStacked(rules []db.InvoiceDiscount, total int64, now time.T
 	})
 	left := total
 	var names []string
+	replaces := false
 	for _, r := range on {
 		if left <= 0 {
 			break
@@ -209,8 +220,9 @@ func invoiceDiscountsStacked(rules []db.InvoiceDiscount, total int64, now time.T
 		}
 		left -= cents
 		names = append(names, r.Name)
+		replaces = replaces || r.ReplacesItemDiscounts != 0
 	}
-	return invoiceDiscount{Name: strings.Join(names, " + "), Cents: total - left}
+	return invoiceDiscount{Name: strings.Join(names, " + "), Cents: total - left, replacesItemDiscounts: replaces}
 }
 
 // invoiceDiscountInForce: valid_to is the first moment the rule is over.
@@ -275,10 +287,18 @@ func spreadInvoiceDiscount(products []pricedInvoiceProduct, cents int64) []price
 // reward competes with that: it wins only when it takes off more, so a tie
 // keeps the reward for a later sale.
 // picked are the uids of the rules the cashier picked for the sale.
-func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundingMode string, clientID int64, picked []string) error {
-	rules, err := q.ListInvoiceDiscounts(a.ctx)
+// withReplacing lets the rules that replace item discounts in: only for the
+// sale priced without its lines' own discounts.
+func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundingMode string, clientID int64, picked []string, withReplacing bool) error {
+	all, err := q.ListInvoiceDiscounts(a.ctx)
 	if err != nil {
 		return fmt.Errorf("load invoice discounts: %w", err)
+	}
+	var rules []db.InvoiceDiscount
+	for _, r := range all {
+		if withReplacing || r.ReplacesItemDiscounts == 0 {
+			rules = append(rules, r)
+		}
 	}
 	if friend, ok, err := friendReferralRule(a.ctx, q, clientID, picked); err != nil {
 		return err
@@ -307,6 +327,21 @@ func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundin
 	totals.DiscountedSubtotal -= best.Cents
 	totals.InvoiceDiscount = best
 	return nil
+}
+
+// replacingRuleOffered: a rule that replaces item discounts is in force and,
+// when the cashier picks it, picked; only then is the sale priced the second
+// way.
+func replacingRuleOffered(rules []db.InvoiceDiscount, now time.Time, picked []string) bool {
+	for _, r := range rules {
+		if r.ReplacesItemDiscounts == 0 || !invoiceDiscountInForce(r, now) {
+			continue
+		}
+		if r.CashierPicks == 0 || slices.Contains(picked, r.Uid) {
+			return true
+		}
+	}
+	return false
 }
 
 // returnedInvoiceDiscount is the part of a sold line's invoice discount
@@ -357,6 +392,9 @@ type RewardDeal struct {
 	CashierPicks bool `json:"cashierPicks"`
 	// Repeats: the amount comes off once for every MinTotal reached.
 	Repeats bool `json:"repeats"`
+	// ReplacesItemDiscounts: the lines lose their own discounts when it
+	// applies, so it never adds up with them.
+	ReplacesItemDiscounts bool `json:"replacesItemDiscounts"`
 }
 
 // ListRewardDeals is every invoice discount in force at this branch now,
@@ -375,7 +413,7 @@ func (a *App) ListRewardDeals() ([]RewardDeal, error) {
 		if !invoiceDiscountInForce(r, now) {
 			continue
 		}
-		out = append(out, RewardDeal{UID: r.Uid, Name: r.Name, Kind: r.Kind, Percent: r.Percent, Amount: r.Amount, MinTotal: r.MinTotal, CashierPicks: r.CashierPicks != 0, Repeats: r.Repeats != 0})
+		out = append(out, RewardDeal{UID: r.Uid, Name: r.Name, Kind: r.Kind, Percent: r.Percent, Amount: r.Amount, MinTotal: r.MinTotal, CashierPicks: r.CashierPicks != 0, Repeats: r.Repeats != 0, ReplacesItemDiscounts: r.ReplacesItemDiscounts != 0})
 	}
 	slices.SortStableFunc(out, func(x, y RewardDeal) int {
 		if x.CashierPicks != y.CashierPicks {

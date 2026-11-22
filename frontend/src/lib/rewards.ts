@@ -11,6 +11,9 @@ export type RewardDeal = {
   cashierPicks: boolean;
   // repeats: the amount comes off again for every minTotal reached.
   repeats?: boolean;
+  // replacesItemDiscounts: when it applies the lines lose their own
+  // discounts; the sale is charged whichever way saves more.
+  replacesItemDiscounts?: boolean;
 };
 
 function dollars(cents: number): string {
@@ -46,8 +49,9 @@ export function dealWhen(d: RewardDeal): string {
 // "$5 off invoices of $100 or more".
 export function dealTerms(d: RewardDeal): string {
   const off = d.kind === "amount" ? `${dollars(d.amount)} off` : `${d.percent}% off`;
-  if (repeats(d)) return `${off} every ${dollars(d.minTotal)} of the invoice`;
-  return d.minTotal > 0 ? `${off} invoices of ${dollars(d.minTotal)} or more` : `${off} the whole invoice`;
+  const instead = d.replacesItemDiscounts ? ", instead of item discounts" : "";
+  if (repeats(d)) return `${off} every ${dollars(d.minTotal)} of the invoice${instead}`;
+  return (d.minTotal > 0 ? `${off} invoices of ${dollars(d.minTotal)} or more` : `${off} the whole invoice`) + instead;
 }
 
 // appliedDealNames are the deals the quote took off: one, or several joined

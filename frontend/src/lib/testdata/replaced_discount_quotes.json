@@ -1,0 +1,47 @@
+{
+  "kept": {
+    "subtotalCents": 4000,
+    "discountedSubtotalCents": 3200,
+    "taxCents": 0,
+    "grandTotalCents": 3200,
+    "roundingCurrencyCode": "USD",
+    "roundingMode": "half_up",
+    "lines": [
+      {
+        "code": "SOCKS",
+        "barcode": "bc-SOCKS",
+        "lineTotalCents": 3200,
+        "discountCents": 20,
+        "qty": 2
+      }
+    ]
+  },
+  "replaced": {
+    "subtotalCents": 12000,
+    "discountedSubtotalCents": 7000,
+    "taxCents": 0,
+    "grandTotalCents": 7000,
+    "roundingCurrencyCode": "USD",
+    "roundingMode": "half_up",
+    "lines": [
+      {
+        "code": "JACKET",
+        "barcode": "bc-JACKET",
+        "lineTotalCents": 10000,
+        "discountCents": 0,
+        "qty": 1,
+        "replacedDiscount": 20
+      },
+      {
+        "code": "SOCKS",
+        "barcode": "bc-SOCKS",
+        "lineTotalCents": 2000,
+        "discountCents": 0,
+        "qty": 1,
+        "replacedDiscount": 20
+      }
+    ],
+    "invoiceDiscountCents": 5000,
+    "invoiceDiscountName": "Independence Day $50"
+  }
+}

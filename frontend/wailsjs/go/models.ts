@@ -546,6 +546,7 @@ export namespace main {
 	    dealDiscountCents?: number;
 	    free?: boolean;
 	    offDiscount?: number;
+	    replacedDiscount?: number;
 	    offDealLabel?: string;
 	    lineRef?: string;
 	    unknownDeal?: string;
@@ -569,6 +570,7 @@ export namespace main {
 	        this.dealDiscountCents = source["dealDiscountCents"];
 	        this.free = source["free"];
 	        this.offDiscount = source["offDiscount"];
+	        this.replacedDiscount = source["replacedDiscount"];
 	        this.offDealLabel = source["offDealLabel"];
 	        this.lineRef = source["lineRef"];
 	        this.unknownDeal = source["unknownDeal"];
@@ -1190,6 +1192,7 @@ export namespace main {
 	    minTotal: number;
 	    cashierPicks: boolean;
 	    repeats: boolean;
+	    replacesItemDiscounts: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new RewardDeal(source);
@@ -1205,6 +1208,7 @@ export namespace main {
 	        this.minTotal = source["minTotal"];
 	        this.cashierPicks = source["cashierPicks"];
 	        this.repeats = source["repeats"];
+	        this.replacesItemDiscounts = source["replacesItemDiscounts"];
 	    }
 	}
 	export class SalespersonProductSale {

@@ -47,6 +47,9 @@ type LineQuote struct {
 	// the deal (short label) it gave up, for the chip that turns it back on.
 	OffDiscount  int64  `json:"offDiscount,omitempty"`
 	OffDealLabel string `json:"offDealLabel,omitempty"`
+	// The percent the line went without because the sale's invoice discount
+	// replaces item discounts; the cart shows the line at no discount.
+	ReplacedDiscount int64 `json:"replacedDiscount,omitempty"`
 	// The cart line's ref as sent, so lines of one product (every unknown
 	// item) are told apart.
 	LineRef string `json:"lineRef,omitempty"`
@@ -109,6 +112,7 @@ func (a *App) QuoteInvoiceTotalPicked(itemsJSON string, clientID int64, picksJSO
 			DealDiscountCents: product.dealDiscount,
 			Free:              product.isFree(),
 			OffDiscount:       product.offDiscount,
+			ReplacedDiscount:  product.replacedDiscount,
 			OffDealLabel:      product.offDealLabel,
 			LineRef:           product.lineRef,
 			UnknownDeal:       product.unknownDeal,

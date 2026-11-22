@@ -14,6 +14,9 @@ describe("dealTerms", () => {
   it("the reported case: Independence Day $50 off every $100", () => {
     const indep = deal({ name: "Independence Day $50", kind: "amount", amount: 5000, minTotal: 10000, repeats: true });
     expect(dealTerms(indep)).toBe("$50 off every $100 of the invoice");
+    expect(dealTerms({ ...indep, replacesItemDiscounts: true })).toBe("$50 off every $100 of the invoice, instead of item discounts");
+    expect(dealTerms(deal({ minTotal: 10000, replacesItemDiscounts: true }))).toBe("15% off invoices of $100 or more, instead of item discounts");
+    expect(dealTerms(deal({ replacesItemDiscounts: true }))).toBe("15% off the whole invoice, instead of item discounts");
     expect(dealWhen(indep)).toBe("Every $100");
     expect(dealSize(indep)).toBe("$50");
     // Repeating needs an amount and a minimum; otherwise it reads as before.

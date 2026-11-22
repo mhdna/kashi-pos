@@ -30,6 +30,10 @@ type salesInvoiceItem struct {
 	// away.
 	NoDiscount bool `json:"noDiscount,omitempty"`
 	NoDeal     bool `json:"noDeal,omitempty"`
+	// dropDiscount: the line is priced without any discount of its own, for
+	// an invoice discount that replaces item discounts (priceInvoiceTotals).
+	// Never from the cart; its deal and anything central set stay.
+	dropDiscount bool
 	// An unknown item line's deal: b2g1_30, b2g1_20 or none (the names stay
 	// whatever the deal); empty is the
 	// default (unknown_item_deal.go). Ignored on any other line.
@@ -121,8 +125,33 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 		return totals, err
 	}
 	totals.Products, totals.DiscountedSubtotal = products, discountedSubtotal
-	if err := a.applyInvoiceDiscount(q, &totals, roundingMode, clientID, picked); err != nil {
+	if err := a.applyInvoiceDiscount(q, &totals, roundingMode, clientID, picked, false); err != nil {
 		return totals, err
+	}
+	// A rule that replaces item discounts: the sale priced again with no line
+	// discounts and that rule in play, charged that way when it saves more.
+	rules, err := q.ListInvoiceDiscounts(a.ctx)
+	if err != nil {
+		return totals, fmt.Errorf("load invoice discounts: %w", err)
+	}
+	if replacingRuleOffered(rules, time.Now(), picked) {
+		bare := make([]salesInvoiceItem, len(items))
+		copy(bare, items)
+		for i := range bare {
+			bare[i].dropDiscount = true
+		}
+		bp, bsub, bdisc, breceipt, err := a.validateAndPriceItems(q, inventoryID, bare, roundingMode, customPricingEnabled, listPricing, perUnitPricingEnabled)
+		if err != nil {
+			return totals, err
+		}
+		alt := invoiceTotals{Products: bp, DiscountedSubtotal: bdisc}
+		if err := a.applyInvoiceDiscount(q, &alt, roundingMode, clientID, picked, true); err != nil {
+			return totals, err
+		}
+		if alt.InvoiceDiscount.replacesItemDiscounts && alt.DiscountedSubtotal < totals.DiscountedSubtotal {
+			totals = alt
+			subtotal, receiptItems = bsub, breceipt
+		}
 	}
 	products, discountedSubtotal = totals.Products, totals.DiscountedSubtotal
 	taxCents, err := roundFloatToCents(float64(discountedSubtotal)/100*settings.TaxRate, roundingMode)

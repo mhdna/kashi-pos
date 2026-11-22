@@ -59,6 +59,12 @@ LBP amounts.
   actually paid. Exchanges never earn one. An amount rule central marks
   `repeats` comes off ==once per minimum reached==: "$50 off every $100" takes
   $100 off a $250 sale (`invoiceDiscountTimes`).
+  A rule marked `replaces_item_discounts` ==never adds up with the lines' own
+  discounts==: `priceInvoiceTotals` also prices the sale with every line at no
+  discount of its own (deals and central's live-cart prices stay), the rule's
+  minimum judged on that, and charges whichever is cheaper ("$50 off every $100,
+  else 20%"). Quote lines that lost theirs carry `replacedDiscount`; the cart
+  shows them at full price with the chip struck.
 - **Discount/deal toggles** (`discount_toggle`, `deal_toggle`): let the
   salesperson turn a line's discount or deal off. `discount_toggle_default_off`
   makes lines start with the discount off. Off by default; central can push them.

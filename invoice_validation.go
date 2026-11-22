@@ -45,6 +45,9 @@ type pricedInvoiceProduct struct {
 	// (NoDeal) turned off: the percent, or the deal's short label.
 	offDiscount  int64
 	offDealLabel string
+	// The biggest percent the line went without for an invoice discount
+	// that replaces item discounts (dropDiscount).
+	replacedDiscount int64
 	// The cart's line ref, and for an unknown item line the deal choice in
 	// force ("" when the till has no deal to offer it); see LineQuote.
 	lineRef     string
@@ -245,6 +248,18 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			product.Discount = 0
 			discountListID = 0
 		}
+		// For an invoice discount that replaces item discounts: no percent of
+		// its own, typed or listed. A line central priced keeps central's.
+		var replacedDiscount int64
+		dropDiscount := item.dropDiscount && !overridden
+		if dropDiscount {
+			replacedDiscount = product.Discount
+			for _, d := range item.UnitDiscounts {
+				replacedDiscount = max(replacedDiscount, d)
+			}
+			product.Discount = 0
+			discountListID = 0
+		}
 		if item.NoDeal && !isUnknown && dealUID != "" {
 			if terms, ok := listPricing.deals[dealUID]; ok {
 				offDealLabel = terms.withFallback(dealFallback).label()
@@ -320,7 +335,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 					price = item.UnitPricesCents[index]
 				}
 				discount := product.Discount
-				if len(item.UnitDiscounts) > 0 {
+				if len(item.UnitDiscounts) > 0 && !dropDiscount {
 					discount = item.UnitDiscounts[index]
 				}
 				priceQuantities[unitPricing{price: price, discount: discount}]++
@@ -358,6 +373,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 				priced.dealFallback = dealFallback
 			}
 			priced.offDiscount = offDiscount
+			priced.replacedDiscount = replacedDiscount
 			priced.offDealLabel = offDealLabel
 			priced.lineRef = item.LineRef
 			priced.unknownDeal = unknownDeal
