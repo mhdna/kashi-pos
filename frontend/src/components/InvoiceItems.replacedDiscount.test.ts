@@ -18,6 +18,7 @@ vi.mock("@/lib/display", async () => {
 });
 
 import InvoiceItems from "./InvoiceItems.vue";
+import type { DealLine } from "@/lib/deals";
 
 let wrapper: VueWrapper<any> | null = null;
 afterEach(() => {
@@ -29,8 +30,8 @@ afterEach(() => {
 const jacket = { name: "Jacket", code: "JACKET", barcode: "bc-JACKET", price: 100, originalPrice: 100, originalDiscount: 20, qty: 1, discount: 20 };
 const socks = { name: "Socks", code: "SOCKS", barcode: "bc-SOCKS", price: 20, originalPrice: 20, originalDiscount: 20, qty: 1, discount: 20 };
 
-async function cart(dealLines: unknown[]) {
-  wrapper = mount(InvoiceItems, { props: { dealLines }, global: { plugins: [ui] }, attachTo: document.body });
+async function cart(dealLines: unknown) {
+  wrapper = mount(InvoiceItems, { props: { dealLines: dealLines as DealLine[] }, global: { plugins: [ui] }, attachTo: document.body });
   await flushPromises();
   for (const l of [jacket, socks]) (wrapper.vm as any).addItem({ ...l });
   await flushPromises();
@@ -47,7 +48,7 @@ describe("a line whose discount the invoice deal replaced", () => {
     expect(shown).toContain("100");
     expect(shown).not.toContain("80");
     expect(chips(w)).toHaveLength(2);
-    expect(chips(w)[0].text()).toBe("-20%");
+    expect(chips(w)[0]!.text()).toBe("-20%");
   });
 
   it("keeps its 20% when the deal didn't apply", async () => {

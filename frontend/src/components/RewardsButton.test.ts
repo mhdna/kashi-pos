@@ -28,9 +28,9 @@ const checkCode = vi.mocked(CheckReferralCode);
 const getInfo = vi.mocked(GetReferralInfo);
 const listDeals = vi.mocked(ListRewardDeals);
 
-const students = { uid: "students", name: "Students 15%", kind: "percent", percent: 15, amount: 0, minTotal: 0, cashierPicks: true, repeats: false };
-const staff = { uid: "staff", name: "Staff $5", kind: "amount", percent: 0, amount: 500, minTotal: 0, cashierPicks: true, repeats: false };
-const auto = { uid: "auto", name: "15% off $100", kind: "percent", percent: 15, amount: 0, minTotal: 10000, cashierPicks: false, repeats: false };
+const students = { uid: "students", name: "Students 15%", kind: "percent", percent: 15, amount: 0, minTotal: 0, cashierPicks: true, repeats: false, replacesItemDiscounts: false };
+const staff = { uid: "staff", name: "Staff $5", kind: "amount", percent: 0, amount: 500, minTotal: 0, cashierPicks: true, repeats: false, replacesItemDiscounts: false };
+const auto = { uid: "auto", name: "15% off $100", kind: "percent", percent: 15, amount: 0, minTotal: 10000, cashierPicks: false, repeats: false, replacesItemDiscounts: false };
 
 let wrapper: VueWrapper | null = null;
 
@@ -119,7 +119,7 @@ describe("RewardsButton", () => {
   });
 
   it("the reported case: Independence Day $50 says it comes off for every $100", async () => {
-    const indep = { uid: "indep", name: "Independence Day $50", kind: "amount", percent: 0, amount: 5000, minTotal: 10000, cashierPicks: true, repeats: true };
+    const indep = { uid: "indep", name: "Independence Day $50", kind: "amount", percent: 0, amount: 5000, minTotal: 10000, cashierPicks: true, repeats: true, replacesItemDiscounts: false };
     listDeals.mockResolvedValue([indep] as never);
     await mountButton();
     await openDialog();
