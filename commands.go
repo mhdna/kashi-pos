@@ -73,6 +73,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executeRepairDealSalesCommand(ctx, cmd.Payload)
 	case "change_invoice_settlement":
 		return a.executeChangeInvoiceSettlementCommand(ctx, cmd.Payload)
+	case "open_invoice_exchange":
+		return a.executeOpenInvoiceExchangeCommand(ctx, cmd.Payload)
 	default:
 		return fmt.Errorf("unknown command type %q", cmd.Type)
 	}
