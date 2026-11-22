@@ -546,8 +546,8 @@ export namespace main {
 	    dealDiscountCents?: number;
 	    free?: boolean;
 	    offDiscount?: number;
-	    replacedDiscount?: number;
 	    offDealLabel?: string;
+	    replacedDiscount?: number;
 	    lineRef?: string;
 	    unknownDeal?: string;
 	    unknownDealLabel?: string;
@@ -570,8 +570,8 @@ export namespace main {
 	        this.dealDiscountCents = source["dealDiscountCents"];
 	        this.free = source["free"];
 	        this.offDiscount = source["offDiscount"];
-	        this.replacedDiscount = source["replacedDiscount"];
 	        this.offDealLabel = source["offDealLabel"];
+	        this.replacedDiscount = source["replacedDiscount"];
 	        this.lineRef = source["lineRef"];
 	        this.unknownDeal = source["unknownDeal"];
 	        this.unknownDealLabel = source["unknownDealLabel"];
