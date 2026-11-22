@@ -52,6 +52,9 @@ func loadMigrations() ([]migration, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read migration %s: %w", base, err)
 		}
+		if len(migrations) > 0 && migrations[len(migrations)-1].version == version {
+			return nil, fmt.Errorf("migrations %s and %s share version %d", migrations[len(migrations)-1].name, base, version)
+		}
 		migrations = append(migrations, migration{version: version, name: base, sql: string(contents)})
 	}
 	return migrations, nil
@@ -111,6 +114,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 			return err
 		}
 		if err := ensureBranchTargetColorColumn(ctx, conn); err != nil {
+			return err
+		}
+		if err := ensureInvoiceDiscountReplacesColumn(ctx, conn); err != nil {
 			return err
 		}
 		return ensureLookupIndexes(ctx, conn)
@@ -182,7 +188,28 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 	if err := ensureBranchTargetColorColumn(ctx, conn); err != nil {
 		return err
 	}
+	if err := ensureInvoiceDiscountReplacesColumn(ctx, conn); err != nil {
+		return err
+	}
 	return ensureLookupIndexes(ctx, conn)
+}
+
+// ensureInvoiceDiscountReplacesColumn heals a database that recorded
+// version 149 for exchange_openings (which once shared that number, now
+// 000150) and so never ran 000149_invoice_discount_replaces_item_discounts.
+func ensureInvoiceDiscountReplacesColumn(ctx context.Context, conn *sql.DB) error {
+	var count int
+	if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM pragma_table_info('invoice_discounts') WHERE name = 'replaces_item_discounts'").Scan(&count); err != nil {
+		return fmt.Errorf("inspect invoice_discounts schema: %w", err)
+	}
+	if count != 0 {
+		return nil
+	}
+	if _, err := conn.ExecContext(ctx, "ALTER TABLE invoice_discounts ADD COLUMN replaces_item_discounts integer not null default 0"); err != nil {
+		return fmt.Errorf("add invoice_discounts.replaces_item_discounts: %w", err)
+	}
+	log.Println("database migration self-heal: added invoice_discounts.replaces_item_discounts")
+	return nil
 }
 
 // ensureInvoiceProductSalespersonColumn repairs databases whose migration
