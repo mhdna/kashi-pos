@@ -3,6 +3,27 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-22: The till would not open: "UNIQUE constraint failed: schema_migrations.version (1555)"
+
+**Symptom:** after updating, the till showed only a red "open database:
+migrate database: migration 000149_invoice_discount_replaces_item_discounts.up.sql
+failed: record migration: ... UNIQUE constraint failed" screen and could not
+be used or update itself.
+
+**Cause:** two branches each added a migration numbered 000149
+(`exchange_openings` and `invoice_discount_replaces_item_discounts`). The
+runner applied the first, recorded version 149, then could not record the
+second. A till that already had the other 149 (v1.1.187) would skip the
+exchange-openings table instead.
+
+**Fix:** `exchange_openings` is now 000150. `loadMigrations` refuses two
+files with one number. `ensureInvoiceDiscountReplacesColumn` (migrations.go)
+adds the discount column to a database that recorded 149 for the openings,
+so a stuck till opens again after the new build is installed by hand (the
+updater can't run while the database fails to open).
+`migrations_version_clash_test.go` covers both broken states and the
+duplicate-number check.
+
 ## 2026-11-21: The "any deal" banner did not print for a deal on the items
 
 **Symptom:** with the Student deal active, the "STUDENT DEAL" banner did
