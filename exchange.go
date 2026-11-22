@@ -47,7 +47,7 @@ func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]an
 		if err != nil {
 			return nil, err
 		}
-		if err := validateExchangeWindow(invoice.CreatedAt, time.Now(), exchangeWindowDuration(settings.ExchangeWindowHours)); err != nil {
+		if err := a.checkExchangeAllowed(a.ctx, invoice.ID, invoice.CreatedAt, time.Now(), exchangeWindowDuration(settings.ExchangeWindowHours)); err != nil {
 			return nil, err
 		}
 	}
