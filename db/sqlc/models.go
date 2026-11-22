@@ -411,16 +411,17 @@ type InvoiceDeal struct {
 }
 
 type InvoiceDiscount struct {
-	Uid          string `json:"uid"`
-	Name         string `json:"name"`
-	MinTotal     int64  `json:"minTotal"`
-	Kind         string `json:"kind"`
-	Percent      int64  `json:"percent"`
-	Amount       int64  `json:"amount"`
-	ValidFrom    string `json:"validFrom"`
-	ValidTo      string `json:"validTo"`
-	CashierPicks int64  `json:"cashierPicks"`
-	Repeats      int64  `json:"repeats"`
+	Uid                   string `json:"uid"`
+	Name                  string `json:"name"`
+	MinTotal              int64  `json:"minTotal"`
+	Kind                  string `json:"kind"`
+	Percent               int64  `json:"percent"`
+	Amount                int64  `json:"amount"`
+	ValidFrom             string `json:"validFrom"`
+	ValidTo               string `json:"validTo"`
+	CashierPicks          int64  `json:"cashierPicks"`
+	Repeats               int64  `json:"repeats"`
+	ReplacesItemDiscounts int64  `json:"replacesItemDiscounts"`
 }
 
 type InvoiceIndex struct {

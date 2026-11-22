@@ -18,6 +18,10 @@ export interface DealLine {
   // in short ("B2G1").
   offDiscount?: number;
   offDealLabel?: string;
+  // The percent the line went without because the sale's invoice deal
+  // replaces item discounts ("$50 off every $100, else 20%"): the line is
+  // charged at no discount of its own.
+  replacedDiscount?: number;
   // The cart line's ref as sent (an unknown item's unknownRef): every
   // unknown item is the same product, so this is what tells them apart.
   lineRef?: string;
@@ -95,6 +99,20 @@ export function offDealsByLine(lines: DealLine[]): Map<string, string> {
   const out = new Map<string, string>();
   for (const line of lines) {
     if (line.offDealLabel) out.set(dealLineKey(line), line.offDealLabel);
+  }
+  return out;
+}
+
+// The percent each cart line went without for an invoice deal that
+// replaces item discounts, keyed as dealsByLine is. A cart line split over
+// several quote lines (free units apart) keeps the biggest.
+export function replacedDiscountsByLine(lines: DealLine[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const line of lines) {
+    const pct = Number(line.replacedDiscount ?? 0);
+    if (pct <= 0) continue;
+    const key = dealLineKey(line);
+    out.set(key, Math.max(out.get(key) ?? 0, pct));
   }
   return out;
 }

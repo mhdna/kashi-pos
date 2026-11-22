@@ -1,11 +1,12 @@
 -- name: UpsertInvoiceDiscount :exec
-INSERT INTO invoice_discounts (uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks, repeats)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_discounts (uid, name, min_total, kind, percent, amount, valid_from, valid_to, cashier_picks, repeats, replaces_item_discounts)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name, min_total = excluded.min_total, kind = excluded.kind,
     percent = excluded.percent, amount = excluded.amount,
     valid_from = excluded.valid_from, valid_to = excluded.valid_to,
-    cashier_picks = excluded.cashier_picks, repeats = excluded.repeats;
+    cashier_picks = excluded.cashier_picks, repeats = excluded.repeats,
+    replaces_item_discounts = excluded.replaces_item_discounts;
 
 -- name: DeleteInvoiceDiscount :exec
 DELETE FROM invoice_discounts WHERE uid = ?;

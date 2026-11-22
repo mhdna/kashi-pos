@@ -131,6 +131,9 @@ type invoiceDiscount struct {
 	Name      string
 	Cents     int64
 	RewardUID string
+	// A rule that replaces the lines' own discounts is among it
+	// (priceInvoiceTotals prices the sale both ways).
+	replacesItemDiscounts bool
 }
 
 // invoiceDiscountLabel is the receipt row's name: the rule's, or a plain

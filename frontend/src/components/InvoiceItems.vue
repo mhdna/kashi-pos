@@ -247,15 +247,15 @@
                     <span v-if="showDiscountChips" class="invoice-price-discount">
                       <k-chip
                         v-if="canToggleDiscount(item) && chipDiscount(item)"
-                        :color="item.discountOff ? 'grey' : 'error'"
+                        :color="discountStruck(item) ? 'grey' : 'error'"
                         density="comfortable"
                         label
                         size="x-small"
-                        :variant="item.discountOff ? 'outlined' : 'text'"
+                        :variant="discountStruck(item) ? 'outlined' : 'text'"
                         @click="onDiscountChipClick($event, item)"
                       >
-                        <k-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
-                        <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
+                        <k-icon v-if="discountStruck(item)" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                        <span :class="{ 'text-decoration-line-through': discountStruck(item) }">-{{ chipDiscount(item) }}%</span>
                       </k-chip>
                     </span>
                   </span>
@@ -281,13 +281,15 @@
                 <span v-if="showDiscountChips" class="invoice-price-discount">
                   <k-chip
                     v-if="chipDiscount(item) && !discountEditable(item)"
-                    :color="item.discountOff ? 'grey' : 'error'"
+                    :color="discountStruck(item) ? 'grey' : 'error'"
                     density="comfortable"
                     label
                     size="x-small"
-                    :variant="item.discountOff ? 'outlined' : 'text'"
+                    :variant="discountStruck(item) ? 'outlined' : 'text'"
                     :title="
-                      item.discountOff
+                      replacedFor(item)
+                        ? 'Not with the invoice deal'
+                        : item.discountOff
                         ? 'Discount turned off'
                         : item.discountListName
                           ? `Discount from list: ${item.discountListName}`
@@ -295,8 +297,8 @@
                     "
                     @click="onDiscountChipClick($event, item)"
                   >
-                    <k-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
-                    <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
+                    <k-icon v-if="discountStruck(item)" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                    <span :class="{ 'text-decoration-line-through': discountStruck(item) }">-{{ chipDiscount(item) }}%</span>
                     <k-icon
                       v-if="item.discountListOverridden"
                       class="ms-1"
@@ -559,6 +561,7 @@ import {
   dealLineKey,
   dealsByLine,
   offDealsByLine,
+  replacedDiscountsByLine,
   unknownDealChoices,
   unknownDealOptions,
   unknownDealsByLine,
@@ -712,6 +715,19 @@ function effectiveUnitPriceAt(item: LineItem, index: number): number {
 
 const dealsByCartLine = computed(() => dealsByLine(props.dealLines ?? []));
 const offDealsByCartLine = computed(() => offDealsByLine(props.dealLines ?? []));
+const replacedByCartLine = computed(() => replacedDiscountsByLine(props.dealLines ?? []));
+
+// The percent a sold line goes without because the sale's invoice deal
+// replaces item discounts; the line is shown at no discount, its chip struck.
+function replacedFor(item: LineItem): number {
+  if (item.qty <= 0) return 0;
+  return replacedByCartLine.value.get(dealLineKey(item)) ?? 0;
+}
+
+// The chip reads as given up: turned off, or replaced by the invoice deal.
+function discountStruck(item: LineItem): boolean {
+  return Boolean(item.discountOff) || replacedFor(item) > 0;
+}
 const unknownDealsByCartLine = computed(() => unknownDealsByLine(props.dealLines ?? []));
 
 // The deal choice in force on an unknown item line, as the quote priced it;
@@ -988,7 +1004,7 @@ function discountedItemCents(item: LineItem): number {
   const groups = new Map<string, { gross: number; discount: number }>();
   for (let index = 0; index < Math.trunc(item.qty); index++) {
     const price = unitPrice(item, index);
-    const discount = unitDiscount(item, index);
+    const discount = replacedFor(item) ? 0 : unitDiscount(item, index);
     const cents = Math.round(price * 100);
     const key = `${cents}:${discount}`;
     const group = groups.get(key) ?? { gross: 0, discount };
