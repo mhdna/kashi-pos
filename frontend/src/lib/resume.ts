@@ -8,7 +8,7 @@ export function safeResumeRoute(route: unknown): string {
   const r = route.trim();
   if (r.length === 0 || r.length > 500) return "";
   if (!r.startsWith("/") || r.startsWith("//") || /[\\\s]/.test(r)) return "";
-  const path = r.split(/[?#]/)[0];
+  const path = r.split(/[?#]/)[0] ?? "";
   if (path === "/" || path === "/login" || path.startsWith("/auth")) return "";
   return r;
 }

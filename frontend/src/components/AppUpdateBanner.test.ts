@@ -105,8 +105,8 @@ describe("AppUpdateBanner with a forced update", () => {
   it("shows no 'ready' snackbar and no 'Updating' screen when forced", async () => {
     const h = await mountWithEvents();
     const forced = { state: "ready", version: "1.2.0", supported: true, force: true };
-    h.app_update_state(forced);
-    h.app_update_installing(forced);
+    h.app_update_state!(forced);
+    h.app_update_installing!(forced);
     await flushPromises();
     const text = document.body.textContent ?? "";
     expect(text).not.toContain("is ready");
@@ -117,10 +117,10 @@ describe("AppUpdateBanner with a forced update", () => {
   it("still shows the snackbar and the 'Updating' screen for a normal update", async () => {
     const h = await mountWithEvents();
     const normal = { state: "ready", version: "1.2.0", supported: true, force: false };
-    h.app_update_state(normal);
+    h.app_update_state!(normal);
     await flushPromises();
     expect(document.body.textContent).toContain("GB Cloud 1.2.0 is ready");
-    h.app_update_installing(normal);
+    h.app_update_installing!(normal);
     await flushPromises();
     expect(document.body.textContent).toContain("Updating GB Cloud");
   });
