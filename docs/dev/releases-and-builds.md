@@ -11,7 +11,8 @@
 | `make bump` | The next release: commit `chore: release vX` and tag it. |
 | `make publish [NOTES="…"]` | Build the Windows exe at the latest tag, sign it, upload it to central, ask which branches get it. Without NOTES, the notes are the `feat`/`fix`/`perf` commits since central's last published build of that flavor (`cmd/publish-release/notes.go`). |
 | `make publish-all` | Same, and every active till of that flavor is set to it. |
-| `make publish-all-force` | Same, and tills install it right away, even mid-shift, after a one-minute countdown. |
+| `make publish-all-force` (alias `make force-publish`) | Same, and tills install it the moment they have it, even mid-shift, with no notice. |
+| `make release-all-force` (alias `make force-release`) | Bump, then `publish-all-force`. |
 | `make publish-compact…` | The same for the compact flavor. |
 | `make receipt-previews` | Regenerate the receipt images central's Receipt Designer shows (every look in every mode, with where each part is); commit them in central. |
 
@@ -49,18 +50,34 @@ kept in the macOS Keychain. The release-signing key is in
   background (resuming partial downloads), checks size, SHA-256 and the
   release-key signature, and waits for a safe moment: the cashier taps
   "Install now", or it offers itself with a cancellable countdown once no
-  shift is open (after close shift, or overnight). A **forced** update is
-  offered right away with a countdown that can't be cancelled.
+  shift is open (after close shift, or overnight). A **forced** update
+  installs **silently** as soon as it is ready (`installForced`): no dialog,
+  countdown or "Updating" screen. It only waits (max 10 s) for a checkout in
+  flight (`beginSale` counter), then restarts after 0.3 s.
+- **Forced restarts resume** (`resume.go`, `frontend/src/lib/resume*.ts`):
+  before quitting the till asks the screen for its route (`app_update_save_state`,
+  which also flushes the sale draft) and writes `updates/resume.json` (role and
+  route, never a PIN). The next launch (`TakeResumeSession`) reads and deletes
+  it once; if it is under 10 minutes old and between the two versions it signs
+  the same role in and routes there. The open sale comes back from its own
+  localStorage draft (`home.vue restoreDraft`).
 - Installing hands off to a helper (a temporary copy of the old exe run with
   `--apply-update`): it waits for the app to exit, swaps the exe, starts the
   new one and waits for it to call `ConfirmAppStarted`. **If the new version
   doesn't confirm, the helper puts the old exe back and starts it.** A bad
   build can't leave a shop without a till.
+- **A version that fails to start rolls back in seconds, not 2 minutes.**
+  `failStartup` marks the hand-off `unhealthy` (`markTrialUnhealthy`); the
+  helper sees it and rolls back at once. If that launch had backed the database
+  up to migrate it (checkpointed first), the helper also puts that backup back
+  (`restoreDatabaseBackup`), so the old exe sees the schema it expects. Only an
+  `unhealthy` signal restores the database; a timeout or crash never does,
+  since that version may have been selling.
 - The previous exe is kept next to the current one. "Roll back" in Settings
   swaps them (and again to go forward).
-- **The database is never touched by an update.** Rollback only works because
-  an older build accepts a newer schema, so migrations must stay additive (see
-  `data-and-config.md`).
+- **The database is only touched by the failed-start restore above.** Otherwise
+  rollback works because an older build accepts a newer schema, so migrations
+  must stay additive (see `data-and-config.md`).
 - A till only gets updates of its own flavor (standard or compact).
 - A central without the update route (404) just means no updates; the till stays
   quiet.
