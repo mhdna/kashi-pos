@@ -2,7 +2,7 @@
   <k-menu v-model="menu" :close-on-content-click="false" location="bottom center">
     <template #activator="{ props }">
       <div class="header-btn-wrap">
-        <div class="header-btn-subtitle">Salesman</div>
+        <div class="header-btn-subtitle">{{ t("Salesman") }}</div>
         <k-btn
           v-bind="props"
           size="small"
@@ -27,6 +27,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { t } from "@/i18n";
 import { ListSalespersons } from "../../wailsjs/go/main/App";
 import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import SalespersonGrid from "./SalespersonGrid.vue";
@@ -38,7 +39,7 @@ const menu = ref(false);
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
 
-const selectedName = computed(() => selected.value?.fullName.split(" ")[0] ?? "Salesman");
+const selectedName = computed(() => selected.value?.fullName.split(" ")[0] ?? t("Salesman"));
 
 
 function pickById(id: number) {

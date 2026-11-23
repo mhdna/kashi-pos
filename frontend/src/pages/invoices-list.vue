@@ -46,7 +46,7 @@
                 clearable
                 density="compact"
                 hide-details
-                :placeholder="filterHeader.placeholder"
+                :placeholder="t(filterHeader.placeholder)"
                 variant="outlined"
                 @keydown.enter="applyFilter(filterHeader.filterKey)"
               />
@@ -58,11 +58,11 @@
                 :disabled="!filters[filterHeader.filterKey] && !filterDrafts[filterHeader.filterKey]"
                 @click="clearFilter(filterHeader.filterKey)"
               >
-                Clear
+                {{ t("Clear") }}
               </k-btn>
               <k-spacer />
               <k-btn size="small" color="primary" variant="flat" @click="applyFilter(filterHeader.filterKey)">
-                Apply
+                {{ t("Apply") }}
               </k-btn>
             </k-card-actions>
           </k-card>
@@ -93,13 +93,13 @@
       </template>
       <template #item.invoiceCode="{ item }">
         <span class="font-weight-bold invoice-code">
-          {{ item.invoiceCode || `Invoice #${item.id}` }}
+          {{ item.invoiceCode || t("Invoice #{id}", { id: item.id }) }}
         </span>
-        <k-chip v-if="item.cancelled" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</k-chip>
+        <k-chip v-if="item.cancelled" size="x-small" color="error" variant="tonal" class="ml-2">{{ t("Cancelled") }}</k-chip>
       </template>
       <template #item.clientId="{ item }">
-        <span class="invoice-cell-truncate" :title="item.clientName || 'Walk-In'">
-          {{ item.clientName || "Walk-In" }}
+        <span class="invoice-cell-truncate" :title="item.clientName || t('Walk-In')">
+          {{ item.clientName || t("Walk-In") }}
         </span>
       </template>
       <template #item.salespersonName="{ item }">
@@ -107,7 +107,7 @@
           size="small"
           variant="text"
           prepend-icon="mdi-account-tie"
-          :title="item.salespersonName || 'No salesman'"
+          :title="item.salespersonName || t('No salesman')"
         >
           {{ salespersonFirstName(item.salespersonName) }}
         </k-chip>
@@ -145,7 +145,7 @@
           variant="text"
           density="comfortable"
           :loading="printingId === item.id"
-          title="Print receipt again"
+          :title="t('Print receipt again')"
           @click.stop="reprint(item)"
         />
         <k-menu v-model="actionMenus[item.id]" location="bottom end">
@@ -153,20 +153,20 @@
             <k-btn v-bind="props" icon="mdi-dots-vertical" variant="text" density="comfortable" @click.stop />
           </template>
           <k-list density="compact" min-width="190">
-            <k-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
-            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startLineSalespersons(item)" />
-            <k-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
-            <k-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
-            <k-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" title="Cancel Invoice" base-color="error" @click.stop="requestCancel(item)" />
-            <k-list-item v-if="auth.isAdmin && !item.cancelled" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
+            <k-list-item prepend-icon="mdi-account-edit" :title="t('Change Client')" @click.stop="startChange('client', item)" />
+            <k-list-item prepend-icon="mdi-account-tie" :title="t('Change Salesman')" @click.stop="startLineSalespersons(item)" />
+            <k-list-item prepend-icon="mdi-cash-sync" :title="t('Change Settlement')" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
+            <k-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" :title="t('Fix Rounding')" @click.stop="requestRounding(item)" />
+            <k-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" :title="t('Cancel Invoice')" base-color="error" @click.stop="requestCancel(item)" />
+            <k-list-item v-if="auth.isAdmin && !item.cancelled" prepend-icon="mdi-delete-outline" :title="t('Delete Invoice')" base-color="error" @click.stop="requestDelete(item)" />
           </k-list>
         </k-menu>
       </template>
       <template #no-data>
         <div class="invoices-empty pa-8 text-center">
           <k-icon icon="mdi-cash-register" size="48" class="mb-3 text-medium-emphasis" />
-          <div class="text-subtitle-1 font-weight-bold">No invoices found</div>
-          <div class="text-body-2 text-medium-emphasis">Completed invoices will appear here.</div>
+          <div class="text-subtitle-1 font-weight-bold">{{ t("No invoices found") }}</div>
+          <div class="text-body-2 text-medium-emphasis">{{ t("Completed invoices will appear here.") }}</div>
         </div>
       </template>
     </k-data-table-virtual>
@@ -181,30 +181,30 @@
             </div>
           </div>
           <k-spacer />
-          <k-btn icon="mdi-printer-outline" variant="text" :loading="printingId === selected.id" title="Print receipt" @click="reprint(selected)" />
-          <k-btn icon="mdi-close" variant="text" aria-label="Close invoice details" @click="detailOpen = false" />
+          <k-btn icon="mdi-printer-outline" variant="text" :loading="printingId === selected.id" :title="t('Print receipt')" @click="reprint(selected)" />
+          <k-btn icon="mdi-close" variant="text" :aria-label="t('Close invoice details')" @click="detailOpen = false" />
         </k-card-title>
         <k-card-text class="invoice-detail-content">
           <!-- Who and what, as plain labelled facts: no boxes, no coloured icons. -->
           <dl class="invoice-facts mb-5" data-test="invoice-facts">
             <div>
-              <dt>Client</dt>
+              <dt>{{ t("Client") }}</dt>
               <dd>
-                {{ selected.clientName || "Walk-In" }}
-                <span class="invoice-facts-sub">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : "No phone number" }}</span>
+                {{ selected.clientName || t("Walk-In") }}
+                <span class="invoice-facts-sub">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : t("No phone number") }}</span>
               </dd>
             </div>
             <div>
-              <dt>Salesman</dt>
-              <dd>{{ selected.salespersonName || "No salesman" }}</dd>
+              <dt>{{ t("Salesman") }}</dt>
+              <dd>{{ selected.salespersonName || t("No salesman") }}</dd>
             </div>
             <div>
-              <dt>Points earned</dt>
+              <dt>{{ t("Points earned") }}</dt>
               <dd>{{ Number(selected.loyaltyPointsEarned ?? Math.floor(Number(selected.grandTotal || 0) / 100)).toLocaleString() }}</dd>
             </div>
             <div>
-              <dt>Note</dt>
-              <dd :class="{ 'text-medium-emphasis': !selected.notes?.trim() }">{{ selected.notes?.trim() || "None" }}</dd>
+              <dt>{{ t("Note") }}</dt>
+              <dd :class="{ 'text-medium-emphasis': !selected.notes?.trim() }">{{ selected.notes?.trim() || t("None") }}</dd>
             </div>
           </dl>
 
@@ -217,13 +217,13 @@
                   <span class="font-weight-bold">{{ paymentLabels(payment).main }}</span>
                 </span>
               </div>
-              <div class="settlement-row settlement-total"><span>Total paid</span><span>${{ cents(selectedPaid) }}</span></div>
+              <div class="settlement-row settlement-total"><span>{{ t("Total paid") }}</span><span>${{ cents(selectedPaid) }}</span></div>
             </div>
-            <div v-else class="text-body-2 text-medium-emphasis">No settlement recorded.</div>
+            <div v-else class="text-body-2 text-medium-emphasis">{{ t("No settlement recorded.") }}</div>
           </section>
 
           <div class="invoice-detail-scroll">
-            <div class="section-label mb-2">Items</div>
+            <div class="section-label mb-2">{{ t("Items") }}</div>
             <k-list class="invoice-items-list pa-0 mb-4" density="compact">
               <k-list-item v-for="line in selected.items" :key="`${line.barcode}-${line.price}-${line.discount}`">
                 <template #title>
@@ -238,7 +238,7 @@
                     variant="flat"
                   />
                 </template>
-                <template #subtitle>{{ line.qty }} × ${{ Number(line.price).toFixed(2) }}<span v-if="line.discount"> · {{ line.discount }}% discount</span><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template>
+                <template #subtitle>{{ line.qty }} × ${{ Number(line.price).toFixed(2) }}<span v-if="line.discount"> · {{ t("{discount}% discount", { discount: line.discount }) }}</span><span v-if="line.salespersonName"> · {{ t("Sold by {name}", { name: line.salespersonName }) }}</span></template>
                 <InvoiceLineDetails :line="line" />
                 <template #append>
                   <k-tooltip v-if="line.note" :text="line.note" location="top"><template #activator="{ props: tooltipProps }"><k-icon v-bind="tooltipProps" icon="mdi-note-text-outline" size="18" color="primary" class="me-3" /></template></k-tooltip>
@@ -247,10 +247,10 @@
               </k-list-item>
             </k-list>
             <div class="totals invoice-totals">
-              <div><span>Subtotal</span><span>${{ cents(selected.subtotal) }}</span></div>
-              <div><span>Discount</span><span class="text-red">-${{ cents(Number(selected.subtotal) - Number(selected.discountedTotal)) }}</span></div>
+              <div><span>{{ t("Subtotal") }}</span><span>${{ cents(selected.subtotal) }}</span></div>
+              <div><span>{{ t("Discount") }}</span><span class="text-red">-${{ cents(Number(selected.subtotal) - Number(selected.discountedTotal)) }}</span></div>
               <k-divider class="my-2" />
-              <div class="text-body-1 font-weight-bold"><span>Total</span><span>${{ cents(selected.grandTotal) }}</span></div>
+              <div class="text-body-1 font-weight-bold"><span>{{ t("Total") }}</span><span>${{ cents(selected.grandTotal) }}</span></div>
             </div>
           </div>
         </k-card-text>
@@ -259,50 +259,43 @@
 
     <k-dialog v-model="cancelOpen" max-width="460">
       <k-card>
-        <k-card-title>Cancel invoice?</k-card-title>
+        <k-card-title>{{ t("Cancel invoice?") }}</k-card-title>
         <k-card-text>
           <p class="mb-3">
-            {{ cancelTarget?.invoiceCode || "This invoice" }} is returned in full: the
-            ${{ money(cancelTarget?.grandTotal) }} is refunded to its payment account and the
-            items come back. Both stay on record marked Cancelled, and neither counts in sales
-            stats, here or in central.
+            {{ t("{invoice} is returned in full: the ${amount} is refunded to its payment account and the items come back. Both stay on record marked Cancelled, and neither counts in sales stats, here or in central.", { invoice: cancelTarget?.invoiceCode || t("This invoice"), amount: money(cancelTarget?.grandTotal) }) }}
           </p>
-          <k-text-field v-model="cancelReason" placeholder="Reason (optional)" density="compact" hide-details />
+          <k-text-field v-model="cancelReason" :placeholder="t('Reason (optional)')" density="compact" hide-details />
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="cancelOpen = false">Keep</k-btn>
-          <k-btn color="error" :loading="cancelling" @click="cancelSelected">Cancel invoice</k-btn>
+          <k-btn variant="text" @click="cancelOpen = false">{{ t("Keep") }}</k-btn>
+          <k-btn color="error" :loading="cancelling" @click="cancelSelected">{{ t("Cancel invoice") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
 
     <k-dialog v-model="deleteOpen" max-width="420">
       <k-card
-        ><k-card-title>Delete invoice?</k-card-title
+        ><k-card-title>{{ t("Delete invoice?") }}</k-card-title
         ><k-card-text
-          >This permanently deletes {{ deleteInvoice?.invoiceCode || "this invoice" }} and its
-          payment records. Only an invoice that hasn't been uploaded to central can be deleted;
-          for a sale that has, use Cancel Invoice.</k-card-text
+          >{{ t("This permanently deletes {invoice} and its payment records. Only an invoice that hasn't been uploaded to central can be deleted; for a sale that has, use Cancel Invoice.", { invoice: deleteInvoice?.invoiceCode || t("this invoice") }) }}</k-card-text
         ><k-card-actions
-          ><k-spacer /><k-btn variant="text" @click="deleteOpen = false">Cancel</k-btn
+          ><k-spacer /><k-btn variant="text" @click="deleteOpen = false">{{ t("Cancel") }}</k-btn
           ><k-btn color="error" :loading="deleting" @click="deleteSelected"
-            >Delete</k-btn
+            >{{ t("Delete") }}</k-btn
           ></k-card-actions
         ></k-card
       >
     </k-dialog>
     <k-dialog v-model="roundingOpen" max-width="420">
       <k-card>
-        <k-card-title>Fix invoice rounding?</k-card-title>
+        <k-card-title>{{ t("Fix invoice rounding?") }}</k-card-title>
         <k-card-text>
-          This applies the current rounding settings to
-          {{ roundingInvoice?.invoiceCode || "this invoice" }} and updates its payments,
-          balances, income, and receipt total.
+          {{ t("This applies the current rounding settings to {invoice} and updates its payments, balances, income, and receipt total.", { invoice: roundingInvoice?.invoiceCode || t("this invoice") }) }}
         </k-card-text>
         <k-card-actions>
-          <k-spacer /><k-btn variant="text" @click="roundingOpen = false">Cancel</k-btn>
-          <k-btn color="primary" :loading="rounding" @click="roundSelected">Fix rounding</k-btn>
+          <k-spacer /><k-btn variant="text" @click="roundingOpen = false">{{ t("Cancel") }}</k-btn>
+          <k-btn color="primary" :loading="rounding" @click="roundSelected">{{ t("Fix rounding") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -366,6 +359,7 @@ import InvoiceLineSalespersonDialog from "@/components/InvoiceLineSalespersonDia
 import InvoiceLineDetails from "@/components/InvoiceLineDetails.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 import { useAuthStore } from "../stores/auth";
+import { t } from "@/i18n";
 
 const PAGE_SIZE = 20;
 const PRELOAD_DISTANCE_PX = 600;
@@ -447,33 +441,33 @@ function cents(value: number | undefined) {
   return ((Number(value) || 0) / 100).toFixed(2);
 }
 function settlementAccountName(payment: any): string {
-  const name = String(payment.accountName || "Cash");
+  const name = String(payment.accountName || t("Cash"));
   const normalizedName = name.trim().toLowerCase();
-  if (normalizedName.startsWith("on account")) return "On Account";
-  if (normalizedName.startsWith("on coupon")) return "On Coupon";
+  if (normalizedName.startsWith("on account")) return t("On Account");
+  if (normalizedName.startsWith("on coupon")) return t("On Coupon");
   return name;
 }
 function formatDate(value?: string) {
-  return value ? formatServerDateTime(value) : "Date unavailable";
+  return value ? formatServerDateTime(value) : t("Date unavailable");
 }
 function settlementAccountsLabel(accounts?: string[]) {
   return accounts?.length ? accounts.join(", ") : "—";
 }
 function salespersonFirstName(name?: string) {
   const trimmed = name?.trim();
-  return trimmed ? trimmed.split(/\s+/)[0] : "No salesman";
+  return trimmed ? trimmed.split(/\s+/)[0] : t("No salesman");
 }
 // The first column is each invoice's sync state with central, shown to every
 // user so cashiers can see their sales upload.
-const baseHeaders = [
+const baseHeaders = computed(() => [
   { title: "", key: "syncState", sortable: false, width: "28px" },
-  { title: "Invoice", key: "invoiceCode", width: "165px" },
-  { title: "Customer", key: "clientId", width: "120px" },
-  { title: "Salesman", key: "salespersonName", width: "120px" },
-  { title: "Paid To", key: "settlementAccounts", sortable: false, width: "120px" },
-  { title: "Date", key: "createdAt", width: "170px" },
+  { title: t("Invoice"), key: "invoiceCode", width: "165px" },
+  { title: t("Customer"), key: "clientId", width: "120px" },
+  { title: t("Salesman"), key: "salespersonName", width: "120px" },
+  { title: t("Paid To"), key: "settlementAccounts", sortable: false, width: "120px" },
+  { title: t("Date"), key: "createdAt", width: "170px" },
   { title: "", key: "rating", sortable: false, width: "36px", align: "center" as const },
-  { title: "Total", key: "grandTotal", width: "80px", align: "end" as const },
+  { title: t("Total"), key: "grandTotal", width: "80px", align: "end" as const },
   {
     title: "",
     key: "actions",
@@ -481,10 +475,10 @@ const baseHeaders = [
     width: "90px",
     align: "end" as const,
   },
-];
+]);
 // The sync dot column is for admins only.
 const headers = computed(() =>
-  baseHeaders.filter(
+  baseHeaders.value.filter(
     (header) =>
       (ratingsEnabled.value || header.key !== "rating") && (auth.isAdmin || header.key !== "syncState"),
   ),
@@ -533,10 +527,10 @@ function syncDotColor(state?: string) {
 }
 function syncDotTitle(item: { syncState?: string; syncError?: string }) {
   const reason = item.syncError ? ` (${item.syncError})` : "";
-  if (item.syncState === "synced") return "Confirmed on central";
-  if (item.syncState === "failed") return `Rejected by central${reason}`;
-  if (item.syncState === "pending") return item.syncError ? `Uploading — retrying${reason}` : "Uploading to central…";
-  return "Not synced";
+  if (item.syncState === "synced") return t("Confirmed on central");
+  if (item.syncState === "failed") return `${t("Rejected by central")}${reason}`;
+  if (item.syncState === "pending") return item.syncError ? `${t("Uploading — retrying")}${reason}` : t("Uploading to central…");
+  return t("Not synced");
 }
 
 // Live sync column: whenever the outbox moves (an upload lands, fails, or
@@ -578,7 +572,7 @@ async function openInvoice(item: any) {
     selected.value = await GetInvoiceDetails(item.id);
     detailOpen.value = true;
   } catch {
-    notify("Could not load invoice details", "error");
+    notify(t("Could not load invoice details"), "error");
   }
 }
 function openInvoiceRow(_event: any, row: { item: any }) {
@@ -588,9 +582,9 @@ async function reprint(item: any) {
   printingId.value = item.id;
   try {
     await ReprintInvoice(item.id);
-    notify("Receipt sent to the default receipt printer");
+    notify(t("Receipt sent to the default receipt printer"));
   } catch (e: any) {
-    notify(e?.toString() || "Could not print receipt", "error");
+    notify(e?.toString() || t("Could not print receipt"), "error");
   } finally {
     printingId.value = null;
   }
@@ -627,7 +621,7 @@ async function startSettlementChange(item: any) {
     };
     await router.push("/home");
   } catch (e: any) {
-    notify(e?.toString() || "Could not load invoice for settlement change", "error");
+    notify(e?.toString() || t("Could not load invoice for settlement change"), "error");
   } finally {
     settlementLoading.value = false;
   }
@@ -645,10 +639,10 @@ async function cancelSelected() {
     await CancelInvoice(cancelTarget.value.id, cancelReason.value);
     notifyIncomeChanged();
     cancelOpen.value = false;
-    notify("Invoice cancelled");
+    notify(t("Invoice cancelled"));
     await refresh(true);
   } catch (e: any) {
-    notify(e?.toString() || "Could not cancel invoice", "error");
+    notify(e?.toString() || t("Could not cancel invoice"), "error");
   } finally {
     cancelling.value = false;
   }
@@ -670,10 +664,10 @@ async function roundSelected() {
     await RoundInvoice(roundingInvoice.value.id);
     notifyIncomeChanged();
     roundingOpen.value = false;
-    notify("Invoice rounding fixed");
+    notify(t("Invoice rounding fixed"));
     await refresh(true);
   } catch (e: any) {
-    notify(e?.toString() || "Could not fix invoice rounding", "error");
+    notify(e?.toString() || t("Could not fix invoice rounding"), "error");
   } finally {
     rounding.value = false;
   }
@@ -685,16 +679,16 @@ async function deleteSelected() {
     await DeleteInvoice(deleteInvoice.value.id);
     notifyIncomeChanged();
     deleteOpen.value = false;
-    notify("Invoice deleted");
+    notify(t("Invoice deleted"));
     await refresh(true);
   } catch (e: any) {
-    notify(e?.toString() || "Could not delete invoice", "error");
+    notify(e?.toString() || t("Could not delete invoice"), "error");
   } finally {
     deleting.value = false;
   }
 }
 async function onChangeSaved() {
-  notify("Invoice updated");
+  notify(t("Invoice updated"));
   await refresh(true);
 }
 function notify(text: string, color = "success") {
@@ -745,7 +739,7 @@ function loadMore(): Promise<void> {
       if (!pageActive || generation !== loadGeneration) return;
       initialized.value = true;
       replacingRows.value = false;
-      notify(error?.toString() || "Could not load invoices", "error");
+      notify(error?.toString() || t("Could not load invoices"), "error");
     }
   })().finally(() => {
     if (generation === loadGeneration) loading.value = false;

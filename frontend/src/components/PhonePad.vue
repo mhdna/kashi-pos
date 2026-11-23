@@ -24,6 +24,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { t } from "@/i18n";
 import { playClickSound, playDtmfSound } from "@/lib/sound";
 
 const props = withDefaults(defineProps<{ showArrows?: boolean }>(), { showArrows: true });
@@ -31,16 +32,17 @@ const emit = defineEmits<{ press: [key: string] }>();
 
 type Key = { value: string; label: string; text?: string; icon?: string; arrow?: boolean };
 const digit = (d: string): Key => ({ value: d, label: d, text: d });
-const keys: Key[] = [
+// A computed so the labels follow the till language when it is toggled.
+const keys = computed<Key[]>(() => [
   ...["1", "2", "3", "4", "5", "6", "7", "8", "9"].map(digit),
-  { value: "clear", label: "Clear phone number", text: "C" },
+  { value: "clear", label: t("Clear phone number"), text: "C" },
   digit("0"),
-  { value: "back", label: "Delete digit", icon: "mdi-backspace-outline" },
-  { value: "left", label: "Move cursor left", icon: "mdi-chevron-left", arrow: true },
-  { value: "right", label: "Move cursor right", icon: "mdi-chevron-right", arrow: true },
-];
+  { value: "back", label: t("Delete digit"), icon: "mdi-backspace-outline" },
+  { value: "left", label: t("Move cursor left"), icon: "mdi-chevron-left", arrow: true },
+  { value: "right", label: t("Move cursor right"), icon: "mdi-chevron-right", arrow: true },
+]);
 
-const visibleKeys = computed(() => (props.showArrows ? keys : keys.filter((key) => !key.arrow)));
+const visibleKeys = computed(() => (props.showArrows ? keys.value : keys.value.filter((key) => !key.arrow)));
 
 function press(key: string) {
   if (/^\d$/.test(key)) playDtmfSound(key);

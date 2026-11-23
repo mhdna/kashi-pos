@@ -4,6 +4,7 @@ import { CreateBranch, SwitchBranch } from "../../wailsjs/go/main/App";
 import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import logo from "@/assets/app-logo.png";
 import { canSubmit, connectionHint, connectionMode, createBranchArgs, normalizeBranchCode, setupErrors } from "@/lib/branchSetup";
+import { t } from "@/i18n";
 
 // First run on a machine (or its branch database went missing): set up a
 // branch, or pick one already set up here. The central key and server are
@@ -57,11 +58,11 @@ function choose(code: string) {
       <header class="setup-head">
         <img :src="logo" alt="" class="setup-logo" />
         <div>
-          <h1 class="setup-title">{{ showCreate ? "Set up this till" : "Choose a branch" }}</h1>
+          <h1 class="setup-title">{{ showCreate ? t("Set up this till") : t("Choose a branch") }}</h1>
           <p class="setup-sub">
             {{ showCreate
-              ? "Name the branch this till belongs to, and connect it to central if you have a key."
-              : "More than one branch is set up on this machine. Pick the one this till runs." }}
+              ? t("Name the branch this till belongs to, and connect it to central if you have a key.")
+              : t("More than one branch is set up on this machine. Pick the one this till runs.") }}
           </p>
         </div>
       </header>
@@ -74,12 +75,12 @@ function choose(code: string) {
         <section class="setup-section">
           <div class="setup-section-head">
             <span class="setup-section-icon"><k-icon icon="mdi-storefront-outline" size="18" /></span>
-            <span>Branch</span>
+            <span>{{ t("Branch") }}</span>
           </div>
           <div class="setup-row">
             <k-text-field
               v-model="form.name"
-              label="Branch name"
+              :label="t('Branch name')"
               placeholder="Centro"
               prepend-inner-icon="mdi-store"
               :error-messages="errors.name"
@@ -89,7 +90,7 @@ function choose(code: string) {
             />
             <k-text-field
               :model-value="form.code"
-              label="Code"
+              :label="t('Code')"
               placeholder="CN"
               prepend-inner-icon="mdi-tag-outline"
               :error-messages="errors.code"
@@ -104,12 +105,12 @@ function choose(code: string) {
         <section class="setup-section">
           <div class="setup-section-head">
             <span class="setup-section-icon"><k-icon icon="mdi-cloud-sync-outline" size="18" /></span>
-            <span>Central</span>
-            <span class="setup-optional">optional</span>
+            <span>{{ t("Central") }}</span>
+            <span class="setup-optional">{{ t("optional") }}</span>
           </div>
           <k-text-field
             v-model="form.apiKey"
-            label="Central API key"
+            :label="t('Central API key')"
             :type="showKey ? 'text' : 'password'"
             prepend-inner-icon="mdi-key-variant"
             :append-inner-icon="showKey ? 'mdi-eye-off' : 'mdi-eye'"
@@ -121,7 +122,7 @@ function choose(code: string) {
           />
           <k-text-field
             v-model="form.centralApiUrl"
-            label="Central server address"
+            :label="t('Central server address')"
             :type="showUrl ? 'text' : 'password'"
             prepend-inner-icon="mdi-web"
             :append-inner-icon="showUrl ? 'mdi-eye-off' : 'mdi-eye'"
@@ -140,11 +141,11 @@ function choose(code: string) {
 
         <div class="setup-actions">
           <k-btn v-if="knownBranches.length > 0" variant="text" prepend-icon="mdi-arrow-left" @click="adding = false">
-            Back
+            {{ t("Back") }}
           </k-btn>
           <k-spacer />
           <k-btn type="submit" color="primary" variant="flat" size="large" prepend-icon="mdi-check" :loading="loading" data-test="setup-submit">
-            Create branch
+            {{ t("Create branch") }}
           </k-btn>
         </div>
       </k-form>
@@ -171,7 +172,7 @@ function choose(code: string) {
         <k-alert v-if="error" type="error" density="compact" class="mt-3" data-test="setup-error">{{ error }}</k-alert>
         <div class="setup-actions">
           <k-btn variant="text" prepend-icon="mdi-plus" :disabled="loading" data-test="setup-add" @click="adding = true">
-            Set up another branch
+            {{ t("Set up another branch") }}
           </k-btn>
         </div>
       </template>

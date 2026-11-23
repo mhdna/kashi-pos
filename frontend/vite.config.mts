@@ -1,6 +1,6 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from "node:url";
 import Vue from "@vitejs/plugin-vue";
-/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 
 export default defineConfig({

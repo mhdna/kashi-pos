@@ -2,15 +2,15 @@
   <k-card class="settings-card">
     <k-card-title class="d-flex align-center ga-3">
       <k-icon icon="mdi-update" size="20" />
-      App updates
+      {{ t("App updates") }}
     </k-card-title>
     <div class="text-caption text-medium-emphasis px-4 pb-2">
-      Updates are sent from central's App Updates page and install at a safe moment.
+      {{ t("Updates are sent from central's App Updates page and install at a safe moment.") }}
     </div>
     <k-card-text>
       <div class="mb-1">
-        This till runs <strong>{{ status.currentVersion }}</strong>
-        <span v-if="status.flavor === 'compact'" class="text-medium-emphasis">(compact)</span>
+        {{ t("This till runs") }} <strong>{{ status.currentVersion }}</strong>
+        <span v-if="status.flavor === 'compact'" class="text-medium-emphasis">{{ t("(compact)") }}</span>
       </div>
       <div class="mb-3" :class="stateColor ? `text-${stateColor}` : 'text-medium-emphasis'">{{ stateText }}</div>
       <k-progress-linear
@@ -31,7 +31,7 @@
           variant="tonal"
           @click="check"
         >
-          Check for updates
+          {{ t("Check for updates") }}
         </k-btn>
         <k-btn
           v-if="status.state === 'ready' && status.supported"
@@ -41,7 +41,7 @@
           variant="flat"
           @click="install"
         >
-          Install {{ status.version }} now
+          {{ t("Install {version} now", { version: status.version ?? "" }) }}
         </k-btn>
         <k-btn
           v-if="status.canRollBack && auth.isAdmin"
@@ -50,22 +50,20 @@
           variant="text"
           @click="confirmRollback = true"
         >
-          Roll back to {{ status.previousVersion }}
+          {{ t("Roll back to {version}", { version: status.previousVersion ?? "" }) }}
         </k-btn>
       </div>
     </k-card-text>
 
     <k-dialog v-model="confirmRollback" max-width="440">
-      <k-card :title="`Roll back to ${status.previousVersion}?`">
+      <k-card :title="t('Roll back to {version}?', { version: status.previousVersion ?? '' })">
         <k-card-text>
-          GB Cloud closes and reopens on {{ status.previousVersion }} in about 10 seconds. It won't
-          install {{ status.currentVersion }} again until it's sent a different version or you
-          check for updates here. Your data is not changed.
+          {{ t("GB Cloud closes and reopens on {previous} in about 10 seconds. It won't install {current} again until it's sent a different version or you check for updates here. Your data is not changed.", { previous: status.previousVersion ?? "", current: status.currentVersion ?? "" }) }}
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="confirmRollback = false">Cancel</k-btn>
-          <k-btn color="primary" variant="flat" @click="rollBack">Roll back</k-btn>
+          <k-btn variant="text" @click="confirmRollback = false">{{ t("Cancel") }}</k-btn>
+          <k-btn color="primary" variant="flat" @click="rollBack">{{ t("Roll back") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -77,6 +75,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { CheckForAppUpdate, GetAppUpdateStatus, InstallAppUpdate, RollBackAppUpdate } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { t } from "@/i18n";
 
 // Settings > Admin: this till's version and update, see updater.go.
 const auth = useAuthStore();
@@ -88,22 +87,24 @@ let off: (() => void) | undefined;
 
 const stateText = computed(() => {
   const s = status.value;
-  if (!s.enabled) return "Remote updates are off in this build.";
+  if (!s.enabled) return t("Remote updates are off in this build.");
   switch (s.state) {
     case "downloading":
-      return `Downloading ${s.version}… ${s.progress}%`;
+      return t("Downloading {version}… {progress}%", { version: s.version, progress: s.progress });
     case "ready":
-      return s.supported ? `${s.version} is downloaded and ready to install.` : `${s.version} is downloaded (installs only on Windows).`;
+      return s.supported
+        ? t("{version} is downloaded and ready to install.", { version: s.version })
+        : t("{version} is downloaded (installs only on Windows).", { version: s.version });
     case "installing":
-      return `Installing ${s.version}…`;
+      return t("Installing {version}…", { version: s.version });
     case "updated":
-      return s.detail || "Updated.";
+      return s.detail || t("Updated.");
     case "failed":
     case "blocked":
     case "rolled_back":
       return s.detail;
     default:
-      return "Up to date.";
+      return t("Up to date.");
   }
 });
 const stateColor = computed(() =>

@@ -9,13 +9,13 @@ const live = src.replace(/<!--[\s\S]*?-->/g, "");
 
 describe("calculator On Account button", () => {
   it("is in the rendered template and asks for a client", () => {
-    expect(live).toMatch(/>On<br>Account</);
+    expect(live).toMatch(/t\("On"\) \}\}<br>\{\{ t\("Account"\) \}\}/);
     expect(live).toMatch(/emit\('account'\)/);
   });
   it("is not left in a comment", () => {
     expect(src).not.toMatch(/On Account button, off for now/);
   });
   it("keeps the Coupon button", () => {
-    expect(live).toMatch(/>Coupon</);
+    expect(live).toMatch(/t\("Coupon"\) \}\}<\/span>/);
   });
 });

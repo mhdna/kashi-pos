@@ -1,19 +1,19 @@
 <template>
   <k-dialog :model-value="modelValue" max-width="720" persistent @update:model-value="emit('update:modelValue', $event)">
     <k-card class="pa-4">
-      <k-card-title class="px-0 pt-0 text-h5">Pictures of the unknown items</k-card-title>
+      <k-card-title class="px-0 pt-0 text-h5">{{ t("Pictures of the unknown items") }}</k-card-title>
 
       <template v-if="state === 'starting'">
         <div class="text-center py-6">
           <k-progress-circular color="primary" indeterminate size="40" />
-          <div class="text-body-2 mt-3">Opening a picture session…</div>
+          <div class="text-body-2 mt-3">{{ t("Opening a picture session…") }}</div>
         </div>
       </template>
 
       <template v-else-if="state === 'error'">
         <div class="text-body-2 py-3">{{ errorText }}</div>
-        <div class="text-body-2 text-medium-emphasis pb-3" data-test="unknown-retrying">Trying again by itself…</div>
-        <k-btn color="primary" variant="tonal" @click="start">Try again</k-btn>
+        <div class="text-body-2 text-medium-emphasis pb-3" data-test="unknown-retrying">{{ t("Trying again by itself…") }}</div>
+        <k-btn color="primary" variant="tonal" @click="start">{{ t("Try again") }}</k-btn>
       </template>
 
       <template v-else>
@@ -21,11 +21,11 @@
           <div class="text-center" style="flex: none; width: 260px">
             <img
               v-if="qrDataUrl"
-              alt="Upload QR code"
+              :alt="t('Upload QR code')"
               :src="qrDataUrl"
               style="width: 260px; height: 260px"
             />
-            <div class="text-h6 mt-3">Scan, then photograph each item.</div>
+            <div class="text-h6 mt-3">{{ t("Scan, then photograph each item.") }}</div>
             <div class="text-h6 font-weight-regular text-medium-emphasis" dir="rtl" lang="ar">
               امسح الرمز والتقط صورة لكل قطعة غير معروف كودها طبقا للسعر
             </div>
@@ -40,22 +40,22 @@
               >
                 <template #append>
                   <k-icon v-if="line.done && !line.waived" color="success" icon="mdi-check-circle" />
-                  <span v-else-if="line.done" class="text-caption text-success">allowed by a manager</span>
+                  <span v-else-if="line.done" class="text-caption text-success">{{ t("allowed by a manager") }}</span>
                   <k-icon v-else color="grey" icon="mdi-timer-sand" />
                 </template>
               </k-list-item>
             </k-list>
-            <div class="text-body-1 text-medium-emphasis">{{ doneCount }} of {{ lines.length }} ready</div>
+            <div class="text-body-1 text-medium-emphasis">{{ t("{done} of {total} ready", { done: doneCount, total: lines.length }) }}</div>
           </div>
         </div>
       </template>
 
       <k-card-actions class="px-0 pb-0 mt-3">
         <k-btn v-if="state === 'ready'" :disabled="helpAsked" size="large" prepend-icon="mdi-bell-ring-outline" variant="tonal" @click="askForHelp">
-          {{ helpAsked ? "Requested from central" : "Request from central" }}
+          {{ helpAsked ? t("Requested from central") : t("Request from central") }}
         </k-btn>
         <k-spacer />
-        <k-btn size="large" variant="text" @click="cancel">Cancel</k-btn>
+        <k-btn size="large" variant="text" @click="cancel">{{ t("Cancel") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -64,6 +64,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import QRCode from "qrcode";
+import { t } from "@/i18n";
 import {
   RequestUnknownItemHelp,
   SyncUnknownItemSession,

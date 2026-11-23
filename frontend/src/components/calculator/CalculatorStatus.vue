@@ -8,7 +8,7 @@
         variant="text"
         density="comfortable"
         size="small"
-        title="Switch total currency"
+        :title="t('Switch total currency')"
         @click="flipCurrency"
       />
       <!-- Down the left side, one under the other: the invoice's own total (only
@@ -18,7 +18,7 @@
         <span v-if="totalText" class="calculator-amounts-total" data-test="invoice-total">{{ totalText }}</span>
         <template v-if="showPills">
           <!-- What it was rounded from is in the tooltip; the pill just says so. -->
-          <span v-if="showRounded" class="calculator-amounts-rounded" :title="roundedFromText || undefined">Rounded</span>
+          <span v-if="showRounded" class="calculator-amounts-rounded" :title="roundedFromText || undefined">{{ t("Rounded") }}</span>
           <!-- central's whole-sale discount, already off the total. -->
           <span v-if="invoiceDiscountText" class="calculator-amounts-discount" :title="invoiceDiscountText">
             {{ invoiceDiscountText }}
@@ -40,8 +40,8 @@
       <div v-else-if="exchangeShortfallText" class="calculator-error-state calculator-hint-state">
         <k-icon icon="mdi-information-outline" color="blue-grey-darken-1" size="28" />
         <span class="calculator-error-text">
-          Add <strong class="calculator-hint-amount">{{ exchangeShortfallText }}</strong> more in new items to finish
-          the exchange (no cash back)
+          {{ t("Add") }} <strong class="calculator-hint-amount">{{ exchangeShortfallText }}</strong>
+          {{ t("more in new items to finish the exchange (no cash back)") }}
         </span>
       </div>
       <div v-else-if="showReadyState" class="calculator-accepted-state calculator-green">
@@ -71,6 +71,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { t } from "@/i18n";
 import { calculatorTotalCurrency, setCalculatorTotalCurrency } from "@/lib/display";
 import { splitRepeatsTotal } from "@/lib/totalSplit";
 

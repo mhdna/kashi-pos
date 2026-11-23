@@ -8,7 +8,7 @@
         rounded="lg"
         variant="outlined"
       >
-        <img v-if="qrDataUrl" alt="Unknown item pictures QR code" :src="qrDataUrl" class="unknown-corner__qr" />
+        <img v-if="qrDataUrl" :alt="t('Unknown item pictures QR code')" :src="qrDataUrl" class="unknown-corner__qr" />
         <!-- Already pictured: no QR code to fetch, nothing left to scan. -->
         <div
           v-else-if="alreadyPictured"
@@ -22,24 +22,24 @@
           <k-icon v-else color="warning" icon="mdi-alert-circle-outline" size="32" />
         </div>
         <div class="flex-grow-1" style="min-width: 0; line-height: 1.35">
-          <div class="text-subtitle-1 font-weight-bold">Unknown items need a picture</div>
+          <div class="text-subtitle-1 font-weight-bold">{{ t("Unknown items need a picture") }}</div>
           <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
             امسح الرمز والتقط صورة لكل قطعة غير معروف كودها طبقا للسعر
           </div>
           <div class="d-flex align-center ga-1 mt-1 text-body-2 font-weight-medium" :class="complete ? 'text-success' : 'text-medium-emphasis'">
             <k-icon :icon="complete ? 'mdi-check-circle' : 'mdi-camera-outline'" size="18" />
-            {{ errorText ? "No QR code yet, retrying…" : `${doneCount} of ${lines.length} pictured` }}
+            {{ errorText ? t("No QR code yet, retrying…") : t("{done} of {total} pictured", { done: doneCount, total: lines.length }) }}
           </div>
         </div>
       </k-card>
     </template>
     <k-card class="pa-4 text-center" max-width="320">
-      <img v-if="qrDataUrl" alt="Unknown item pictures QR code" :src="qrDataUrl" style="width: 260px; height: 260px" />
+      <img v-if="qrDataUrl" :alt="t('Unknown item pictures QR code')" :src="qrDataUrl" style="width: 260px; height: 260px" />
       <div class="text-body-2 text-medium-emphasis mt-2" dir="rtl" lang="ar">
         امسح الرمز والتقط صورة لكل قطعة غير معروف كودها طبقا للسعر
       </div>
       <div v-if="!qrDataUrl && alreadyPictured" class="text-body-1 text-success mt-2">
-        Every unknown item is pictured.
+        {{ t("Every unknown item is pictured.") }}
       </div>
       <div v-if="errorText" class="text-caption text-warning mt-2">{{ errorText }}</div>
     </k-card>
@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import QRCode from "qrcode";
+import { t } from "@/i18n";
 import { SyncUnknownItemSession, UnknownItemSessionStatus } from "../../wailsjs/go/main/App";
 import { cachedQr, newClientRef, rememberQr } from "@/lib/unknownQrCache";
 

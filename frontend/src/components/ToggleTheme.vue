@@ -3,15 +3,15 @@
        caption over a tonal button. -->
   <!-- Hidden for now (SHOW_THEME_TOGGLE below); set it to true to bring the button back. -->
   <div v-show="SHOW_THEME_TOGGLE" class="theme-toggle-wrap" data-test="theme-toggle-wrap">
-    <div class="theme-toggle-subtitle">Theme</div>
+    <div class="theme-toggle-subtitle">{{ t("Theme") }}</div>
     <k-btn
       class="theme-toggle-btn"
       size="small"
       variant="tonal"
       color="blue-grey-darken-1"
       :loading="saving"
-      :aria-label="`Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} theme`"
-      :title="`Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} theme`"
+      :aria-label="currentTheme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')"
+      :title="currentTheme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')"
       data-test="theme-toggle"
       @click="toggleTheme"
     >
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useTheme } from "@/ui";
+import { t } from "@/i18n";
 import { SetTheme } from "../../wailsjs/go/main/App";
 
 // The header's Theme button is hidden for now; the theme stays whatever it is.

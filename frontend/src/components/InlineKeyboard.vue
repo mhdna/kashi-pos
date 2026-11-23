@@ -21,10 +21,10 @@
       </div>
       <div v-if="!caps" class="inline-keyboard-actions">
         <template v-if="input">
-          <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret left" @click="move(-1)">
+          <k-btn class="inline-keyboard-move" size="small" variant="text" :aria-label="t('Caret left')" @click="move(-1)">
             <k-icon icon="mdi-chevron-left" size="28" />
           </k-btn>
-          <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret right" @click="move(1)">
+          <k-btn class="inline-keyboard-move" size="small" variant="text" :aria-label="t('Caret right')" @click="move(1)">
             <k-icon icon="mdi-chevron-right" size="28" />
           </k-btn>
         </template>
@@ -34,15 +34,15 @@
         </template>
         <k-btn size="small" variant="text" @click="append('-')">-</k-btn>
         <k-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
-          Space
+          {{ t("Space") }}
         </k-btn>
         <k-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</k-btn>
-        <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" aria-label="Backspace"><k-icon icon="mdi-backspace-outline" size="20" /></k-btn>
+        <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" :aria-label="t('Backspace')"><k-icon icon="mdi-backspace-outline" size="20" /></k-btn>
       </div>
     </div>
     <!-- The code keyboard keeps its two keys in a column at its right. -->
     <div v-if="caps" class="inline-keyboard-side" data-test="keyboard-side">
-      <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" aria-label="Backspace"><k-icon icon="mdi-backspace-outline" size="24" /></k-btn>
+      <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" :aria-label="t('Backspace')"><k-icon icon="mdi-backspace-outline" size="24" /></k-btn>
       <k-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</k-btn>
     </div>
   </div>
@@ -51,6 +51,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
 import { replaceRange } from "@/lib/caret";
+import { t } from "@/i18n";
 
 const props = withDefaults(
   defineProps<{

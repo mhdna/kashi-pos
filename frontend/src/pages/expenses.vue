@@ -2,10 +2,10 @@
   <div class="records-page" @scroll.passive.capture="list.onScroll">
     <div class="records-head">
       <div class="records-title">
-        <h1>Expenses</h1>
+        <h1>{{ t("Expenses") }}</h1>
       </div>
       <k-spacer />
-      <k-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="openAdd">Add expense</k-btn>
+      <k-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="openAdd">{{ t("Add expense") }}</k-btn>
     </div>
 
     <k-data-table-virtual
@@ -18,7 +18,7 @@
       fixed-header
       item-value="id"
       hover
-      no-data-text="No expenses yet."
+      :no-data-text="t('No expenses yet.')"
       @click:row="(_e: unknown, row: any) => openDetail(row.item)"
     >
       <template #item.photo="{ item }">
@@ -26,7 +26,7 @@
       </template>
       <template #item.description="{ item }">
         <span class="font-weight-medium" :class="{ 'text-decoration-line-through': item.cancelledAt }">{{ item.description || "—" }}</span>
-        <k-chip v-if="item.cancelledAt" size="x-small" color="error" variant="text" class="ml-2">Cancelled</k-chip>
+        <k-chip v-if="item.cancelledAt" size="x-small" color="error" variant="text" class="ml-2">{{ t("Cancelled") }}</k-chip>
       </template>
       <template #item.category="{ item }">
         <k-chip v-if="item.category" size="small" variant="text" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
@@ -35,7 +35,7 @@
         <span v-else class="text-medium-emphasis">—</span>
       </template>
       <template #item.fromCentral="{ item }">
-        <k-chip v-if="item.fromCentral" size="small" color="primary" variant="text" prepend-icon="mdi-domain">From central</k-chip>
+        <k-chip v-if="item.fromCentral" size="small" color="primary" variant="text" prepend-icon="mdi-domain">{{ t("From central") }}</k-chip>
         <span v-else class="text-medium-emphasis">—</span>
       </template>
       <template #item.amount="{ item }">
@@ -49,11 +49,11 @@
       <k-card v-if="selected">
         <k-card-title class="d-flex align-center">
           <div>
-            <div class="text-h6">{{ selected.description || "Expense" }}</div>
+            <div class="text-h6">{{ selected.description || t("Expense") }}</div>
             <div class="text-caption text-medium-emphasis">{{ formatServerDateTime(selected.occurredAt) }}</div>
           </div>
           <k-spacer />
-          <k-btn icon="mdi-close" variant="text" aria-label="Close" @click="detailOpen = false" />
+          <k-btn icon="mdi-close" variant="text" :aria-label="t('Close')" @click="detailOpen = false" />
         </k-card-title>
         <k-card-text>
           <div class="overview-grid mb-5">
@@ -64,13 +64,13 @@
                   <span class="category-icon">
                     <k-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" :color="categoryOf(selected.category)?.color || 'blue-grey'" size="24" />
                   </span>
-                  <div class="overview-value">{{ selected.category || "No category" }}</div>
+                  <div class="overview-value">{{ selected.category || t("No category") }}</div>
                   <k-progress-circular v-if="categorySaving" indeterminate size="16" width="2" class="ms-auto" />
                   <k-icon v-else icon="mdi-pencil-outline" size="18" class="ms-auto text-medium-emphasis" />
                 </button>
               </template>
               <k-list density="compact" max-height="360">
-                <k-list-item title="No category" prepend-icon="mdi-tag-outline" :active="!selected.category" @click="setCategory('')" />
+                <k-list-item :title="t('No category')" prepend-icon="mdi-tag-outline" :active="!selected.category" @click="setCategory('')" />
                 <k-list-item
                   v-for="category in expenseCategories"
                   :key="category.id"
@@ -101,36 +101,36 @@
               @click="toggleFromCentral"
             >
               <k-icon :icon="selected.fromCentral ? 'mdi-domain' : 'mdi-cash-register'" :color="selected.fromCentral ? 'primary' : undefined" />
-              <div class="overview-value">{{ selected.fromCentral ? "From central من المركزي" : "From the till" }}</div>
+              <div class="overview-value">{{ selected.fromCentral ? t("From central") + " من المركزي" : t("From the till") }}</div>
               <k-progress-circular v-if="fromCentralSaving" indeterminate size="16" width="2" class="ms-auto" />
               <k-icon v-else-if="canEditFromCentral" icon="mdi-swap-horizontal" size="18" class="ms-auto text-medium-emphasis" />
             </component>
           </div>
 
-          <div class="section-label mb-2">Photos</div>
+          <div class="section-label mb-2">{{ t("Photos") }}</div>
           <div v-if="detailPhotosLoading" class="d-flex justify-center pa-6"><k-progress-circular indeterminate /></div>
           <div v-else-if="detailPhotos.length" class="photo-strip">
-            <img v-for="(src, i) in detailPhotos" :key="i" :src="src" alt="Expense photo" class="photo-full" @click="openViewer(i)" />
+            <img v-for="(src, i) in detailPhotos" :key="i" :src="src" :alt="t('Expense photo')" class="photo-full" @click="openViewer(i)" />
           </div>
           <div v-else class="empty-photos">
             <k-icon icon="mdi-image-off-outline" size="32" color="grey" />
-            <div class="text-body-2 text-medium-emphasis">No photo attached{{ syncHint }}</div>
+            <div class="text-body-2 text-medium-emphasis">{{ noPhotoText }}</div>
           </div>
           <!-- More photos: scan the QR with a phone, or pick files on this
                computer. Central takes up to 3 in all. -->
           <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center flex-wrap ga-2 mt-3">
             <k-btn color="primary" variant="flat" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
-              {{ detailPhotos.length ? "Add with phone" : "Send photo with phone" }}
+              {{ detailPhotos.length ? t("Add with phone") : t("Send photo with phone") }}
             </k-btn>
             <k-btn color="primary" variant="flat" prepend-icon="mdi-upload" :loading="computerUploading" @click="uploadFromComputer">
-              From this computer
+              {{ t("From this computer") }}
             </k-btn>
           </div>
           <div v-if="photoError" class="text-body-2 text-error text-center mt-2">{{ photoError }}</div>
         </k-card-text>
         <k-card-actions v-if="auth.isAdmin && !selected.cancelledAt" class="px-5 pb-4">
           <k-spacer />
-          <k-btn color="error" variant="flat" @click="requestCancel">Cancel expense</k-btn>
+          <k-btn color="error" variant="flat" @click="requestCancel">{{ t("Cancel expense") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -140,16 +140,15 @@
          account itself. -->
     <k-dialog v-model="cancelOpen" max-width="420">
       <k-card v-if="selected">
-        <k-card-title class="pt-4 px-5">Cancel this expense?</k-card-title>
+        <k-card-title class="pt-4 px-5">{{ t("Cancel this expense?") }}</k-card-title>
         <k-card-text class="px-5">
-          "{{ selected.description || "Expense" }}" ({{ formatCents(selected.amount) }} {{ selected.currencyCode }}) stays in the list marked
-          cancelled, and the shift and central stop counting it.
+          {{ t('"{name}" ({amount} {currency}) stays in the list marked cancelled, and the shift and central stop counting it.', { name: selected.description || t("Expense"), amount: formatCents(selected.amount), currency: selected.currencyCode }) }}
           <div v-if="cancelError" class="text-body-2 text-error mt-2">{{ cancelError }}</div>
         </k-card-text>
         <k-card-actions class="px-5 pb-4">
           <k-spacer />
-          <k-btn variant="text" @click="cancelOpen = false">Keep it</k-btn>
-          <k-btn color="error" variant="flat" :loading="cancelling" @click="cancelSelected">Cancel expense</k-btn>
+          <k-btn variant="text" @click="cancelOpen = false">{{ t("Keep it") }}</k-btn>
+          <k-btn color="error" variant="flat" :loading="cancelling" @click="cancelSelected">{{ t("Cancel expense") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -158,13 +157,13 @@
       <k-card class="add-card">
         <k-card-title class="d-flex align-center ga-2 pt-4 px-5">
           <k-icon icon="mdi-cash-minus" color="error" />
-          <span>Add expense</span>
+          <span>{{ t("Add expense") }}</span>
           <k-spacer />
-          <k-btn icon="mdi-close" variant="text" size="small" aria-label="Close" @click="dialog = false" />
+          <k-btn icon="mdi-close" variant="text" size="small" :aria-label="t('Close')" @click="dialog = false" />
         </k-card-title>
         <k-card-text class="px-5">
           <k-form ref="formRef">
-            <div class="section-label mb-2">Category</div>
+            <div class="section-label mb-2">{{ t("Category") }}</div>
             <div v-if="expenseCategories.length" class="category-grid mb-4">
               <button
                 v-for="category in expenseCategories"
@@ -181,12 +180,12 @@
               </button>
             </div>
             <div v-else class="text-body-2 text-medium-emphasis mb-4">
-              No expense categories yet -- they're set up in central and appear here after the next sync.
+              {{ t("No expense categories yet -- they're set up in central and appear here after the next sync.") }}
             </div>
 
             <k-text-field
               v-model="form.description"
-              placeholder="Description"
+              :placeholder="t('Description')"
               prepend-inner-icon="mdi-text"
               variant="outlined"
               density="comfortable"
@@ -195,14 +194,14 @@
             <!-- One line per account it was paid from ($100 + 200,000 LL is
                  two lines). Each line is saved as its own expense, in that
                  account's currency, so every drawer balance stays exact. -->
-            <div class="section-label mb-2">Paid from</div>
+            <div class="section-label mb-2">{{ t("Paid from") }}</div>
             <div v-for="(line, index) in form.payments" :key="line.key" class="payment-line mb-2">
               <k-select
                 v-model="line.cashboxAccountId"
                 :items="accountChoices(index)"
                 item-title="displayName"
                 item-value="id"
-                placeholder="Account"
+                :placeholder="t('Account')"
                 variant="outlined"
                 density="comfortable"
                 hide-details
@@ -210,7 +209,7 @@
               />
               <k-text-field
                 v-model="line.amount"
-                placeholder="Amount"
+                :placeholder="t('Amount')"
                 inputmode="decimal"
                 :suffix="accountOf(line.cashboxAccountId)?.currencyCode || ''"
                 variant="outlined"
@@ -224,7 +223,7 @@
                 icon="mdi-close"
                 variant="text"
                 size="small"
-                aria-label="Remove this payment"
+                :aria-label="t('Remove this payment')"
                 @click="form.payments.splice(index, 1)"
               />
             </div>
@@ -236,9 +235,9 @@
               class="mb-1"
               @click="addPaymentLine"
             >
-              Add payment method
+              {{ t("Add payment method") }}
             </k-btn>
-            <div v-if="totalsLabel" class="text-body-2 font-weight-bold mt-1">Total: {{ totalsLabel }}</div>
+            <div v-if="totalsLabel" class="text-body-2 font-weight-bold mt-1">{{ t("Total: {total}", { total: totalsLabel }) }}</div>
             <!-- Central paid it: still this branch's expense, but the shift
                  doesn't take it off the drawer. -->
             <k-switch
@@ -246,16 +245,16 @@
               color="primary"
               density="comfortable"
               class="mt-2"
-              label="From central من المركزي"
-              :hint="form.fromCentral ? 'Paid by central: the shift won\'t take it out of the drawer.' : ''"
+              :label="t('From central') + ' من المركزي'"
+              :hint="form.fromCentral ? t('Paid by central: the shift won\'t take it out of the drawer.') : ''"
               :persistent-hint="form.fromCentral"
             />
           </k-form>
         </k-card-text>
         <k-card-actions class="px-5 pb-4">
           <k-spacer />
-          <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
-          <k-btn color="primary" variant="flat" :loading="saving" :disabled="!canSave" @click="submit">Save expense</k-btn>
+          <k-btn variant="text" @click="dialog = false">{{ t("Cancel") }}</k-btn>
+          <k-btn color="primary" variant="flat" :loading="saving" :disabled="!canSave" @click="submit">{{ t("Save expense") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -297,15 +296,16 @@ import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { useAuthStore } from "../stores/auth";
+import { t } from "@/i18n";
 
-const headers = [
-  { title: "Photo", key: "photo", sortable: false, width: 72 },
-  { title: "Description", key: "description", sortable: false },
-  { title: "Category", key: "category", sortable: false },
-  { title: "From central", key: "fromCentral", sortable: false },
-  { title: "Amount", key: "amount", sortable: false, align: "end" as const },
-  { title: "Date", key: "occurredAt", sortable: false },
-];
+const headers = computed(() => [
+  { title: t("Photo"), key: "photo", sortable: false, width: 72 },
+  { title: t("Description"), key: "description", sortable: false },
+  { title: t("Category"), key: "category", sortable: false },
+  { title: t("From central"), key: "fromCentral", sortable: false },
+  { title: t("Amount"), key: "amount", sortable: false, align: "end" as const },
+  { title: t("Date"), key: "occurredAt", sortable: false },
+]);
 
 const list = useInfiniteList<any>((pageSize, pageIndex) => ListExpenses(pageSize, pageIndex));
 const paymentMethods = ref<any[]>([]);
@@ -332,7 +332,9 @@ const detailOpen = ref(false);
 const selected = ref<any>(null);
 const detailPhotos = ref<string[]>([]);
 const detailPhotosLoading = ref(false);
-const syncHint = computed(() => (selected.value?.clientRef ? "" : " (not synced yet)"));
+const noPhotoText = computed(() =>
+  selected.value?.clientRef ? t("No photo attached") : t("No photo attached (not synced yet)"),
+);
 
 async function openDetail(item: any) {
   selected.value = item;
@@ -383,7 +385,7 @@ const formRef = ref();
 type PaymentLine = { key: number; cashboxAccountId: number | null; amount: string };
 let lineKey = 0;
 const form = ref({ description: "", category: "", fromCentral: false, payments: [] as PaymentLine[] });
-const required = (v: unknown) => (v !== null && v !== undefined && v !== "") || "Required";
+const required = (v: unknown) => (v !== null && v !== undefined && v !== "") || t("Required");
 
 function accountOf(id: number | null) {
   return paymentMethods.value.find((m) => m.id === id);
@@ -500,7 +502,7 @@ async function setCategory(name: string) {
     // The row in the table is this same object, so it updates too.
     item.category = name;
   } catch (err) {
-    photoError.value = `Couldn't change the category: ${err}`;
+    photoError.value = t("Couldn't change the category: {error}", { error: String(err) });
   } finally {
     categorySaving.value = false;
   }
@@ -520,7 +522,7 @@ async function toggleFromCentral() {
     item.fromCentral = Boolean(updated?.fromCentral);
     notifyIncomeChanged();
   } catch (err) {
-    photoError.value = `Couldn't change who paid: ${err}`;
+    photoError.value = t("Couldn't change who paid: {error}", { error: String(err) });
   } finally {
     fromCentralSaving.value = false;
   }

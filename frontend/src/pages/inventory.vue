@@ -48,7 +48,7 @@
       </k-virtual-scroll>
       <div v-if="loadError" class="inventory-status inventory-status-error">
         <span class="text-error text-caption">{{ loadErrorMessage }}</span>
-        <k-btn size="small" variant="text" @click="loadMore">Retry</k-btn>
+        <k-btn size="small" variant="text" @click="loadMore">{{ t("Retry") }}</k-btn>
       </div>
       <div v-else class="inventory-status text-medium-emphasis">
         <k-progress-circular v-if="loading" indeterminate color="primary" size="16" width="2" class="me-2" />
@@ -61,7 +61,7 @@
         v-model="search"
         density="compact"
         hide-details
-        placeholder="Search by name, code or barcode..."
+        :placeholder="t('Search by name, code or barcode...')"
         prepend-inner-icon="mdi-magnify"
         variant="outlined"
         clearable
@@ -85,15 +85,15 @@
       </k-card-subtitle>
       <k-card-text>
         <div class="d-flex justify-space-between font-weight-bold mb-3">
-          <span>Price here</span>
+          <span>{{ t("Price here") }}</span>
           <span>${{ Number(selected.price || 0).toFixed(2) }}</span>
         </div>
         <k-table v-if="selected.branches.length" density="compact">
           <thead>
             <tr>
-              <th>Branch</th>
-              <th class="text-end">On hand</th>
-              <th class="text-end">Their price</th>
+              <th>{{ t("Branch") }}</th>
+              <th class="text-end">{{ t("On hand") }}</th>
+              <th class="text-end">{{ t("Their price") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -105,7 +105,7 @@
           </tbody>
         </k-table>
         <div v-else class="text-medium-emphasis text-center py-4">
-          No other branch has stock of this product.
+          {{ t("No other branch has stock of this product.") }}
         </div>
       </k-card-text>
     </k-card>
@@ -117,6 +117,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { ListInventoryCursor } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import { t } from "@/i18n";
 
 type BranchStock = { branchCode: string; quantity: number; priceCents: number };
 type InventoryItem = {
@@ -157,11 +158,12 @@ const total = ref(-1);
 let latestRequest = 0;
 
 const countLabel = computed(() => {
-  if (total.value === 0) return "No products found";
-  if (total.value < 0) return loading.value ? "Loading…" : "";
-  const noun = total.value === 1 ? "product" : "products";
-  if (!hasMore.value) return `${total.value} ${noun} · all loaded`;
-  return `${total.value} ${noun} · ${products.value.length} loaded`;
+  if (total.value === 0) return t("No products found");
+  if (total.value < 0) return loading.value ? t("Loading…") : "";
+  const n = total.value;
+  const noun = n === 1 ? t("product") : t("products");
+  if (!hasMore.value) return t("{n} {noun} · all loaded", { n, noun });
+  return t("{n} {noun} · {loaded} loaded", { n, noun, loaded: products.value.length });
 });
 
 function resetList() {

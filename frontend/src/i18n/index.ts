@@ -36,10 +36,10 @@ export function setLocale(value: string) {
 }
 
 // t("Sales on {day}", { day }). Reads `locale`, so templates re-render on toggle.
-export function t(text: string, params?: Record<string, string | number>): string {
+export function t(text: string, params?: Record<string, unknown>): string {
   let out = (locale.value === "fr" && FR[text]) || text;
   if (params) {
-    for (const [key, value] of Object.entries(params)) out = out.replaceAll(`{${key}}`, String(value));
+    for (const [key, value] of Object.entries(params)) out = out.split(`{${key}}`).join(String(value));
   }
   return out;
 }

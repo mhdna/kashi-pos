@@ -10,10 +10,10 @@
          columns are the same widths as the lines' controls. -->
     <!-- The column header is switched off for now; each line says "Qty" again.
     <div v-if="displayItems.length" class="invoice-items-header" data-test="invoice-items-header" aria-hidden="true">
-      <span class="invoice-items-header__item">Item</span>
-      <span class="invoice-items-header__col invoice-header-qty">Qty</span>
-      <span v-if="anyDiscountEditable" class="invoice-items-header__col invoice-header-discount">Disc.</span>
-      <span class="invoice-items-header__col invoice-header-price">Price</span>
+      <span class="invoice-items-header__item">{{ t("Item") }}</span>
+      <span class="invoice-items-header__col invoice-header-qty">{{ t("Qty") }}</span>
+      <span v-if="anyDiscountEditable" class="invoice-items-header__col invoice-header-discount">{{ t("Disc.") }}</span>
+      <span class="invoice-items-header__col invoice-header-price">{{ t("Price") }}</span>
       <span class="invoice-header-delete" />
     </div>
     -->
@@ -132,7 +132,7 @@
             >
               <k-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
               <span class="invoice-deal-chip-text">
-                <span>No deal</span>
+                <span>{{ t("No deal") }}</span>
               </span>
             </k-chip>
             <!-- The deal a salesperson turned off on this line; tap to give it back. -->
@@ -163,9 +163,9 @@
                 :disabled="readonly || item.locked || item.qty < 0"
                 :min="1"
                 :max="999"
-                aria-label="Edit item quantity"
-                title="Quantity"
-                prefix="Qty"
+                :aria-label="t('Edit item quantity')"
+                :title="t('Quantity')"
+                :prefix="t('Qty')"
                 :keyboard-mode="keyboardMode"
                 @update:model-value="(value) => setQuantity(item, Number(value))"
                 @navigate="(direction) => moveVertical(index, 'qty', direction)"
@@ -177,8 +177,8 @@
                 v-if="canEditDiscount(item)"
                 :ref="(element) => setFieldRef(index, 'discount', element)"
                 :model-value="item.discount"
-                aria-label="Item discount percentage"
-                title="Discount"
+                :aria-label="t('Item discount percentage')"
+                :title="t('Discount')"
                 :min="0"
                 :max="100"
                 suffix="%"
@@ -197,8 +197,8 @@
                 (priceChangeMode === 'discount' && !isUnknownItem(item) ? effectiveUnitPrice(item) : item.price).toFixed(2)
               "
               allow-decimal
-              aria-label="Set custom item price"
-              title="Price"
+              :aria-label="t('Set custom item price')"
+              :title="t('Price')"
               :min="0.01"
               :max="999999.99"
               :max-length="9"
@@ -225,8 +225,8 @@
                   class="invoice-price-editor invoice-price-control d-flex flex-column align-center"
                   :class="{ 'invoice-price-editor--keyboard': fieldKeyboardMode }"
                   type="button"
-                  aria-label="Set custom item price"
-                  title="Set custom item price"
+                  :aria-label="t('Set custom item price')"
+                  :title="t('Set custom item price')"
                   @click="onClick"
                   @keydown="onKeydown"
                   @focus="onFocus"
@@ -238,7 +238,7 @@
                       icon="mdi-star"
                       color="amber-darken-2"
                       size="20"
-                      :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
+                      :title="item.priceListName ? t('Price from list: {name}', { name: item.priceListName }) : t('List price')"
                     />
                     <span class="invoice-price-values">
                       <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
@@ -269,7 +269,7 @@
                   icon="mdi-star"
                   color="amber-darken-2"
                   size="20"
-                  :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
+                  :title="item.priceListName ? t('Price from list: {name}', { name: item.priceListName }) : t('List price')"
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
@@ -288,11 +288,11 @@
                     :variant="discountStruck(item) ? 'outlined' : 'text'"
                     :title="
                       replacedFor(item)
-                        ? 'Not with the invoice deal'
+                        ? t('Not with the invoice deal')
                         : item.discountOff
-                        ? 'Discount turned off'
+                        ? t('Discount turned off')
                         : item.discountListName
-                          ? `Discount from list: ${item.discountListName}`
+                          ? t('Discount from list: {name}', { name: item.discountListName })
                           : undefined
                     "
                     @click="onDiscountChipClick($event, item)"
@@ -329,20 +329,20 @@
         </k-card-title>
         <k-card-text>
           <div class="text-body-1">
-            {{ toggleIsOff ? "Give back" : "Remove" }}
+            {{ toggleIsOff ? t("Give back") : t("Remove") }}
             <strong>{{ toggleName }}</strong>
-            {{ toggleIsOff ? "on" : "from" }} {{ toggleItem.name }}?
+            {{ toggleIsOff ? t("on") : t("from") }} {{ toggleItem.name }} ?
           </div>
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="toggleDialog = false">Cancel</k-btn>
+          <k-btn variant="text" @click="toggleDialog = false">{{ t("Cancel") }}</k-btn>
           <k-btn
             :color="toggleIsOff ? 'primary' : 'red'"
             variant="flat"
             @click="confirmToggle"
           >
-            {{ toggleIsOff ? `Give ${toggleKind}` : "Turn off" }}
+            {{ toggleIsOff ? (toggleKind === "discount" ? t("Give the discount") : t("Give the deal")) : t("Turn off") }}
           </k-btn>
         </k-card-actions>
       </k-card>
@@ -375,7 +375,7 @@
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="unknownDealDialog = false">Cancel</k-btn>
+          <k-btn variant="text" @click="unknownDealDialog = false">{{ t("Cancel") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -396,7 +396,7 @@
           <k-btn
             icon="mdi-close"
             variant="text"
-            aria-label="Close item details"
+            :aria-label="t('Close item details')"
             @click="detailsDialog = false"
           />
         </k-card-title>
@@ -404,7 +404,7 @@
           <!-- Who sold this line: a plain dropdown of names. "Invoice
                salesperson" hands the line back to whoever the invoice is under. -->
           <div class="line-salesperson" data-test="line-salesperson">
-            <div class="invoice-units-title">Sold by</div>
+            <div class="invoice-units-title">{{ t("Sold by") }}</div>
             <k-select
               class="line-salesperson-select"
               :model-value="Number(detailItem.salespersonId || 0)"
@@ -421,7 +421,7 @@
           <div class="line-note" :class="{ 'line-note--focused': noteFocused }">
             <div class="line-note-head">
               <k-icon icon="mdi-note-text-outline" size="18" />
-              <span class="line-note-title">Note</span>
+              <span class="line-note-title">{{ t("Note") }}</span>
               <k-spacer />
               <span class="line-note-count">{{ (detailItem.note ?? "").length }} / {{ NOTE_MAX }}</span>
             </div>
@@ -430,14 +430,14 @@
               v-model="detailItem.note"
               class="line-note-input"
               data-test="line-note"
-              placeholder="Add a note about this item"
+              :placeholder="t('Add a note about this item')"
               rows="3"
               :maxlength="NOTE_MAX"
               @focus="noteFocused = true"
               @blur="noteFocused = false"
             />
           </div>
-          <div class="invoice-units-title">Units</div>
+          <div class="invoice-units-title">{{ t("Units") }}</div>
           <div class="invoice-unit-lines">
             <div
               v-for="unitIndex in detailUnitCount(detailItem)"
@@ -498,7 +498,7 @@
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn color="primary" variant="flat" @click="detailsDialog = false">Done</k-btn>
+          <k-btn color="primary" variant="flat" @click="detailsDialog = false">{{ t("Done") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -528,7 +528,7 @@
           class="line-note-keyboard-close"
           color="error"
           variant="flat"
-          aria-label="Close keyboard"
+          :aria-label="t('Close keyboard')"
           data-test="line-note-keyboard-close"
           @click="closeNoteKeyboard"
         >
@@ -540,6 +540,7 @@
 </template>
 
 <script lang="ts" setup>
+import { t } from "@/i18n";
 import {
   computed,
   inject,
@@ -819,8 +820,8 @@ const toggleIsOff = computed(() =>
 const toggleName = computed(() => {
   const item = toggleItem.value;
   if (!item) return "";
-  if (toggleKind.value === "discount") return `the ${chipDiscount(item)}% discount`;
-  return `the ${(item.dealOff ? offDealFor(item) : dealFor(item)?.label) ?? ""} deal`;
+  if (toggleKind.value === "discount") return t("the {value}% discount", { value: chipDiscount(item) });
+  return t("the {deal} deal", { deal: `${(item.dealOff ? offDealFor(item) : dealFor(item)?.label) ?? ""}` });
 });
 
 watch(toggleDialog, (open) => {
@@ -909,21 +910,21 @@ function dealChipLines(item: LineItem): [string, string] {
   const deal = dealFor(item);
   if (!deal) return ["", ""];
   const [head = "", fallback] = deal.label.split(" else ");
-  if (deal.freeQty) return [head, `${deal.freeQty} free`];
-  return [head, fallback ? `else ${fallback}` : ""];
+  if (deal.freeQty) return [head, t("{qty} free", { qty: deal.freeQty })];
+  return [head, fallback ? t("else {fallback}", { fallback }) : ""];
 }
 
 // The off chip is as narrow as the live one: the short name on top, struck
 // through, and the "else 30%" fallback (if any) with "off" underneath.
 function offDealParts(item: LineItem): [string, string] {
   const [head = "", fallback] = (offDealFor(item) ?? "").split(" else ");
-  return [head, fallback ? `else ${fallback} · off` : "off"];
+  return [head, fallback ? t("else {fallback} · off", { fallback }) : t("off")];
 }
 
 function dealChipText(item: LineItem): string {
   const deal = dealFor(item);
   if (!deal) return "";
-  return deal.freeQty ? `${deal.label} · ${deal.freeQty} free` : deal.label;
+  return deal.freeQty ? t("{label}, {qty} free", { label: deal.label, qty: deal.freeQty }) : deal.label;
 }
 
 function discountAmount(item: LineItem): number {
@@ -1046,18 +1047,18 @@ const salespersons = ref<Salesperson[]>([]);
 function lineSalesperson(item: LineItem): { id: number; fullName: string } | null {
   const id = Number(item.salespersonId || 0);
   if (!id) return null;
-  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesman" };
+  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: t("Former salesman") };
 }
 // The person picked for the open line, or null when it follows the invoice.
 const detailSalesperson = computed(() => {
   const id = Number(detailItem.value?.salespersonId || 0);
   if (!id) return null;
-  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesman" };
+  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: t("Former salesman") };
 });
 // The dropdown's choices: the invoice's salesperson first, then everyone who
 // sells, plus a former salesperson the line still points at.
 const lineSalespersonOptions = computed(() => {
-  const options = [{ title: "Invoice salesman", value: 0 }, ...salespersons.value.map((p) => ({ title: p.fullName, value: p.id }))];
+  const options = [{ title: t("Invoice salesman"), value: 0 }, ...salespersons.value.map((p) => ({ title: p.fullName, value: p.id }))];
   const current = detailSalesperson.value;
   if (current && !salespersons.value.some((p) => p.id === current.id)) options.push({ title: current.fullName, value: current.id });
   return options;
@@ -1484,7 +1485,7 @@ function persistDiscount(item: LineItem): Promise<boolean> {
       if (item.qty > 0) item.unitDiscounts = Array(Math.trunc(item.qty)).fill(previous);
       emit(
         "discount-error",
-        error instanceof Error ? error.message : String(error || "Could not save discount."),
+        error instanceof Error ? error.message : String(error || t("Could not save discount.")),
       );
       return false;
     })

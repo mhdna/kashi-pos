@@ -13,15 +13,15 @@
       <img
         v-if="current"
         :src="current"
-        alt="Photo"
+        :alt="t('Photo')"
         class="photo-viewer-img"
         draggable="false"
         :style="{ transform: `translate(${x}px, ${y}px) scale(${scale})` }"
       />
-      <k-btn class="photo-viewer-close" icon="mdi-close" variant="flat" aria-label="Close" @pointerdown.stop @click="open = false" />
+      <k-btn class="photo-viewer-close" icon="mdi-close" variant="flat" :aria-label="t('Close')" @pointerdown.stop @click="open = false" />
       <template v-if="photos.length > 1">
-        <k-btn class="photo-viewer-nav photo-viewer-nav--prev" icon="mdi-chevron-left" variant="flat" aria-label="Previous photo" @pointerdown.stop @click="step(-1)" />
-        <k-btn class="photo-viewer-nav photo-viewer-nav--next" icon="mdi-chevron-right" variant="flat" aria-label="Next photo" @pointerdown.stop @click="step(1)" />
+        <k-btn class="photo-viewer-nav photo-viewer-nav--prev" icon="mdi-chevron-left" variant="flat" :aria-label="t('Previous photo')" @pointerdown.stop @click="step(-1)" />
+        <k-btn class="photo-viewer-nav photo-viewer-nav--next" icon="mdi-chevron-right" variant="flat" :aria-label="t('Next photo')" @pointerdown.stop @click="step(1)" />
         <div class="photo-viewer-count">{{ index + 1 }} / {{ photos.length }}</div>
       </template>
     </div>
@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { t } from "@/i18n";
 
 // Full-screen photo with pinch-to-zoom (two fingers), mouse-wheel zoom, drag
 // to pan and double-tap to zoom in / reset. Opened from the photo thumbnails

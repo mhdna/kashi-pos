@@ -21,6 +21,6 @@ describe("events page, Coming up list", () => {
 
   it("writes a date range with 'to', not a dash", () => {
     expect(src).not.toMatch(/\$\{fmt\(e\.start\)\} [–—] /);
-    expect(src).toMatch(/\$\{fmt\(e\.start\)\} to \$\{fmt\(e\.end\)\}/);
+    expect(src).toMatch(/t\("\{from\} to \{to\}"/);
   });
 });

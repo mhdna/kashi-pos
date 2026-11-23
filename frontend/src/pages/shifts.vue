@@ -3,7 +3,7 @@
     <div class="shifts-cards d-flex">
       <ShiftIncomeCard
         :items="shiftIncome"
-        title="Current Shift Income"
+        :title="t('Current Shift Income')"
         :shift-id="openShift?.id"
         :loading="loadingShift"
         :payment-methods="paymentMethods"
@@ -112,6 +112,7 @@ import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useAuthStore } from "@/stores/auth";
 import { serverDateLocalDayKey } from "@/lib/datetime";
+import { t } from "@/i18n";
 const auth = useAuthStore();
 const lastView = pageCache.lastView;
 const { enabled: visitorCounterEnabled, count: visitorCounterToday } = useVisitorCounter();
@@ -241,7 +242,7 @@ async function printClosedShift(shiftId: number) {
   printingShiftId.value = shiftId;
   try {
     await PrintClosedShiftReceipt(shiftId);
-    window.alert("End-of-shift receipt sent to the printer");
+    window.alert(t("End-of-shift receipt sent to the printer"));
   } catch (error) {
     window.alert(error instanceof Error ? error.message : String(error));
   } finally {

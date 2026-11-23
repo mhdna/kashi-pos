@@ -2,7 +2,7 @@
   <k-dialog v-model="open" max-width="640">
     <k-card class="devices-dialog-card">
       <div class="dialog-close-row px-4 pt-0">
-        <k-btn icon="mdi-close" variant="text" aria-label="Close devices" @click="open = false" />
+        <k-btn icon="mdi-close" variant="text" :aria-label="t('Close devices')" @click="open = false" />
       </div>
       <k-card-text class="devices-grid px-4 pt-0 pb-6">
         <div v-for="device in devices" :key="device.kind" class="device-card">
@@ -21,7 +21,7 @@
                 variant="tonal"
                 @click="openFindPrinter"
               >
-                Find
+                {{ t("Find") }}
               </k-btn>
               <k-btn
                 v-else-if="device.kind === 'scanner' && device.state === 'off'"
@@ -30,7 +30,7 @@
                 variant="tonal"
                 @click="forgetScanner"
               >
-                Use another
+                {{ t("Use another") }}
               </k-btn>
             </template>
           </div>
@@ -43,47 +43,46 @@
   <k-dialog v-model="findOpen" max-width="720" scrollable>
     <k-card class="devices-dialog-card">
       <k-card-title class="d-flex align-center">
-        Find the receipt printer
+        {{ t("Find the receipt printer") }}
         <k-spacer />
-        <k-btn icon="mdi-refresh" variant="text" aria-label="Search again" :loading="searching" @click="search" />
-        <k-btn icon="mdi-close" variant="text" aria-label="Close" @click="findOpen = false" />
+        <k-btn icon="mdi-refresh" variant="text" :aria-label="t('Search again')" :loading="searching" @click="search" />
+        <k-btn icon="mdi-close" variant="text" :aria-label="t('Close')" @click="findOpen = false" />
       </k-card-title>
       <k-card-text>
         <div v-if="searchError" class="text-error mb-3">{{ searchError }}</div>
 
         <template v-if="moveSuggestion">
-          <div class="find-section-title">Printer plugged into {{ moveSuggestion.port }}</div>
+          <div class="find-section-title">{{ t("Printer plugged into {port}", { port: moveSuggestion.port }) }}</div>
           <p class="mb-2">
-            <strong>{{ found?.receiptPrinter }}</strong> prints to {{ receiptPort || "another port" }}, but the
-            printer that's plugged in now is on {{ moveSuggestion.port }}.
+            <strong>{{ found?.receiptPrinter }}</strong> {{ t("prints to {port}, but the printer that's plugged in now is on {plugged}.", { port: receiptPort || t("another port"), plugged: moveSuggestion.port }) }}
           </p>
           <k-btn color="primary" :loading="busy" class="mb-4" @click="movePrinter(moveSuggestion.port)">
-            Move {{ found?.receiptPrinter }} to {{ moveSuggestion.port }}
+            {{ t("Move {printer} to {port}", { printer: found?.receiptPrinter, port: moveSuggestion.port }) }}
           </k-btn>
         </template>
 
-        <div class="find-section-title">Printers on this computer</div>
-        <div v-if="found && found.printers.length === 0" class="text-medium-emphasis mb-4">No printers installed.</div>
+        <div class="find-section-title">{{ t("Printers on this computer") }}</div>
+        <div v-if="found && found.printers.length === 0" class="text-medium-emphasis mb-4">{{ t("No printers installed.") }}</div>
         <div v-for="printer in found?.printers ?? []" :key="printer.name" class="find-row">
           <k-icon icon="mdi-printer" :class="printer.ready ? 'device-status--ok' : 'device-status--off'" />
           <div class="find-row-text">
             <div class="font-weight-bold">{{ printer.name }}</div>
             <div class="text-medium-emphasis">
-              {{ printer.port || "no port" }} · {{ printer.ready ? "Ready" : "Offline" }}
+              {{ printer.port || t("no port") }} · {{ printer.ready ? t("Ready") : t("Offline") }}
             </div>
           </div>
-          <k-chip v-if="printer.receipt" size="small" color="primary" variant="tonal">Receipt printer</k-chip>
-          <k-btn v-else :loading="busy" variant="tonal" @click="usePrinter(printer.name)">Use</k-btn>
+          <k-chip v-if="printer.receipt" size="small" color="primary" variant="tonal">{{ t("Receipt printer") }}</k-chip>
+          <k-btn v-else :loading="busy" variant="tonal" @click="usePrinter(printer.name)">{{ t("Use") }}</k-btn>
         </div>
 
         <template v-if="found && found.livePorts.length > 0">
-          <div class="find-section-title mt-4">USB printers plugged in now</div>
+          <div class="find-section-title mt-4">{{ t("USB printers plugged in now") }}</div>
           <div v-for="port in found.livePorts" :key="port.port" class="find-row">
             <k-icon icon="mdi-usb" class="device-status--ok" />
             <div class="find-row-text">
               <div class="font-weight-bold">{{ port.port }}</div>
               <div class="text-medium-emphasis">
-                {{ port.usedBy.length ? `Used by ${port.usedBy.join(", ")}` : "No printer set to this port" }}
+                {{ port.usedBy.length ? t("Used by {printers}", { printers: port.usedBy.join(", ") }) : t("No printer set to this port") }}
                 <span v-if="port.device"> · {{ port.device }}</span>
               </div>
             </div>
@@ -93,12 +92,12 @@
               variant="tonal"
               @click="movePrinter(port.port)"
             >
-              Move here
+              {{ t("Move here") }}
             </k-btn>
           </div>
         </template>
         <div v-else-if="found" class="text-medium-emphasis mt-4">
-          No USB printer is plugged in right now. Check the cable and the power, then search again.
+          {{ t("No USB printer is plugged in right now. Check the cable and the power, then search again.") }}
         </div>
       </k-card-text>
     </k-card>
@@ -107,6 +106,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useDeviceStatus } from "@/composables/useDeviceStatus";
 import { FindPrinters, ForgetScanner, MovePrinterToPort, UseReceiptPrinter } from "../../wailsjs/go/main/App";
@@ -185,7 +185,7 @@ function movePrinter(port: string) {
 async function forgetScanner() {
   try {
     await ForgetScanner();
-    notice.value = "Scan a barcode with the scanner you want to use.";
+    notice.value = t("Scan a barcode with the scanner you want to use.");
   } catch (error) {
     notice.value = String(error);
   }

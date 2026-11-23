@@ -1,6 +1,6 @@
 <template>
   <div class="header-btn-wrap">
-    <div class="header-btn-subtitle">Client</div>
+    <div class="header-btn-subtitle">{{ t("Client") }}</div>
     <div class="header-btn-anchor">
       <k-btn
         size="small"
@@ -12,7 +12,7 @@
         @click="dialog = true"
       >
         <k-icon icon="mdi-account-outline" size="16" class="me-1 flex-shrink-0" />
-        <span class="header-fixed-width-btn-label">{{ clientSelected ? client.name.split(" ")[0] : "Client" }}</span>
+        <span class="header-fixed-width-btn-label">{{ clientSelected ? client.name.split(" ")[0] : t("Client") }}</span>
       </k-btn>
       <k-btn
         v-if="clientSelected && client.id !== 0"
@@ -22,7 +22,7 @@
         color="surface"
         class="client-edit-btn"
         :disabled="disabled"
-        aria-label="Edit client"
+        :aria-label="t('Edit client')"
         @click.stop="editDialog = true"
       >
         <k-icon icon="mdi-pencil" size="12" />
@@ -37,6 +37,7 @@
 import { defineAsyncComponent, onMounted, ref, watch } from "vue";
 import ClientEditDialog from "./ClientEditDialog.vue";
 import { useClient } from "@/composables/useClient";
+import { t } from "@/i18n";
 import { WhatsAppWelcome } from "../../wailsjs/go/main/App";
 
 defineProps<{ disabled?: boolean }>();

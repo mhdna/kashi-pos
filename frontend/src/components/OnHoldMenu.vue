@@ -3,7 +3,7 @@
     <template #prepend>
       <k-icon icon="mdi-pause" size="20" class="me-2" />
     </template>
-    On Hold
+    {{ t("On Hold") }}
   </k-btn>
 
   <k-dialog v-model="menu" max-width="500">
@@ -12,8 +12,8 @@
         <k-avatar color="primary" variant="tonal" size="56" class="mb-2">
           <k-icon icon="mdi-pause" size="28" />
         </k-avatar>
-        <div class="text-subtitle-1 font-weight-bold">Invoices on hold</div>
-        <div v-if="holds.length" class="text-caption text-medium-emphasis" data-test="held-count">{{ holds.length }} held</div>
+        <div class="text-subtitle-1 font-weight-bold">{{ t("Invoices on hold") }}</div>
+        <div v-if="holds.length" class="text-caption text-medium-emphasis" data-test="held-count">{{ t("{n} held", { n: holds.length }) }}</div>
       </k-card-title>
       <k-divider />
       <k-card-text class="on-hold-list pa-0 flex-grow-1 overflow-y-auto">
@@ -43,7 +43,7 @@
               </k-list-item-title>
               <k-list-item-subtitle>{{ formatServerDateTime(h.createdAt) }}</k-list-item-subtitle>
               <template #append>
-                <k-btn icon size="small" variant="text" aria-label="Remove hold" @click.stop="removeHold(h.id)">
+                <k-btn icon size="small" variant="text" :aria-label="t('Remove hold')" @click.stop="removeHold(h.id)">
                   <k-icon icon="mdi-close" size="16" />
                 </k-btn>
               </template>
@@ -53,7 +53,7 @@
         </k-list>
         <div v-else class="on-hold-empty d-flex flex-column align-center justify-center h-100 text-medium-emphasis">
           <k-icon icon="mdi-tray-remove" size="40" class="mb-2" />
-          <div class="text-body-2">No invoices on hold</div>
+          <div class="text-body-2">{{ t("No invoices on hold") }}</div>
         </div>
       </k-card-text>
     </k-card>
@@ -62,6 +62,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { t } from "@/i18n";
 import { ListHoldInvoices, DeleteHoldInvoice } from "../../wailsjs/go/main/App";
 import { formatServerDateTime } from "@/lib/datetime";
 import { holdKind, holdTitle } from "@/lib/holdSnapshot";

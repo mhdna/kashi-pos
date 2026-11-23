@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
+import { t } from "@/i18n";
 import { formatLebanesePhone } from "@/lib/phone";
 
 // A phone number edited digit by digit, from the keyboard or a PhonePad
@@ -29,7 +30,7 @@ import { formatLebanesePhone } from "@/lib/phone";
 defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(defineProps<{ modelValue: string; placeholder?: string; maxDigits?: number }>(), {
-  placeholder: "Phone Number",
+  placeholder: t("Phone Number"),
   maxDigits: 15,
 });
 const emit = defineEmits<{ "update:modelValue": [value: string]; focus: [] }>();

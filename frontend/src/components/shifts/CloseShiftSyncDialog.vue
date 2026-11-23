@@ -9,7 +9,7 @@
       <k-card-text>
         <template v-if="state === 'uploading' || state === 'done'">
           <div class="text-body-2 mb-3">
-            The shift closes and its receipt prints once everything has reached the office.
+            {{ t("The shift closes and its receipt prints once everything has reached the office.") }}
           </div>
           <k-progress-linear
             :model-value="percent"
@@ -19,8 +19,8 @@
             rounded
           />
           <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-2">
-            <span v-if="progress">{{ progress.done }} of {{ progress.total }} uploaded</span>
-            <span v-else>Connecting…</span>
+            <span v-if="progress">{{ t("{done} of {total} uploaded", { done: progress.done, total: progress.total }) }}</span>
+            <span v-else>{{ t("Connecting…") }}</span>
             <span v-if="state === 'uploading'">{{ etaText }}</span>
             <span v-else-if="progress">in {{ formatDuration(progress.elapsedSeconds) }}</span>
           </div>
@@ -31,8 +31,7 @@
             {{ errorMessage }}
           </k-alert>
           <div class="text-body-2">
-            {{ remaining }} item{{ remaining === 1 ? "" : "s" }} still waiting to upload. Nothing
-            is lost — once the internet is back, press <b>Try again</b>.
+            {{ remaining === 1 ? t("{n} item still waiting to upload.", { n: remaining }) : t("{n} items still waiting to upload.", { n: remaining }) }} {{ t("Nothing is lost. Once the internet is back, press") }} <b>{{ t("Try again") }}</b>.
           </div>
         </template>
 
@@ -49,8 +48,7 @@
           density="compact"
           class="mt-3"
         >
-          {{ rejected }} item{{ rejected === 1 ? " was" : "s were" }} rejected by the office and
-          won't upload on retry. They don't block closing; check Settings › Central sync.
+          {{ rejected === 1 ? t("{n} item was rejected by the office and won't upload on retry. They don't block closing. Check Settings › Central sync.", { n: rejected }) : t("{n} items were rejected by the office and won't upload on retry. They don't block closing. Check Settings › Central sync.", { n: rejected }) }}
         </k-alert>
 
         <div v-if="showBypass" class="d-flex flex-column ga-3 mt-4">
@@ -59,7 +57,7 @@
             autofocus
             density="compact"
             hide-details="auto"
-            placeholder="Admin password"
+            :placeholder="t('Admin password')"
             type="password"
             variant="outlined"
             @update:model-value="bypassError = ''"
@@ -68,7 +66,7 @@
             v-model="bypassReason"
             density="compact"
             hide-details="auto"
-            placeholder="Reason (optional)"
+            :placeholder="t('Reason (optional)')"
             variant="outlined"
           />
           <div v-if="bypassError" class="text-caption text-error">{{ bypassError }}</div>
@@ -77,7 +75,7 @@
 
       <k-card-actions class="px-4 pb-4">
         <template v-if="showBypass">
-          <k-btn variant="text" @click="showBypass = false">Back</k-btn>
+          <k-btn variant="text" @click="showBypass = false">{{ t("Back") }}</k-btn>
           <k-spacer />
           <k-btn
             color="error"
@@ -86,20 +84,20 @@
             :loading="bypassing"
             @click="submitBypass"
           >
-            Close without uploading
+            {{ t("Close without uploading") }}
           </k-btn>
         </template>
         <template v-else-if="state === 'error'">
-          <k-btn variant="text" @click="finish(false)">Cancel</k-btn>
-          <k-btn variant="text" size="small" @click="showBypass = true">Manager override</k-btn>
+          <k-btn variant="text" @click="finish(false)">{{ t("Cancel") }}</k-btn>
+          <k-btn variant="text" size="small" @click="showBypass = true">{{ t("Manager override") }}</k-btn>
           <k-spacer />
           <k-btn color="primary" variant="elevated" prepend-icon="mdi-refresh" @click="upload">
-            Try again
+            {{ t("Try again") }}
           </k-btn>
         </template>
         <template v-else-if="state === 'uploading'">
           <k-spacer />
-          <k-btn variant="text" @click="cancelUpload">Cancel</k-btn>
+          <k-btn variant="text" @click="cancelUpload">{{ t("Cancel") }}</k-btn>
         </template>
       </k-card-actions>
     </k-card>
@@ -107,6 +105,7 @@
 </template>
 
 <script setup lang="ts">
+import { t } from "@/i18n";
 import { computed, onBeforeUnmount, ref } from "vue";
 import {
   BypassCloseShiftSyncGate,
@@ -158,17 +157,17 @@ const percent = computed(() => {
 
 const etaText = computed(() => {
   const p = progress.value;
-  if (!p || p.etaSeconds < 0) return "Estimating time left…";
-  if (p.remaining === 0) return "Finishing…";
-  return `~${formatDuration(p.etaSeconds)} left · ${p.perSecond.toFixed(p.perSecond < 10 ? 1 : 0)}/s`;
+  if (!p || p.etaSeconds < 0) return t("Estimating time left…");
+  if (p.remaining === 0) return t("Finishing…");
+  return t("~{time} left · {rate}/s", { time: formatDuration(p.etaSeconds), rate: p.perSecond.toFixed(p.perSecond < 10 ? 1 : 0) });
 });
 
 const headerTitle = computed(() =>
   state.value === "done"
-    ? "Everything uploaded"
+    ? t("Everything uploaded")
     : state.value === "error"
-      ? "Couldn't finish uploading"
-      : "Uploading to the office…",
+      ? t("Couldn't finish uploading")
+      : t("Uploading to the office…"),
 );
 const headerIcon = computed(() =>
   state.value === "done"
@@ -197,7 +196,8 @@ const entityLabels: Record<string, string> = {
   quick_access_mode: "Quick access",
 };
 function entityLabel(type: string) {
-  return entityLabels[type] ?? type.replace(/_/g, " ");
+  const label = entityLabels[type];
+  return label ? t(label) : type.replace(/_/g, " ");
 }
 
 function formatDuration(seconds: number) {

@@ -1,9 +1,9 @@
 <template>
   <div class="close-shift-content">
-    <h1 class="text-h5 close-shift-title">Shift Summary{{ shiftId ? ` (#${shiftId})` : "" }}</h1>
+    <h1 class="text-h5 close-shift-title">{{ t("Shift Summary") }}{{ shiftId ? ` (#${shiftId})` : "" }}</h1>
     <div v-if="shiftCreatedAt" class="shift-times text-caption text-medium-emphasis">
-      <span>Opened: {{ formatServerDateTime(shiftCreatedAt) }}</span>
-      <span>Closing: {{ closingTime }}</span>
+      <span>{{ t("Opened: {time}", { time: formatServerDateTime(shiftCreatedAt) }) }}</span>
+      <span>{{ t("Closing: {time}", { time: closingTime }) }}</span>
     </div>
     <div class="close-shift-body">
       <template v-if="balanceRows.length">
@@ -22,11 +22,11 @@
           </div>
         </div>
       </template>
-      <div v-else class="text-center text-medium-emphasis py-4">No transactions this shift</div>
+      <div v-else class="text-center text-medium-emphasis py-4">{{ t("No transactions this shift") }}</div>
       <!-- Money paid out during the shift, listed under the sales balances
            (which stay as they are). -->
       <div v-if="shiftSpend.length" class="shift-spend mt-3">
-        <div class="text-caption font-weight-bold text-medium-emphasis mb-1">Expenses &amp; loans this shift</div>
+        <div class="text-caption font-weight-bold text-medium-emphasis mb-1">{{ t("Expenses & loans this shift") }}</div>
         <div v-for="row in shiftSpend" :key="row.key" class="d-flex justify-space-between py-1">
           <span class="text-truncate">
             <k-icon :icon="row.kind === 'loan' ? 'mdi-hand-coin-outline' : 'mdi-receipt-text-outline'" size="16" class="me-1" />
@@ -40,7 +40,7 @@
         :items="salespersons"
         item-title="fullName"
         item-value="id"
-        placeholder="Closing person"
+        :placeholder="t('Closing person')"
         active
         :menu-props="{ transition: false }"
         variant="outlined"
@@ -55,18 +55,18 @@
           :loading="autofilling"
           @click="autofillFromExpected"
         >
-          Autofill (Estimated Amount)
+          {{ t("Autofill (Estimated Amount)") }}
         </k-btn>
       </div>
       <k-alert v-if="autofillError" type="error" variant="tonal" density="compact" class="mb-3">
-        Autofill failed: {{ autofillError }}
+        {{ t("Autofill failed: {error}", { error: autofillError }) }}
       </k-alert>
       <div class="usd-bill-grid">
         <NumberPadMenu
           v-for="denomination in usdDenominations"
           :key="denomination"
           :model-value="usdBillCounts[denomination] || 0"
-          :aria-label="`Count $${denomination} bills`"
+          :aria-label="t('Count {amount} bills', { amount: `$${denomination}` })"
           :transition="false"
           :min="0"
           :max="999"
@@ -84,7 +84,7 @@
               :model-value="usdBillCounts[denomination]"
               :label="`$${denomination}`"
               active
-              suffix="bills"
+              :suffix="t('bills')"
               prepend-inner-icon="mdi-cash"
               readonly
               hide-details
@@ -99,13 +99,13 @@
         </NumberPadMenu>
       </div>
       <div class="d-flex justify-space-between align-center mb-4 px-1">
-        <span class="text-body-2">USD counted total</span>
+        <span class="text-body-2">{{ t("USD counted total") }}</span>
         <span class="font-weight-bold">{{ formatUsd(countedUsdTotal / 100) }}</span>
       </div>
       <div class="counted-lbp-row">
         <NumberPadMenu
           :model-value="countedLbp"
-          aria-label="Total LBP counted"
+          :aria-label="t('Total LBP counted')"
           :transition="false"
           :max="999999999999"
           allow-negative
@@ -134,14 +134,14 @@
           </template>
         </NumberPadMenu>
         <div class="d-flex justify-space-between align-center mb-2 px-1">
-          <span class="text-body-2">LBP counted total</span>
+          <span class="text-body-2">{{ t("LBP counted total") }}</span>
           <span class="font-weight-bold">{{ countedLbpTotal }}</span>
         </div>
       </div>
       <div class="electronic-count-grid">
         <NumberPadMenu
           :model-value="countedVisa"
-          aria-label="Counted Visa"
+          :aria-label="t('Counted Visa')"
           :transition="false"
           allow-decimal
           allow-negative
@@ -172,7 +172,7 @@
         </NumberPadMenu>
         <NumberPadMenu
           :model-value="countedWhish"
-          aria-label="Counted Whish"
+          :aria-label="t('Counted Whish')"
           :transition="false"
           allow-decimal
           allow-negative
@@ -203,7 +203,7 @@
         </NumberPadMenu>
         <k-text-field
           :model-value="(countedCouponCents / 100).toFixed(2)"
-          label="Coupon"
+          :label="t('Coupon')"
           active
           prefix="$"
           prepend-inner-icon="mdi-ticket-percent-outline"
@@ -214,14 +214,14 @@
         />
       </div>
       <div class="d-flex justify-space-between align-center mb-2 px-1">
-        <span class="text-body-2">Non-cash payments counted</span>
+        <span class="text-body-2">{{ t("Non-cash payments counted") }}</span>
         <span class="font-weight-bold">{{
           formatUsd((countedVisaCents + countedWhishCents + countedCouponCents) / 100)
         }}</span>
       </div>
     </div>
     <div class="close-shift-actions">
-      <k-btn variant="text" @click="emit('close')">Cancel</k-btn>
+      <k-btn variant="text" @click="emit('close')">{{ t("Cancel") }}</k-btn>
       <k-btn
         color="error"
         variant="elevated"
@@ -229,7 +229,7 @@
         :disabled="!formValid"
         @click="doCloseShift"
       >
-        Close Shift
+        {{ t("Close Shift") }}
       </k-btn>
     </div>
 
@@ -238,10 +238,10 @@
     <k-dialog v-model="receiptDialog" max-width="420" persistent scrollable>
       <k-card class="text-center">
         <template v-if="receiptState === 'scan'">
-          <k-card-title class="pt-4">Upload the shift receipt</k-card-title>
+          <k-card-title class="pt-4">{{ t("Upload the shift receipt") }}</k-card-title>
           <k-card-text class="pb-4">
             <div class="text-body-2">
-              Scan with a phone and take one photo of the printed receipt and the handwritten receipt.
+              {{ t("Scan with a phone and take one photo of the printed receipt and the handwritten receipt.") }}
             </div>
             <div class="text-body-2 mb-3" dir="rtl" lang="ar">
               امسح الرمز بالهاتف والتقط صورة واحدة للإيصال المطبوع والإيصال المكتوب بخط اليد.
@@ -249,7 +249,7 @@
             <img
               v-if="receiptQr"
               :src="receiptQr"
-              alt="Upload QR code"
+              :alt="t('Upload QR code')"
               style="width: 240px; height: 240px"
             />
             <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">
@@ -257,7 +257,7 @@
             </div>
             <div class="d-flex align-center justify-center ga-2 mt-4 text-medium-emphasis">
               <k-progress-circular indeterminate size="18" width="2" />
-              <span class="text-caption">Waiting for the photo…</span>
+              <span class="text-caption">{{ t("Waiting for the photo…") }}</span>
             </div>
 
             <template v-if="!showSkip">
@@ -270,10 +270,10 @@
                 variant="text"
                 @click="switchToLocalUpload"
               >
-                Phone can't reach the server? Use local Wi-Fi
+                {{ t("Phone can't reach the server? Use local Wi-Fi") }}
               </k-btn>
               <k-btn block class="mt-2" size="small" variant="text" @click="showSkip = true">
-                Can't upload now
+                {{ t("Can't upload now") }}
               </k-btn>
             </template>
 
@@ -283,7 +283,7 @@
                 autofocus
                 density="compact"
                 hide-details="auto"
-                placeholder="Admin password"
+                :placeholder="t('Admin password')"
                 type="password"
                 variant="outlined"
                 @update:model-value="skipError = ''"
@@ -292,12 +292,12 @@
                 v-model="skipReason"
                 density="compact"
                 hide-details="auto"
-                placeholder="Reason (optional)"
+                :placeholder="t('Reason (optional)')"
                 variant="outlined"
               />
               <div v-if="skipError" class="text-caption text-error">{{ skipError }}</div>
               <div class="d-flex ga-2 justify-space-between">
-                <k-btn size="small" variant="text" @click="showSkip = false">Back</k-btn>
+                <k-btn size="small" variant="text" @click="showSkip = false">{{ t("Back") }}</k-btn>
                 <k-btn
                   color="error"
                   :disabled="!adminPassword"
@@ -305,7 +305,7 @@
                   size="small"
                   @click="submitSkip"
                 >
-                  Skip &amp; finish
+                  {{ t("Skip & finish") }}
                 </k-btn>
               </div>
             </div>
@@ -317,14 +317,14 @@
           <k-card-text class="pt-6">
             <k-icon color="success" icon="mdi-check-circle" size="72" />
             <div class="text-h5 font-weight-bold mt-2">
-              Well done{{ closerFirstName ? `, ${closerFirstName}` : "" }}!
+              {{ closerFirstName ? t("Well done, {name}!", { name: closerFirstName }) : t("Well done!") }}
             </div>
             <div class="text-body-1 mt-3">
-              Your shift is closed{{ receiptPhotoReceived ? " and the receipt photo is in" : "" }}.
+              {{ receiptPhotoReceived ? t("Your shift is closed and the receipt photo is in.") : t("Your shift is closed.") }}
             </div>
-            <div class="text-body-1 mt-1">Thank you for today's work.</div>
+            <div class="text-body-1 mt-1">{{ t("Thank you for today's work.") }}</div>
             <k-divider class="my-4" />
-            <div class="text-subtitle-1 font-weight-medium">Shut down the computer?</div>
+            <div class="text-subtitle-1 font-weight-medium">{{ t("Shut down the computer?") }}</div>
             <div v-if="shutdownError" class="text-caption text-error mt-2">{{ shutdownError }}</div>
           </k-card-text>
           <k-card-actions class="flex-column ga-2 px-4 pb-4">
@@ -337,10 +337,10 @@
               variant="flat"
               @click="shutDownAfterShift"
             >
-              Yes, shut down
+              {{ t("Yes, shut down") }}
             </k-btn>
             <k-btn block :disabled="shuttingDown" prepend-icon="mdi-logout" variant="text" @click="finishReceipt">
-              No, just log out
+              {{ t("No, just log out") }}
             </k-btn>
           </k-card-actions>
         </template>
@@ -351,6 +351,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, onMounted } from "vue";
+import { t } from "@/i18n";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { formatBalance, formatUsd } from "@/lib/format";
@@ -498,11 +499,11 @@ async function loadShiftSpend() {
     const summary = await GetSpendSummary(shiftId.value);
     shiftSpend.value = [
       ...((summary.shiftExpenses ?? []) as any[]).map((e) => ({
-        key: `e-${e.id}`, kind: "expense" as const, label: e.description || e.category || "Expense",
+        key: `e-${e.id}`, kind: "expense" as const, label: e.description || e.category || t("Expense"),
         amount: e.amount, currencyCode: e.currencyCode,
       })),
       ...((summary.shiftLoans ?? []) as any[]).map((l) => ({
-        key: `l-${l.id}`, kind: "loan" as const, label: l.description || l.category || "Loan",
+        key: `l-${l.id}`, kind: "loan" as const, label: l.description || l.category || t("Loan"),
         amount: l.amount, currencyCode: l.currencyCode,
       })),
     ];
@@ -554,7 +555,7 @@ async function syncBeforeClose(): Promise<boolean> {
   } catch (e) {
     console.error("close shift sync:", e);
     playErrorSound();
-    window.alert(`Couldn't check what's left to upload: ${e instanceof Error ? e.message : e}`);
+    window.alert(t("Couldn't check what's left to upload: {error}", { error: e instanceof Error ? e.message : String(e) }));
     return false;
   }
 }
@@ -586,7 +587,7 @@ async function doCloseShift() {
       );
       shiftClosed = true;
       if (result?.receiptError) {
-        window.alert(`Shift closed, but the receipt could not be printed: ${result.receiptError}`);
+        window.alert(t("Shift closed, but the receipt could not be printed: {error}", { error: result.receiptError }));
       }
       receiptUpload = (result?.receiptUpload ?? null) as ReceiptUpload | null;
     }
@@ -599,7 +600,7 @@ async function doCloseShift() {
       // Still open: stay here so the cashier can retry (e.g. a sale was
       // rung up on another screen after the upload finished).
       closing.value = false;
-      window.alert(`The shift was not closed: ${e instanceof Error ? e.message : e}`);
+      window.alert(t("The shift was not closed: {error}", { error: e instanceof Error ? e.message : String(e) }));
       return;
     }
   }
@@ -653,7 +654,7 @@ async function shutDownAfterShift() {
     await ShutDownComputer();
     auth.logout();
   } catch (e: any) {
-    shutdownError.value = `Couldn't shut down: ${e?.message ?? e}`;
+    shutdownError.value = t("Couldn't shut down: {error}", { error: e?.message ?? e });
     shuttingDown.value = false;
   }
 }

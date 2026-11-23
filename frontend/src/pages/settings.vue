@@ -4,7 +4,7 @@
       <k-text-field
         v-model="settingsSearch"
         class="settings-search mb-2"
-        placeholder="Search settings…"
+        :placeholder="t('Search settings…')"
         prepend-inner-icon="mdi-magnify"
         variant="outlined"
         density="compact"
@@ -23,19 +23,19 @@
 
     <div class="settings-scroll">
       <div v-if="normalizedSearch && !tabsWithMatches?.size" class="settings-empty">
-        No settings match "{{ settingsSearch }}".
+        {{ t('No settings match "{query}".', { query: settingsSearch }) }}
       </div>
 
       <k-window v-model="tab">
       <k-window-item value="general">
         <div class="settings-grid">
           <k-card v-show="panelMatches('general-branch')" class="settings-card">
-            <k-card-title>Branch</k-card-title>
+            <k-card-title>{{ t("Branch") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-text-field v-model="form.branchName" placeholder="Branch name" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.branchName" :placeholder="t('Branch name')" variant="outlined" density="compact" hide-details />
               <k-text-field
                 v-model="form.branchCode"
-                placeholder="Branch code"
+                :placeholder="t('Branch code')"
                 maxlength="8"
                 variant="outlined"
                 density="compact"
@@ -47,7 +47,7 @@
                 :items="inventories"
                 item-title="name"
                 item-value="id"
-                placeholder="Sales inventory"
+                :placeholder="t('Sales inventory')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -56,14 +56,14 @@
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('general-branches')" class="settings-card">
-            <k-card-title>Branches</k-card-title>
+            <k-card-title>{{ t("Branches") }}</k-card-title>
             <k-card-text>
               <k-select
                 v-model="selectedBranchCode"
                 :items="branchOptions"
                 item-title="title"
                 item-value="code"
-                label="Active branch"
+                :label="t('Active branch')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -72,7 +72,7 @@
               />
               <div class="d-flex align-center justify-space-between mt-2">
                 <span class="text-caption text-medium-emphasis">
-                  Default at next launch: {{ defaultBranchCode || "—" }}
+                  {{ t("Default at next launch: {code}", { code: defaultBranchCode || "—" }) }}
                 </span>
                 <k-btn
                   variant="text"
@@ -81,14 +81,14 @@
                   :loading="settingDefaultBranch"
                   @click="setDefaultBranch(activeBranchCode)"
                 >
-                  Make active branch default
+                  {{ t("Make active branch default") }}
                 </k-btn>
               </div>
               <k-divider class="my-4" />
-              <div class="text-subtitle-2 mb-2">Add another branch</div>
+              <div class="text-subtitle-2 mb-2">{{ t("Add another branch") }}</div>
               <k-text-field
                 v-model="newBranch.name"
-                label="Branch name"
+                :label="t('Branch name')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -96,8 +96,8 @@
               />
               <k-text-field
                 v-model="newBranch.code"
-                label="Branch code"
-                hint="Letters and numbers only"
+                :label="t('Branch code')"
+                :hint="t('Letters and numbers only')"
                 persistent-hint
                 variant="outlined"
                 density="compact"
@@ -106,7 +106,7 @@
               />
               <k-text-field
                 v-model="newBranch.apiKey"
-                label="Central API key"
+                :label="t('Central API key')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -114,7 +114,7 @@
               />
               <k-text-field
                 v-model="newBranch.centralApiUrl"
-                label="Central server URL"
+                :label="t('Central server URL')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -122,7 +122,7 @@
               />
               <div class="d-flex justify-end">
                 <k-btn color="primary" variant="flat" :loading="creatingBranch" @click="createBranch">
-                  Create branch
+                  {{ t("Create branch") }}
                 </k-btn>
               </div>
               <k-alert v-if="branchActionError" type="error" density="compact" class="mt-3">
@@ -130,22 +130,19 @@
               </k-alert>
 
               <k-divider class="my-4" />
-              <div class="text-subtitle-2 mb-1">Import branch history from central</div>
-              <div class="text-caption text-medium-emphasis mb-2">For a reinstalled till with no history yet.</div>
+              <div class="text-subtitle-2 mb-1">{{ t("Import branch history from central") }}</div>
+              <div class="text-caption text-medium-emphasis mb-2">{{ t("For a reinstalled till with no history yet.") }}</div>
               <k-btn
                 variant="outlined"
                 :loading="importingHistory"
                 @click="importBranchHistory"
               >
-                Import branch history
+                {{ t("Import branch history") }}
               </k-btn>
               <k-alert v-if="historyImportResult" type="success" density="compact" class="mt-3">
-                Imported {{ historyImportResult.invoices }} invoice(s),
-                {{ historyImportResult.expenses }} expense(s), {{ historyImportResult.loans }}
-                loan(s) and {{ historyImportResult.shiftCloses }} shift close(s).
+                {{ t("Imported {invoices} invoice(s), {expenses} expense(s), {loans} loan(s) and {shiftCloses} shift close(s).", { invoices: historyImportResult.invoices, expenses: historyImportResult.expenses, loans: historyImportResult.loans, shiftCloses: historyImportResult.shiftCloses }) }}
                 <span v-if="historyImportResult.unresolvedItems">
-                  {{ historyImportResult.unresolvedItems }} line item(s) used a placeholder
-                  product.
+                  {{ t("{count} line item(s) used a placeholder product.", { count: historyImportResult.unresolvedItems }) }}
                 </span>
               </k-alert>
               <k-alert v-if="historyImportError" type="error" density="compact" class="mt-3">
@@ -154,11 +151,11 @@
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('general-database')" class="settings-card">
-            <k-card-title>Database</k-card-title>
+            <k-card-title>{{ t("Database") }}</k-card-title>
             <k-card-text>
               <k-text-field
                 :model-value="databasePath"
-                label="Current database"
+                :label="t('Current database')"
                 variant="outlined"
                 density="compact"
                 readonly
@@ -166,25 +163,25 @@
               />
               <div class="d-flex justify-end mt-2">
                 <k-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
-                  <k-icon start icon="mdi-folder-open-outline" /> Choose database
+                  <k-icon start icon="mdi-folder-open-outline" /> {{ t("Choose database") }}
                 </k-btn>
               </div>
             </k-card-text>
           </k-card>
           <k-card v-if="cashMachine?.supported" v-show="panelMatches('general-cash-machine')" class="settings-card">
-            <k-card-title>Cash machine</k-card-title>
+            <k-card-title>{{ t("Cash machine") }}</k-card-title>
             <k-card-text>
-              <p v-if="!cashMachine.on" class="text-caption text-medium-emphasis mb-1">Off (kiosk mode is off).</p>
+              <p v-if="!cashMachine.on" class="text-caption text-medium-emphasis mb-1">{{ t("Off (kiosk mode is off).") }}</p>
               <p v-if="cashMachine.closedPrograms.length" class="text-caption mb-1 settings-wrap">
-                <strong>Closed:</strong>
+                <strong>{{ t("Closed:") }}</strong>
                 {{ cashMachine.closedPrograms.map((p) => (p.count > 1 ? `${p.name} (${p.count})` : p.name)).join(", ") }}
               </p>
               <p v-if="cashMachine.startupOff.length" class="text-caption mb-1 settings-wrap">
-                <strong>Startup off:</strong> {{ cashMachine.startupOff.join(", ") }}
+                <strong>{{ t("Startup off:") }}</strong> {{ cashMachine.startupOff.join(", ") }}
               </p>
               <template v-if="cashMachine.lastSetup">
                 <p class="text-caption mt-2 mb-0">
-                  Set up {{ new Date(cashMachine.lastSetup.at).toLocaleString() }}
+                  {{ t("Set up {when}", { when: new Date(cashMachine.lastSetup.at).toLocaleString() }) }}
                 </p>
                 <k-list density="compact" class="py-0">
                   <k-list-item v-for="s in cashMachine.lastSetup.steps" :key="s.name" :title="s.name" :subtitle="s.detail">
@@ -195,11 +192,11 @@
                 </k-list>
               </template>
               <p v-if="cashMachine.setupRunning && cashMachine.setupStarted" class="text-caption mb-0">
-                Running since {{ new Date(cashMachine.setupStarted).toLocaleTimeString() }}…
+                {{ t("Running since {time}…", { time: new Date(cashMachine.setupStarted).toLocaleTimeString() }) }}
               </p>
               <div class="d-flex justify-end">
                 <k-btn variant="text" color="primary" :loading="cashMachineRunning" @click="cashMachineConfirm = true">
-                  <k-icon start icon="mdi-cash-register" /> Make this a cash machine
+                  <k-icon start icon="mdi-cash-register" /> {{ t("Make this a cash machine") }}
                 </k-btn>
               </div>
             </k-card-text>
@@ -207,7 +204,7 @@
           <k-card v-show="panelMatches('general-stuck-keys')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-keyboard" size="20" />
-              Stuck keys
+              {{ t("Stuck keys") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -215,21 +212,20 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Let go of Windows, Ctrl, Alt or Shift left held for 3 seconds"
+                :label="t('Let go of Windows, Ctrl, Alt or Shift left held for 3 seconds')"
                 @update:model-value="setReleaseStuckKeys"
               />
               <p class="text-caption text-medium-emphasis mt-1 mb-0 settings-wrap">
-                A remote session (AnyDesk from a Mac) can leave a key held down, so typing or scanning runs Windows
-                shortcuts. Keys held on the till's own keyboard or scanner are never let go.
+                {{ t("A remote session (AnyDesk from a Mac) can leave a key held down, so typing or scanning runs Windows shortcuts. Keys held on the till's own keyboard or scanner are never let go.") }}
               </p>
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('general-sync')" class="settings-card">
-            <k-card-title>Central sync (central)</k-card-title>
+            <k-card-title>{{ t("Central sync (central)") }}</k-card-title>
             <k-card-text class="field-grid">
               <k-text-field
                 v-model="form.apiKey"
-                placeholder="API key"
+                :placeholder="t('API key')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -239,7 +235,7 @@
               />
               <k-text-field
                 v-model="form.centralApiUrl"
-                placeholder="Central server URL"
+                :placeholder="t('Central server URL')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -254,7 +250,7 @@
                   v-model="resyncApplyStock"
                   density="compact"
                   hide-details
-                  label="Also apply stock movements to central"
+                  :label="t('Also apply stock movements to central')"
                 />
                 <div class="d-flex align-center ga-2 mt-2">
                   <k-btn
@@ -263,14 +259,14 @@
                     :loading="resyncRunning"
                     @click="runResync(false)"
                   >
-                    Sync everything now
+                    {{ t("Sync everything now") }}
                   </k-btn>
                   <k-btn
                     variant="text"
                     :disabled="resyncRunning"
                     @click="runResync(true)"
                   >
-                    Preview
+                    {{ t("Preview") }}
                   </k-btn>
                   <span v-if="resyncProgress" class="text-caption text-medium-emphasis">
                     {{ resyncProgress }}
@@ -286,7 +282,7 @@
                 >
                   {{ resyncErrorFriendly || resyncError }}
                   <details v-if="resyncErrorFriendly && resyncErrorFriendly !== resyncError" class="mt-1">
-                    <summary class="text-caption" style="cursor: pointer">Technical details</summary>
+                    <summary class="text-caption" style="cursor: pointer">{{ t("Technical details") }}</summary>
                     <div class="text-caption">{{ resyncError }}</div>
                   </details>
                 </k-alert>
@@ -294,9 +290,9 @@
                 <k-table v-if="resyncReport" density="compact" class="mt-3">
                   <thead>
                     <tr>
-                      <th>Entity</th><th class="text-right">Local</th>
-                      <th class="text-right">On central</th><th class="text-right">Missing</th>
-                      <th class="text-right">{{ resyncReport.dryRun ? "Would queue" : "Queued" }}</th>
+                      <th>{{ t("Entity") }}</th><th class="text-right">{{ t("Local") }}</th>
+                      <th class="text-right">{{ t("On central") }}</th><th class="text-right">{{ t("Missing") }}</th>
+                      <th class="text-right">{{ resyncReport.dryRun ? t("Would queue") : t("Queued") }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -313,8 +309,8 @@
                 <k-table v-if="resyncReport?.fullCheck" density="compact" class="mt-3">
                   <thead>
                     <tr>
-                      <th>Full check</th><th class="text-right">On central</th>
-                      <th class="text-right">Fetched</th><th class="text-right">Deactivated</th>
+                      <th>{{ t("Full check") }}</th><th class="text-right">{{ t("On central") }}</th>
+                      <th class="text-right">{{ t("Fetched") }}</th><th class="text-right">{{ t("Deactivated") }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -330,14 +326,14 @@
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('general-targets')" class="settings-card">
-            <k-card-title>Targets</k-card-title>
+            <k-card-title>{{ t("Targets") }}</k-card-title>
             <k-card-text>
               <div v-if="!branchTargets.length" class="text-caption text-medium-emphasis">
-                No targets set for this branch.
+                {{ t("No targets set for this branch.") }}
               </div>
               <k-table v-else density="compact">
                 <thead>
-                  <tr><th /><th>From</th><th>To</th><th>Progress</th></tr>
+                  <tr><th /><th>{{ t("From") }}</th><th>{{ t("To") }}</th><th>{{ t("Progress") }}</th></tr>
                 </thead>
                 <tbody>
                   <tr v-for="target in branchTargets" :key="target.id">
@@ -351,12 +347,12 @@
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('general-admin-legacy')" class="settings-card">
-            <k-card-title>kashi-admin (legacy)</k-card-title>
+            <k-card-title>{{ t("kashi-admin (legacy)") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-text-field v-model="form.adminListen" placeholder="Listen address" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.adminListen" :placeholder="t('Listen address')" variant="outlined" density="compact" hide-details />
               <k-text-field
                 v-model="form.adminToken"
-                placeholder="Admin token"
+                :placeholder="t('Admin token')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -364,14 +360,14 @@
                 :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
                 @click:append-inner="showAdminToken = !showAdminToken"
               />
-              <k-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.adminEnabled" :label="t('Enable remote admin API')" color="primary" hide-details class="field-full" />
             </k-card-text>
           </k-card>
           <AppUpdateCard v-show="panelMatches('admin-app-updates')" />
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save
+            <k-icon start icon="mdi-content-save-outline" /> {{ t("Save") }}
           </k-btn>
         </div>
       </k-window-item>
@@ -379,17 +375,17 @@
       <k-window-item value="money">
         <div class="settings-grid">
           <k-card v-show="panelMatches('money-rates')" class="settings-card">
-            <k-card-title>Rates &amp; rounding</k-card-title>
+            <k-card-title>{{ t("Rates & rounding") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-text-field v-model.number="form.taxRate" placeholder="VAT rate" type="number" step="0.01" min="0" max="1" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model.number="form.exchangeRate" placeholder="Legacy exchange rate" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
-              <k-select v-model="form.roundingMode" :items="roundingModes" placeholder="Money rounding" variant="outlined" density="compact" hide-details />
-              <k-select v-model="form.roundingCurrency" :items="roundingCurrencies" placeholder="Round by currency" variant="outlined" density="compact" hide-details />
-              <k-select v-model="form.splitPrimaryCurrency" :items="roundingCurrencies" placeholder="Split primary currency" variant="outlined" density="compact" hide-details />
-              <k-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? 'Primary currency first' : 'Rounding currency first'" />
+              <k-text-field v-model.number="form.taxRate" :placeholder="t('VAT rate')" type="number" step="0.01" min="0" max="1" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.exchangeRate" :placeholder="t('Legacy exchange rate')" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.roundingMode" :items="roundingModes" :placeholder="t('Money rounding')" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.roundingCurrency" :items="roundingCurrencies" :placeholder="t('Round by currency')" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.splitPrimaryCurrency" :items="roundingCurrencies" :placeholder="t('Split primary currency')" variant="outlined" density="compact" hide-details />
+              <k-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? t('Primary currency first') : t('Rounding currency first')" />
               <k-text-field
                 v-model.number="form.splitPrimaryStep"
-                placeholder="Split step (0 = cash rounding)"
+                :placeholder="t('Split step (0 = cash rounding)')"
                 type="number"
                 min="0"
                 step="1"
@@ -401,25 +397,25 @@
           </k-card>
 
           <k-card v-show="panelMatches('money-exchange')" class="settings-card">
-            <k-card-title>Exchange settings</k-card-title>
+            <k-card-title>{{ t("Exchange settings") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-text-field v-model.number="form.exchangeWindowDays" label="Days" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model.number="form.exchangeWindowHours" label="Hours" type="number" min="0" max="23" step="1" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.exchangeWindowDays" :label="t('Days')" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.exchangeWindowHours" :label="t('Hours')"type="number" min="0" max="23" step="1" variant="outlined" density="compact" hide-details />
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
-            <k-card-title>Currencies &amp; rates</k-card-title>
+            <k-card-title>{{ t("Currencies & rates") }}</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in central.</div>
+              <div class="settings-note">{{ t("Set in central.") }}</div>
               <k-table density="compact">
                 <thead>
                   <tr>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>Symbol</th>
-                    <th>Units per USD</th>
-                    <th>Cash rounding unit</th>
-                    <th>Active</th>
+                    <th>{{ t("Code") }}</th>
+                    <th>{{ t("Name") }}</th>
+                    <th>{{ t("Symbol") }}</th>
+                    <th>{{ t("Units per USD") }}</th>
+                    <th>{{ t("Cash rounding unit") }}</th>
+                    <th>{{ t("Active") }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -429,21 +425,21 @@
                     <td>{{ currency.symbol }}</td>
                     <td>{{ currency.unitsPerUsd }}</td>
                     <td>{{ currency.cashRoundingUnit }}</td>
-                    <td>{{ currency.isActive ? "Yes" : "No" }}</td>
+                    <td>{{ currency.isActive ? t("Yes") : t("No") }}</td>
                   </tr>
                 </tbody>
               </k-table>
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('money-price-lists')" class="settings-card">
-            <k-card-title>Price lists</k-card-title>
+            <k-card-title>{{ t("Price lists") }}</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in central. A product no active list prices can't be sold.</div>
+              <div class="settings-note">{{ t("Set in central. A product no active list prices can't be sold.") }}</div>
               <k-table density="compact">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Active</th>
+                    <th>{{ t("Name") }}</th>
+                    <th>{{ t("Active") }}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -451,29 +447,29 @@
                   <tr v-for="list in priceLists" :key="list.id">
                     <td>
                       {{ list.name }}
-                      <k-chip v-if="list.isDefault" size="x-small" class="ml-2">default</k-chip>
+                      <k-chip v-if="list.isDefault" size="x-small" class="ml-2">{{ t("default") }}</k-chip>
                     </td>
-                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>{{ list.isActive ? t("Yes") : t("No") }}</td>
                     <td>
-                      <k-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('price', list)" />
+                      <k-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" :title="t('View items')" @click="openManageList('price', list)" />
                     </td>
                   </tr>
                   <tr v-if="!priceLists.length">
-                    <td colspan="3" class="text-medium-emphasis">No price lists have synced yet.</td>
+                    <td colspan="3" class="text-medium-emphasis">{{ t("No price lists have synced yet.") }}</td>
                   </tr>
                 </tbody>
               </k-table>
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('money-discount-lists')" class="settings-card">
-            <k-card-title>Discount lists</k-card-title>
+            <k-card-title>{{ t("Discount lists") }}</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in central.</div>
+              <div class="settings-note">{{ t("Set in central.") }}</div>
               <k-table density="compact">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Active</th>
+                    <th>{{ t("Name") }}</th>
+                    <th>{{ t("Active") }}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -481,15 +477,15 @@
                   <tr v-for="list in discountLists" :key="list.id">
                     <td>
                       {{ list.name }}
-                      <k-chip v-if="list.isDefault" size="x-small" class="ml-2">default</k-chip>
+                      <k-chip v-if="list.isDefault" size="x-small" class="ml-2">{{ t("default") }}</k-chip>
                     </td>
-                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>{{ list.isActive ? t("Yes") : t("No") }}</td>
                     <td>
-                      <k-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('discount', list)" />
+                      <k-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" :title="t('View items')" @click="openManageList('discount', list)" />
                     </td>
                   </tr>
                   <tr v-if="!discountLists.length">
-                    <td colspan="3" class="text-medium-emphasis">No discount lists have synced yet.</td>
+                    <td colspan="3" class="text-medium-emphasis">{{ t("No discount lists have synced yet.") }}</td>
                   </tr>
                 </tbody>
               </k-table>
@@ -498,7 +494,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save
+            <k-icon start icon="mdi-content-save-outline" /> {{ t("Save") }}
           </k-btn>
         </div>
       </k-window-item>
@@ -506,11 +502,11 @@
       <k-window-item value="payments">
         <div class="settings-grid">
           <k-card v-show="panelMatches('payments-till')" class="settings-card">
-            <k-card-title>At the till</k-card-title>
+            <k-card-title>{{ t("At the till") }}</k-card-title>
             <k-card-text class="field-grid">
               <k-text-field
                 v-model.number="form.maxOverpayment"
-                placeholder="Max overpayment (USD)"
+                :placeholder="t('Max overpayment (USD)')"
                 type="number"
                 min="0"
                 step="0.01"
@@ -519,11 +515,11 @@
                 density="compact"
                 hide-details
               />
-              <k-switch v-model="form.allowOverpayment" label="Allow overpayment" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.allowOverpayment" :label="t('Allow overpayment')"color="primary" hide-details class="field-full" />
               <k-switch
                 :model-value="form.autoAppendLbpZeros"
                 :loading="autoAppendLbpZerosSaving"
-                label="Auto-append 000 to LBP amounts"
+                :label="t('Auto-append 000 to LBP amounts')"
                 color="primary"
                 hide-details
                 class="field-full"
@@ -532,7 +528,7 @@
               <k-switch
                 :model-value="form.overchangeConfirmationEnabled"
                 :loading="overchangeConfirmationSaving"
-                label="Confirm when giving more change than owed"
+                :label="t('Confirm when giving more change than owed')"
                 color="primary"
                 hide-details
                 class="field-full"
@@ -542,16 +538,16 @@
           </k-card>
 
           <k-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
-            <k-card-title>Payment methods</k-card-title>
+            <k-card-title>{{ t("Payment methods") }}</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in central.</div>
+              <div class="settings-note">{{ t("Set in central.") }}</div>
               <k-table density="compact">
                 <thead>
                   <tr>
-                    <th>Order</th>
-                    <th>Name</th>
-                    <th>Currency</th>
-                    <th>Color</th>
+                    <th>{{ t("Order") }}</th>
+                    <th>{{ t("Name") }}</th>
+                    <th>{{ t("Currency") }}</th>
+                    <th>{{ t("Color") }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -568,7 +564,7 @@
                   </tr>
                   <tr v-if="!orderablePaymentMethods.length">
                     <td colspan="4" class="text-medium-emphasis">
-                      No payment methods have synced yet.
+                      {{ t("No payment methods have synced yet.") }}
                     </td>
                   </tr>
                 </tbody>
@@ -578,7 +574,7 @@
                 :loading="paymentMethodSaving"
                 color="primary"
                 hide-details
-                label="Show currency on payment method buttons"
+                :label="t('Show currency on payment method buttons')"
                 class="mt-2"
                 @update:model-value="(value) => setHidePaymentMethodCurrency(!value)"
               />
@@ -587,7 +583,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save
+            <k-icon start icon="mdi-content-save-outline" /> {{ t("Save") }}
           </k-btn>
         </div>
       </k-window-item>
@@ -595,57 +591,57 @@
       <k-window-item value="coupons">
         <div class="settings-grid">
           <k-card v-show="panelMatches('coupons-types')" class="settings-card">
-            <k-card-title>Coupon types</k-card-title>
+            <k-card-title>{{ t("Coupon types") }}</k-card-title>
             <k-card-text>
               <div class="d-flex flex-wrap ga-2 align-start">
-                <k-text-field v-model="couponTypeForm.name" placeholder="Type name" variant="outlined" density="compact" style="max-width: 160px" />
-                <k-text-field v-model.number="couponTypeForm.value" placeholder="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" style="max-width: 110px" />
-                <k-text-field v-model="couponTypeForm.currency" placeholder="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 100px" />
-                <k-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? "Save" : "Add" }}</k-btn>
-                <k-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</k-btn>
+                <k-text-field v-model="couponTypeForm.name" :placeholder="t('Type name')" variant="outlined" density="compact" style="max-width: 160px" />
+                <k-text-field v-model.number="couponTypeForm.value" :placeholder="t('Value')" type="number" min="0.01" step="0.01" variant="outlined" density="compact" style="max-width: 110px" />
+                <k-text-field v-model="couponTypeForm.currency" :placeholder="t('Currency')" maxlength="3" variant="outlined" density="compact" style="max-width: 100px" />
+                <k-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? t("Save") : t("Add") }}</k-btn>
+                <k-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">{{ t("Cancel") }}</k-btn>
               </div>
               <div class="d-flex align-center ga-4 mb-2">
                 <k-checkbox
                   v-model="couponTypeForm.codeRequired"
                   density="compact"
                   hide-details
-                  label="Code required"
-                  title="Uncheck for coupon types that need no code or reference number at all - they're added directly at checkout"
+                  :label="t('Code required')"
+                  :title="t(`Uncheck for coupon types that need no code or reference number at all - they're added directly at checkout`)"
                 />
-                <k-checkbox v-model="couponTypeForm.referenceOnly" :disabled="!couponTypeForm.codeRequired" density="compact" hide-details label="Reference-only" />
-                <k-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
+                <k-checkbox v-model="couponTypeForm.referenceOnly" :disabled="!couponTypeForm.codeRequired" density="compact" hide-details :label="t('Reference-only')" />
+                <k-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details :label="t('Active')" />
                 <k-checkbox
                   v-model="couponTypeForm.calculateOnCheckout"
                   density="compact"
                   hide-details
-                  label="Don't count in totals (settled later)"
-                  title="Tick when the coupon is settled later (e.g. reimbursed by the issuer) instead of collected by the branch now. Its payments are left out of the shift's total and net sales."
+                  :label="t(`Don't count in totals (settled later)`)"
+                  :title="t(`Tick when the coupon is settled later (e.g. reimbursed by the issuer) instead of collected by the branch now. Its payments are left out of the shift's total and net sales.`)"
                 />
               </div>
               <k-list density="compact" bg-color="transparent">
-                <k-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.codeRequired === false ? ' · No code required' : couponType.referenceOnly ? ' · Reference-only' : ''}${couponType.calculateOnCheckout ? ' · Not counted in totals' : ''}`">
+                <k-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.codeRequired === false ? ' · ' + t('No code required') : couponType.referenceOnly ? ' · ' + t('Reference-only') : ''}${couponType.calculateOnCheckout ? ' · ' + t('Not counted in totals') : ''}`">
                   <template #append>
-                    <k-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
-                    <k-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
+                    <k-btn icon="mdi-pencil-outline" variant="text" density="compact" :title="t('Edit coupon type')" @click="editCouponType(couponType)" />
+                    <k-btn icon="mdi-delete-outline" variant="text" density="compact" :title="t('Delete coupon type')" @click="removeCouponType(couponType)" />
                   </template>
                 </k-list-item>
-                <k-list-item v-if="!couponTypes.length" title="No coupon types configured" />
+                <k-list-item v-if="!couponTypes.length" :title="t('No coupon types configured')" />
               </k-list>
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('coupons-issued')" class="settings-card">
-            <k-card-title>Issued coupons</k-card-title>
+            <k-card-title>{{ t("Issued coupons") }}</k-card-title>
             <k-card-text>
               <div class="d-flex flex-wrap ga-2 align-start mb-2">
-                <k-text-field v-model="couponCodeForm" placeholder="New coupon code" variant="outlined" density="compact" />
-                <k-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Type" variant="outlined" density="compact" />
-                <k-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</k-btn>
+                <k-text-field v-model="couponCodeForm" :placeholder="t('New coupon code')" variant="outlined" density="compact" />
+                <k-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" :placeholder="t('Type')" variant="outlined" density="compact" />
+                <k-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">{{ t("Issue") }}</k-btn>
               </div>
               <k-list density="compact" bg-color="transparent">
                 <k-list-item v-for="coupon in coupons" :key="coupon.code" :title="coupon.code" :subtitle="`${(Number(coupon.valueCents) / 100).toFixed(2)} · ${coupon.status}`">
-                  <template #append><k-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon" @click="removeCoupon(coupon)" /></template>
+                  <template #append><k-btn icon="mdi-delete-outline" variant="text" density="compact" :title="t('Delete coupon')" @click="removeCoupon(coupon)" /></template>
                 </k-list-item>
-                <k-list-item v-if="!coupons.length" title="No coupons issued" />
+                <k-list-item v-if="!coupons.length" :title="t('No coupons issued')" />
               </k-list>
             </k-card-text>
           </k-card>
@@ -657,7 +653,7 @@
           <k-card v-show="panelMatches('behavior-custom-pricing')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-sale-outline" size="20" />
-              Custom item pricing
+              {{ t("Custom item pricing") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -665,7 +661,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Custom item prices"
+                :label="t('Custom item prices')"
                 @update:model-value="setCustomPricesEnabled"
               />
               <k-switch
@@ -673,7 +669,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Per-unit price/discount editing"
+                :label="t('Per-unit price/discount editing')"
                 @update:model-value="setPerUnitPricesEnabled"
               />
               <k-switch
@@ -681,7 +677,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Custom product discounts"
+                :label="t('Custom product discounts')"
                 @update:model-value="setCustomDiscountsEnabled"
               />
             </k-card-text>
@@ -690,7 +686,7 @@
           <k-card v-show="panelMatches('behavior-price-change-mode')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-tag-multiple-outline" size="20" />
-              Price change mode
+              {{ t("Price change mode") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -698,7 +694,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Manual override (independent price & discount)"
+                :label="t('Manual override (independent price & discount)')"
                 @update:model-value="setPriceChangeManualOverrideEnabled"
               />
             </k-card-text>
@@ -707,7 +703,7 @@
           <k-card v-show="panelMatches('behavior-product-search')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-magnify" size="20" />
-              Product search button
+              {{ t("Product search button") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -715,14 +711,14 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Show the product search button on the sale screen"
+                :label="t('Show the product search button on the sale screen')"
                 @update:model-value="setProductSearchEnabled"
               />
               <k-switch
                 :model-value="productSearchInPlace"
                 color="primary"
                 hide-details
-                label="Search in the sale screen: results in place of the calculator, keyboard along the bottom (off: a full-screen dialog)"
+                :label="t('Search in the sale screen: results in place of the calculator, keyboard along the bottom (off: a full-screen dialog)')"
                 @update:model-value="(value) => setProductSearchInPlace(value ?? false)"
               />
             </k-card-text>
@@ -731,7 +727,7 @@
           <k-card v-show="panelMatches('behavior-search-code-only')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-barcode-scan" size="20" />
-              Code-only product search
+              {{ t("Code-only product search") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -739,7 +735,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Search products by code only and hide their names"
+                :label="t('Search products by code only and hide their names')"
                 @update:model-value="setProductSearchCodeOnly"
               />
 
@@ -749,7 +745,7 @@
           <k-card v-show="panelMatches('behavior-stock')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-package-variant-closed" size="20" />
-              Selling beyond stock
+              {{ t("Selling beyond stock") }}
             </k-card-title>
             <k-card-text>
               <k-select
@@ -758,18 +754,18 @@
                 :loading="pricingSettingsSaving"
                 density="compact"
                 hide-details
-                label="Selling more than the till has in stock"
+                :label="t('Selling more than the till has in stock')"
                 variant="outlined"
                 @update:model-value="saveOversellMode"
               />
-<div class="settings-note mt-1">central alerts on any stock below zero.</div>
+<div class="settings-note mt-1">{{ t("central alerts on any stock below zero.") }}</div>
             </k-card-text>
           </k-card>
 
           <k-card v-show="panelMatches('behavior-search-columns')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-magnify" size="20" />
-              Product search &amp; unknown item
+              {{ t("Product search & unknown item") }}
             </k-card-title>
             <k-card-text>
               <k-select
@@ -779,7 +775,7 @@
                 closable-chips
                 density="compact"
                 hide-details
-                label="Hide in product search"
+                :label="t('Hide in product search')"
                 multiple
                 variant="outlined"
                 @update:model-value="saveProductSearchHiddenFields"
@@ -789,7 +785,7 @@
                 class="mt-3"
                 density="compact"
                 hide-details
-                label="Unknown item barcode (empty = built-in)"
+                :label="t('Unknown item barcode (empty = built-in)')"
                 variant="outlined"
                 @blur="saveUnknownProductBarcode"
               />
@@ -799,7 +795,7 @@
                 class="mt-3"
                 density="compact"
                 hide-details
-                label="Unknown item pictures QR code"
+                :label="t('Unknown item pictures QR code')"
                 variant="outlined"
                 @update:model-value="setUnknownPicturesAtCheckout"
               />
@@ -809,7 +805,7 @@
           <k-card v-show="panelMatches('behavior-price-edit-codes')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-tag-multiple-outline" size="20" />
-              Price edits by code
+              {{ t("Price edits by code") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -817,14 +813,14 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Allow manual price and discount edits only for selected codes"
+                :label="t('Allow manual price and discount edits only for selected codes')"
                 @update:model-value="setPriceEditRestricted"
               />
               <k-textarea
                 v-model="form.priceEditCodes"
                 class="mt-3"
-                label="Allowed codes"
-                placeholder="One per line, or separated by commas"
+                :label="t('Allowed codes')"
+                :placeholder="t('One per line, or separated by commas')"
                 variant="outlined"
                 density="compact"
                 rows="3"
@@ -833,14 +829,14 @@
                 :disabled="!form.priceEditRestricted"
                 @blur="savePriceEditCodes"
               />
-              <div class="settings-note mt-1">Needs custom prices or discounts on.</div>
+              <div class="settings-note mt-1">{{ t("Needs custom prices or discounts on.") }}</div>
             </k-card-text>
           </k-card>
 
           <k-card v-show="panelMatches('behavior-discount-toggle')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-tag-off-outline" size="20" />
-              Turn discounts or deals off at the till
+              {{ t("Turn discounts or deals off at the till") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -848,7 +844,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Salesmen can tap a line's discount (30%) to turn it off or on"
+                :label="t(`Salesmen can tap a line's discount (30%) to turn it off or on`)"
                 @update:model-value="setDiscountToggleEnabled"
               />
               <k-switch
@@ -857,7 +853,7 @@
                 :disabled="!form.discountToggleEnabled"
                 color="primary"
                 hide-details
-                label="Discounts start off on each new line"
+                :label="t('Discounts start off on each new line')"
                 @update:model-value="setDiscountToggleDefaultOff"
               />
               <k-switch
@@ -865,7 +861,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Salesmen can tap a line's deal (B2G1) to turn it off or on"
+                :label="t(`Salesmen can tap a line's deal (B2G1) to turn it off or on`)"
                 @update:model-value="setDealToggleEnabled"
               />
             </k-card-text>
@@ -874,7 +870,7 @@
           <k-card v-show="panelMatches('behavior-scan-by-code')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-barcode-scan" size="20" />
-              Product code in scan field
+              {{ t("Product code in scan field") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -882,17 +878,17 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Accept a product code in the scan field"
+                :label="t('Accept a product code in the scan field')"
                 @update:model-value="setScanByCodeEnabled"
               />
-              <div class="settings-note mt-1">Used when no barcode matches.</div>
+              <div class="settings-note mt-1">{{ t("Used when no barcode matches.") }}</div>
             </k-card-text>
           </k-card>
 
           <k-card v-show="panelMatches('behavior-invoice-ratings')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-emoticon-happy-outline" size="20" />
-              Client ratings
+              {{ t("Client ratings") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -900,11 +896,11 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Show how clients rated each sale in the invoices list"
+                :label="t('Show how clients rated each sale in the invoices list')"
                 @update:model-value="setInvoiceRatingsEnabled"
               />
               <div class="settings-note mt-1">
-                From the WhatsApp poll after a sale: 😍 loved it, 🙂 it was okay, 😕 not great.
+                {{ t("From the WhatsApp poll after a sale: 😍 loved it, 🙂 it was okay, 😕 not great.") }}
               </div>
             </k-card-text>
           </k-card>
@@ -912,7 +908,7 @@
           <k-card v-show="panelMatches('behavior-client-required')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-off-outline" size="20" />
-              Client on checkout
+              {{ t("Client on checkout") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -920,17 +916,17 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Require selecting a client before checkout"
+                :label="t('Require selecting a client before checkout')"
                 @update:model-value="setClientRequired"
               />
-              <div class="settings-note mt-1">Off: invoices default to Anonymous.</div>
+              <div class="settings-note mt-1">{{ t("Off: invoices default to Anonymous.") }}</div>
             </k-card-text>
           </k-card>
 
           <k-card v-show="panelMatches('behavior-salesperson-per-invoice')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-tie-outline" size="20" />
-              Salesman per invoice
+              {{ t("Salesman per invoice") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -938,17 +934,17 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Require picking a salesman on every invoice"
+                :label="t('Require picking a salesman on every invoice')"
                 @update:model-value="setSalespersonPerInvoiceRequired"
               />
-              <div class="settings-note mt-1">Off: the last salesman carries over.</div>
+              <div class="settings-note mt-1">{{ t("Off: the last salesman carries over.") }}</div>
             </k-card-text>
           </k-card>
 
           <k-card v-show="panelMatches('behavior-non-admin-month-nav')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-calendar-month-outline" size="20" />
-              Income chart month navigation
+              {{ t("Income chart month navigation") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -956,7 +952,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Let non-admins browse other months on the income chart"
+                :label="t('Let non-admins browse other months on the income chart')"
                 @update:model-value="setNonAdminMonthNavEnabled"
               />
             </k-card-text>
@@ -965,7 +961,7 @@
           <k-card v-show="panelMatches('behavior-visitor-counter')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-group-outline" size="20" />
-              People visits counter
+              {{ t("People visits counter") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -973,10 +969,10 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Show the visits counter in the side menu"
+                :label="t('Show the visits counter in the side menu')"
                 @update:model-value="setVisitorCounterEnabled"
               />
-              <div class="settings-note mt-1">Turning it off keeps recorded counts.</div>
+              <div class="settings-note mt-1">{{ t("Turning it off keeps recorded counts.") }}</div>
             </k-card-text>
           </k-card>
 
@@ -986,20 +982,20 @@
       <k-window-item value="display">
         <div class="settings-grid">
           <k-card v-show="panelMatches('display-look')" class="settings-card">
-            <k-card-title>Look &amp; feel</k-card-title>
+            <k-card-title>{{ t("Look & feel") }}</k-card-title>
             <k-card-text class="field-grid">
               <k-switch
                 :model-value="darkThemeEnabled"
                 :loading="themeSaving"
                 :disabled="themeSaving"
-                label="Dark theme"
+                :label="t('Dark theme')"
                 color="primary"
                 hide-details
                 @update:model-value="setDarkTheme"
               />
               <k-switch
                 :model-value="animationsEnabled"
-                label="Animations"
+                :label="t('Animations')"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
@@ -1007,7 +1003,7 @@
               <k-select
                 :model-value="calculatorTotalCurrency"
                 :items="calculatorDisplayCurrencies"
-                placeholder="Calculator total currency"
+                :placeholder="t('Calculator total currency')"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -1019,7 +1015,7 @@
           <k-card v-show="panelMatches('behavior-sounds')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-volume-high" size="20" />
-              Sounds
+              {{ t("Sounds") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -1027,7 +1023,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Play sounds"
+                :label="t('Play sounds')"
                 @update:model-value="setSoundsEnabled"
               />
             </k-card-text>
@@ -1035,7 +1031,7 @@
           <k-card v-show="panelMatches('behavior-invoice-keyboard')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-keyboard" size="20" />
-              Invoice keyboard mode
+              {{ t("Invoice keyboard mode") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -1043,17 +1039,17 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Enable keyboard mode"
+                :label="t('Enable keyboard mode')"
                 @update:model-value="setInvoiceKeyboardModeEnabled"
               />
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('display-quick-access-cards')" class="settings-card">
-            <k-card-title>Quick access cards</k-card-title>
+            <k-card-title>{{ t("Quick access cards") }}</k-card-title>
             <k-card-text>
               <div class="text-body-2">
-                Quick access rows:
-                <strong>{{ quickAccessRows === 0 ? "Hidden" : quickAccessRows }}</strong>
+                {{ t("Quick access rows:") }}
+                <strong>{{ quickAccessRows === 0 ? t("Hidden") : quickAccessRows }}</strong>
               </div>
               <k-slider
                 :model-value="quickAccessRows"
@@ -1066,7 +1062,7 @@
                 @update:model-value="setQuickAccessRows"
               />
               <div class="text-body-2 mt-2">
-                Quick access text size: <strong>{{ quickAccessFontScale }}%</strong>
+                {{ t("Quick access text size:") }} <strong>{{ quickAccessFontScale }}%</strong>
               </div>
               <k-slider
                 :model-value="quickAccessFontScale"
@@ -1085,27 +1081,27 @@
                     :disabled="quickAccessFontScale === 100"
                     @click="setQuickAccessFontScale(100)"
                   >
-                    Reset
+                    {{ t("Reset") }}
                   </k-btn>
                 </template>
               </k-slider>
               <k-switch
                 :model-value="quickAccessShowCode"
-                label="Show code on quick access cards"
+                :label="t('Show code on quick access cards')"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setQuickAccessShowCode(value ?? false)"
               />
               <k-switch
                 :model-value="quickAccessShowName"
-                label="Show name on quick access cards"
+                :label="t('Show name on quick access cards')"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setQuickAccessShowName(value ?? false)"
               />
               <k-switch
                 :model-value="quickAccessShowRemove"
-                label="Show remove (X) button on quick access cards"
+                :label="t('Show remove (X) button on quick access cards')"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setQuickAccessShowRemove(value ?? false)"
@@ -1120,7 +1116,7 @@
         <div class="settings-grid">
           <k-card v-show="panelMatches('general-quick-access-colors')" class="settings-card settings-card--wide">
             <k-card-title class="d-flex align-center">
-              Quick access colors
+              {{ t("Quick access colors") }}
               <k-spacer />
               <k-btn
                 variant="tonal"
@@ -1130,12 +1126,12 @@
                 :disabled="!quickAccessItems.length"
                 @click="exportQuickAccessCsv"
               >
-                Export CSV
+                {{ t("Export CSV") }}
               </k-btn>
             </k-card-title>
             <k-card-text>
               <div class="d-flex align-center flex-wrap ga-3 mb-3">
-                <span class="text-body-2">Cards come from</span>
+                <span class="text-body-2">{{ t("Cards come from") }}</span>
                 <k-btn-toggle
                   :model-value="quickAccessMode"
                   mandatory
@@ -1145,21 +1141,21 @@
                   :disabled="!auth.isAdmin || changingQuickAccessMode"
                   @update:model-value="changeQuickAccessMode"
                 >
-                  <k-btn size="small" value="till">This till</k-btn>
-                  <k-btn size="small" value="kashi">central</k-btn>
+                  <k-btn size="small" value="till">{{ t("This till") }}</k-btn>
+                  <k-btn size="small" value="kashi">{{ t("central") }}</k-btn>
                 </k-btn-toggle>
                 <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
-                  Edit in central: Branch settings → Quick access.
+                  {{ t("Edit in central: Branch settings → Quick access.") }}
                 </span>
                 <span v-else-if="!quickAccessKashiAvailable" class="text-caption text-medium-emphasis">
-                  Central isn't connected.
+                  {{ t("Central isn't connected.") }}
                 </span>
               </div>
               <div v-if="!quickAccessItems.length" class="text-body-2 text-medium-emphasis">
                 {{
                   quickAccessMode === "kashi"
-                    ? "No Quick Access cards set in central for this branch yet."
-                    : "No quick access items yet. Pin products from the sale screen first."
+                    ? t("No Quick Access cards set in central for this branch yet.")
+                    : t("No quick access items yet. Pin products from the sale screen first.")
                 }}
               </div>
               <div v-for="item in quickAccessItems" :key="item.id" class="qa-color-row">
@@ -1170,12 +1166,12 @@
                 </div>
                 <div v-if="quickAccessMode !== 'kashi'" class="qa-color-row__pickers">
                   <div class="qa-color-row__swatches">
-                    <span class="qa-color-row__label text-caption">Card</span>
+                    <span class="qa-color-row__label text-caption">{{ t("Card") }}</span>
                     <button
                       type="button"
                       class="qa-swatch qa-swatch--none"
                       :class="{ 'qa-swatch--selected': !item.quickAccessColor }"
-                      title="No color"
+                      :title="t('No color')"
                       @click="setQuickAccessItemColor(item, { quickAccessColor: '' })"
                     />
                     <button
@@ -1190,12 +1186,12 @@
                     />
                   </div>
                   <div class="qa-color-row__swatches">
-                    <span class="qa-color-row__label text-caption">Text</span>
+                    <span class="qa-color-row__label text-caption">{{ t("Text") }}</span>
                     <button
                       type="button"
                       class="qa-swatch qa-swatch--auto text-caption"
                       :class="{ 'qa-swatch--selected': !item.quickAccessTextColor }"
-                      title="Automatic"
+                      :title="t('Automatic')"
                       @click="setQuickAccessItemColor(item, { quickAccessTextColor: '' })"
                     >
                       A
@@ -1221,28 +1217,28 @@
       <k-window-item value="cash">
         <div class="settings-grid">
           <k-card v-show="panelMatches('money-float')" class="settings-card">
-            <k-card-title>Opening cash float</k-card-title>
+            <k-card-title>{{ t("Opening cash float") }}</k-card-title>
             <k-card-text class="field-grid">
               <k-switch
                 :model-value="form.openingFloatEnabled"
                 :loading="openingFloatEnabledSaving"
-                label="Enable opening cash float"
+                :label="t('Enable opening cash float')"
                 color="primary"
                 hide-details
                 class="field-full"
                 @update:model-value="(value) => setOpeningFloatEnabled(value)"
               />
               <template v-if="form.openingFloatEnabled">
-                <k-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
-                <k-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+                <k-text-field v-model.number="form.defaultOpeningFloatUsd" :placeholder="t('Opening float (USD)')" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
+                <k-text-field v-model.number="form.defaultOpeningFloatLbp" :placeholder="t('Opening float (LBP)')" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
                 <k-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
-                  Opening float cannot be negative.
+                  {{ t("Opening float cannot be negative.") }}
                 </k-alert>
-                <k-btn color="primary" variant="flat" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</k-btn>
+                <k-btn color="primary" variant="flat" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">{{ t("Save opening float") }}</k-btn>
                 <k-switch
                   :model-value="form.countOpeningCashOnClose"
                   :loading="countOpeningCashOnCloseSaving"
-                  label="Count opening float in close-shift cash count"
+                  :label="t('Count opening float in close-shift cash count')"
                   color="primary"
                   hide-details
                   class="field-full"
@@ -1252,11 +1248,11 @@
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('cash-closing')" class="settings-card">
-            <k-card-title>Closing shifts</k-card-title>
+            <k-card-title>{{ t("Closing shifts") }}</k-card-title>
             <k-card-text class="field-grid">
               <k-switch
                 v-model="form.autoCloseStaleShiftsEnabled"
-                label="Auto-close previous-day shifts"
+                :label="t('Auto-close previous-day shifts')"
                 color="primary"
                 hide-details
                 class="field-full"
@@ -1264,17 +1260,17 @@
               <k-switch
                 :model-value="form.closeShiftRequiresSync"
                 :loading="closeShiftRequiresSyncSaving"
-                label="Upload everything before closing a shift"
+                :label="t('Upload everything before closing a shift')"
                 color="primary"
                 hide-details
                 class="field-full"
                 @update:model-value="(value) => setCloseShiftRequiresSync(value)"
               />
-              <div class="settings-note field-full">Offline, the admin password overrides.</div>
+              <div class="settings-note field-full">{{ t("Offline, the admin password overrides.") }}</div>
               <k-switch
                 :model-value="form.shiftReceiptUploadMode !== 0"
                 :loading="shiftReceiptUploadModeSaving"
-                label="Show receipt-photo QR code after closing a shift"
+                :label="t('Show receipt-photo QR code after closing a shift')"
                 color="primary"
                 hide-details
                 class="field-full"
@@ -1285,7 +1281,7 @@
                   :model-value="form.shiftReceiptUploadMode"
                   :items="shiftReceiptUploadModes"
                   :loading="shiftReceiptUploadModeSaving"
-                  label="Close-shift receipt photo"
+                  :label="t('Close-shift receipt photo')"
                   class="field-full"
                   variant="outlined"
                   density="compact"
@@ -1293,7 +1289,7 @@
                   @update:model-value="(value) => setShiftReceiptUploadMode(value)"
                 />
                 <div class="settings-note field-full">
-                  Hybrid: office when online, else this till. Local: this till. Central: office.
+                  {{ t("Hybrid: office when online, else this till. Local: this till. Central: office.") }}
                 </div>
               </template>
             </k-card-text>
@@ -1302,7 +1298,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save
+            <k-icon start icon="mdi-content-save-outline" /> {{ t("Save") }}
           </k-btn>
         </div>
       </k-window-item>
@@ -1310,36 +1306,36 @@
       <k-window-item value="printing">
         <div class="settings-grid">
           <k-card v-show="panelMatches('printing-receipt')" class="settings-card">
-            <k-card-title>Receipt</k-card-title>
+            <k-card-title>{{ t("Receipt") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing size" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
-              <k-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Title font" variant="outlined" density="compact" hide-details />
-              <k-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
-              <k-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
-              <k-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
+              <k-select v-model="form.printerSize" :items="['58mm', '80mm']" :placeholder="t('Printing size')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptWidth" :placeholder="t('Width (mm)')" type="number" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptHeight" :placeholder="t('Height (mm)')" type="number" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" :placeholder="t('Title font')" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" :placeholder="t('Body font')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptTitleSize" :placeholder="t('Market name size')" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptBodySize" :placeholder="t('Body size')" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
+              <k-switch v-model="form.receiptEnabled" :label="t('Print receipts after checkout')" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.receiptCutoff" :label="t('Cut paper after printing')" color="primary" hide-details class="field-full" />
             </k-card-text>
           </k-card>
 
           <k-card v-show="panelMatches('printing-look')" class="settings-card settings-card--wide">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-palette" size="20" />
-              Receipt look
+              {{ t("Receipt look") }}
             </k-card-title>
             <k-card-text>
               <ReceiptLookPicker @saved="onReceiptLookSaved" @error="(message: string) => notify(message, 'red')" />
-              <div class="settings-note mt-2">Fonts and sizes above apply to the Classic theme.</div>
+              <div class="settings-note mt-2">{{ t("Fonts and sizes above apply to the Classic theme.") }}</div>
             </k-card-text>
           </k-card>
 
           <k-card v-show="panelMatches('printing-end-of-shift')" class="settings-card">
-            <k-card-title>End-of-shift receipt</k-card-title>
+            <k-card-title>{{ t("End-of-shift receipt") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines" color="primary" hide-details class="field-full" />
-              <k-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.shiftReportSignatures" :label="t('Cashier and manager signature lines')" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.shiftReportUppercaseHeader" :label="t('Store and branch name in capitals')" color="primary" hide-details class="field-full" />
             </k-card-text>
             <k-card-actions class="px-4 pb-4">
               <k-btn
@@ -1348,25 +1344,25 @@
                 :loading="samplePrinting"
                 @click="printCloseShiftSample"
               >
-                <k-icon start icon="mdi-printer-eye" /> Print sample
+                <k-icon start icon="mdi-printer-eye" /> {{ t("Print sample") }}
               </k-btn>
             </k-card-actions>
           </k-card>
 
           <k-card v-show="panelMatches('printing-header-footer')" class="settings-card">
-            <k-card-title>Receipt header &amp; footer</k-card-title>
+            <k-card-title>{{ t("Receipt header & footer") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-text-field v-model="form.marketName" placeholder="Market name" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.marketPhone" placeholder="Market phone" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.marketDescription" placeholder="Tagline" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.branchPhone" placeholder="Branch phone" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.registerName" placeholder="Register name (POS-01)" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" hide-details />
-              <k-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="2" variant="outlined" density="compact" hide-details class="field-full" />
+              <k-text-field v-model="form.marketName" :placeholder="t('Market name')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.marketPhone" :placeholder="t('Market phone')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.marketDescription" :placeholder="t('Tagline')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.branchPhone" :placeholder="t('Branch phone')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.registerName" :placeholder="t('Register name (POS-01)')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.website" :placeholder="t('Website')" variant="outlined" density="compact" hide-details />
+              <k-textarea v-model="form.returnPolicy" :placeholder="t('Return policy')" rows="2" variant="outlined" density="compact" hide-details class="field-full" />
               <k-select
                 v-model="form.socialPlatforms"
                 :items="socialPlatformOptions"
-                placeholder="Social platforms"
+                :placeholder="t('Social platforms')"
                 multiple
                 chips
                 closable-chips
@@ -1391,7 +1387,7 @@
                 v-for="platform in form.socialPlatforms"
                 :key="platform"
                 v-model="form.socialHandles[platform]"
-                :placeholder="`${platformLabel(platform)} handle`"
+                :placeholder="t('{platform} handle', { platform: platformLabel(platform) })"
                 :prepend-inner-icon="platformIcon(platform)"
                 variant="outlined"
                 density="compact"
@@ -1401,17 +1397,17 @@
           </k-card>
 
           <k-card v-show="panelMatches('printing-devices')" class="settings-card">
-            <k-card-title>Devices</k-card-title>
+            <k-card-title>{{ t("Devices") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt printer" variant="outlined" density="compact" hide-details />
-              <k-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.receiptPrinter" :items="printers" :placeholder="t('Receipt printer')" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.screenPort" :items="serialPorts" :placeholder="t('Customer screen COM port')" variant="outlined" density="compact" hide-details />
             </k-card-text>
           </k-card>
 
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save
+            <k-icon start icon="mdi-content-save-outline" /> {{ t("Save") }}
           </k-btn>
         </div>
       </k-window-item>
@@ -1419,18 +1415,18 @@
       <k-window-item value="attendance">
         <div class="settings-grid">
           <k-card v-show="panelMatches('attendance-machine')" class="settings-card">
-            <k-card-title>Attendance machine</k-card-title>
+            <k-card-title>{{ t("Attendance machine") }}</k-card-title>
             <k-card-text class="field-grid">
-              <k-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.akuvoxUsername" placeholder="Device username" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.akuvoxPassword" placeholder="Device password" type="password" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" hide-details />
-              <k-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (sec)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-              <k-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details class="field-full" />
-              <k-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
+              <k-text-field v-model="form.akuvoxIP" :placeholder="t('Akuvox IP address')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.akuvoxUsername" :placeholder="t('Device username')" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.akuvoxPassword" :placeholder="t('Device password')" type="password" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.attendanceApproverPassword" :placeholder="t('Manager password')" type="password" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" :placeholder="t('Duplicate interval (sec)')" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <k-switch v-model="form.attendanceEnabled" :label="t('Enable attendance')" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.attendanceCashierHistory" :label="t('Cashiers can browse previous days')" color="primary" hide-details class="field-full" />
               <k-switch
                 v-model="form.attendanceManagerApproval"
-                label="Manager approves requests and adds missed punches"
+                :label="t('Manager approves requests and adds missed punches')"
                 color="primary"
                 hide-details
                 class="field-full"
@@ -1440,7 +1436,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save
+            <k-icon start icon="mdi-content-save-outline" /> {{ t("Save") }}
           </k-btn>
         </div>
       </k-window-item>
@@ -1450,13 +1446,13 @@
           <k-card v-show="panelMatches('admin-users')" class="settings-card settings-card--wide">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-group-outline" size="20" />
-              Users
+              {{ t("Users") }}
               <k-spacer />
               <k-btn color="primary" size="small" @click="openUserDialog()">
-                <k-icon start icon="mdi-plus" /> Add user
+                <k-icon start icon="mdi-plus" /> {{ t("Add user") }}
               </k-btn>
             </k-card-title>
-            <div class="settings-note px-4">central users: only their PIN can be reset here.</div>
+            <div class="settings-note px-4">{{ t("central users: only their PIN can be reset here.") }}</div>
             <k-data-table
               :headers="userHeaders"
               :items="users"
@@ -1474,12 +1470,12 @@
                   size="x-small"
                   variant="tonal"
                 >
-                  central
+                  {{ t("central") }}
                 </k-chip>
               </template>
               <template #item.active="{ item }">
                 <k-chip :color="item.active ? 'green' : 'red'" size="small" variant="tonal">
-                  {{ item.active ? "Active" : "Disabled" }}
+                  {{ item.active ? t("Active") : t("Disabled") }}
                 </k-chip>
               </template>
               <template #item.actions="{ item }">
@@ -1488,7 +1484,7 @@
                   icon
                   size="small"
                   variant="text"
-                  title="Reset PIN"
+                  :title="t('Reset PIN')"
                   @click="openUserDialog(item)"
                 >
                   <k-icon icon="mdi-key-outline" size="18" />
@@ -1507,7 +1503,7 @@
           <k-card v-show="panelMatches('admin-salespersons')" class="settings-card settings-card--wide">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-tie" size="20" />
-              Salesmen
+              {{ t("Salesmen") }}
               <k-spacer />
               <k-btn
                 v-if="!salespersonsSyncManaged"
@@ -1515,11 +1511,11 @@
                 size="small"
                 @click="openSalespersonDialog()"
               >
-                <k-icon start icon="mdi-plus" /> Add salesman
+                <k-icon start icon="mdi-plus" /> {{ t("Add salesman") }}
               </k-btn>
             </k-card-title>
             <div v-if="salespersonsSyncManaged" class="settings-note px-4">
-              Set in central; only the attendance ID can be changed here.
+              {{ t("Set in central; only the attendance ID can be changed here.") }}
             </div>
             <k-data-table
               :headers="salespersonHeaders"
@@ -1534,9 +1530,9 @@
               </template>
               <template #item.isActive="{ item }">
                 <k-chip v-if="item.isSynced" :color="item.isActive ? 'green' : 'red'" size="small" variant="tonal">
-                  {{ item.isActive ? "Active" : "Inactive" }}
+                  {{ item.isActive ? t("Active") : t("Inactive") }}
                 </k-chip>
-                <span v-else class="text-caption text-medium-emphasis">Not synced</span>
+                <span v-else class="text-caption text-medium-emphasis">{{ t("Not synced") }}</span>
               </template>
               <template #item.actions="{ item }">
                 <k-btn icon size="small" variant="text" @click="openSalespersonDialog(item)">
@@ -1558,12 +1554,12 @@
             <k-card class="settings-card">
               <k-card-title class="d-flex align-center ga-3">
                 <k-icon icon="mdi-lock-reset" size="20" />
-                Change admin password
+                {{ t("Change admin password") }}
               </k-card-title>
               <k-card-text>
                 <k-text-field
                   v-model="passwordForm.current"
-                  placeholder="Current admin password"
+                  :placeholder="t('Current admin password')"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -1573,7 +1569,7 @@
                 />
                 <k-text-field
                   v-model="passwordForm.newPass"
-                  placeholder="New password"
+                  :placeholder="t('New password')"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -1581,17 +1577,17 @@
                 />
                 <k-text-field
                   v-model="passwordForm.confirm"
-                  placeholder="Confirm new password"
+                  :placeholder="t('Confirm new password')"
                   variant="outlined"
                   density="compact"
                   :type="showPw ? 'text' : 'password'"
-                  :rules="[(v) => v === passwordForm.newPass || 'Passwords do not match']"
+                  :rules="[(v) => v === passwordForm.newPass || t('Passwords do not match')]"
                 />
               </k-card-text>
               <k-card-actions>
                 <k-spacer />
                 <k-btn color="primary" variant="flat" type="submit" :loading="changingPassword">
-                  <k-icon start icon="mdi-lock-reset" /> Change password
+                  <k-icon start icon="mdi-lock-reset" /> {{ t("Change password") }}
                 </k-btn>
               </k-card-actions>
             </k-card>
@@ -1600,12 +1596,12 @@
             <k-card class="settings-card">
               <k-card-title class="d-flex align-center ga-3">
                 <k-icon icon="mdi-dialpad" size="20" />
-                Cashier login PIN
+                {{ t("Cashier login PIN") }}
               </k-card-title>
               <k-card-text>
                 <k-text-field
                   v-model="cashierPinForm.newPin"
-                  placeholder="New 4-digit PIN"
+                  :placeholder="t('New 4-digit PIN')"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -1613,19 +1609,19 @@
                   maxlength="4"
                   :type="showCashierPin ? 'text' : 'password'"
                   :append-inner-icon="showCashierPin ? 'mdi-eye' : 'mdi-eye-off'"
-                  :hint="cashierPinCurrent ? `Current: ${cashierPinCurrent}` : ''"
+                  :hint="cashierPinCurrent ? t('Current: {pin}', { pin: cashierPinCurrent }) : ''"
                   persistent-hint
                   @click:append-inner="showCashierPin = !showCashierPin"
                 />
                 <k-text-field
                   v-model="cashierPinForm.confirm"
-                  placeholder="Confirm PIN"
+                  :placeholder="t('Confirm PIN')"
                   variant="outlined"
                   density="compact"
                   inputmode="numeric"
                   maxlength="4"
                   :type="showCashierPin ? 'text' : 'password'"
-                  :rules="[(v) => v === cashierPinForm.newPin || 'PINs do not match']"
+                  :rules="[(v) => v === cashierPinForm.newPin || t('PINs do not match')]"
                 />
               </k-card-text>
               <k-card-actions>
@@ -1637,7 +1633,7 @@
                   :loading="savingCashierPin"
                   :disabled="!/^\d{4}$/.test(cashierPinForm.newPin) || cashierPinForm.newPin !== cashierPinForm.confirm"
                 >
-                  <k-icon start icon="mdi-dialpad" /> Update PIN
+                  <k-icon start icon="mdi-dialpad" /> {{ t("Update PIN") }}
                 </k-btn>
               </k-card-actions>
             </k-card>
@@ -1650,7 +1646,7 @@
           <k-card v-show="panelMatches('admin-page-access')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-lock-outline" size="20" />
-              Page access
+              {{ t("Page access") }}
             </k-card-title>
             <k-card-text>
               <k-switch
@@ -1674,16 +1670,16 @@
     <k-dialog v-model="userDialog" max-width="400">
       <k-card>
         <k-card-title>
-          {{ editingSyncedUser ? "Reset PIN" : editingUser ? "Edit User" : "New User" }}
+          {{ editingSyncedUser ? t("Reset PIN") : editingUser ? t("Edit User") : t("New User") }}
         </k-card-title>
         <k-card-text>
           <div v-if="editingSyncedUser" class="text-body-2 text-medium-emphasis mb-3">
-            {{ editingUser.username }} is managed from central. Only the PIN can be reset here.
+            {{ t("{username} is managed from central. Only the PIN can be reset here.", { username: editingUser.username }) }}
           </div>
           <k-text-field
             v-if="!editingSyncedUser"
             v-model="userForm.username"
-            placeholder="Username"
+            :placeholder="t('Username')"
             variant="outlined"
             density="compact"
             class="mb-2"
@@ -1696,7 +1692,7 @@
             :type="showUpw ? 'text' : 'password'"
             :append-inner-icon="showUpw ? 'mdi-eye' : 'mdi-eye-off'"
             @click:append-inner="showUpw = !showUpw"
-            :placeholder="editingSyncedUser ? 'New PIN' : editingUser ? 'Leave blank to keep current' : 'Password'"
+            :placeholder="editingSyncedUser ? t('New PIN') : editingUser ? t('Leave blank to keep current') : t('Password')"
           />
           <k-select
             v-if="!editingSyncedUser"
@@ -1704,7 +1700,7 @@
             :items="roles"
             item-title="name"
             item-value="id"
-            placeholder="Role"
+            :placeholder="t('Role')"
             variant="outlined"
             density="compact"
             class="mb-2"
@@ -1712,13 +1708,13 @@
           <k-text-field
             v-if="!editingSyncedUser"
             v-model="userForm.attendanceUserId"
-            placeholder="Akuvox UserID (leave blank for visitors)"
+            :placeholder="t('Akuvox UserID (leave blank for visitors)')"
             variant="outlined"
             density="compact"
           />
         </k-card-text>
         <k-card-actions>
-          <k-btn variant="text" @click="userDialog = false">Cancel</k-btn>
+          <k-btn variant="text" @click="userDialog = false">{{ t("Cancel") }}</k-btn>
           <k-spacer />
           <k-btn
             color="primary"
@@ -1726,7 +1722,7 @@
             :disabled="editingSyncedUser ? !userForm.password : !userForm.username"
             :loading="savingUser"
             @click="saveUser"
-            >Save</k-btn
+            >{{ t("Save") }}</k-btn
           >
         </k-card-actions>
       </k-card>
@@ -1734,30 +1730,30 @@
 
     <k-dialog :model-value="showDeactivationConfirm" max-width="480" persistent>
       <k-card v-if="pendingDeactivation">
-        <k-card-title>Deactivate products no longer on central?</k-card-title>
+        <k-card-title>{{ t("Deactivate products no longer on central?") }}</k-card-title>
         <k-card-text>
           <div class="mb-2">
-            Central no longer has these. They'll be hidden from checkout here too (past invoices keep them).
+            {{ t("Central no longer has these. They'll be hidden from checkout here too (past invoices keep them).") }}
           </div>
           <div v-if="pendingDeactivation.productBarcodes.length" class="mb-2">
             <div class="text-caption text-medium-emphasis">
-              {{ pendingDeactivation.productBarcodes.length }} product(s)
+              {{ t("{n} product(s)", { n: pendingDeactivation.productBarcodes.length }) }}
             </div>
             <ul class="text-body-2">
               <li v-for="(name, i) in pendingDeactivation.productNames.slice(0, 10)" :key="pendingDeactivation.productBarcodes[i]">
                 {{ name || pendingDeactivation.productBarcodes[i] }}
               </li>
               <li v-if="pendingDeactivation.productBarcodes.length > 10" class="text-medium-emphasis">
-                …and {{ pendingDeactivation.productBarcodes.length - 10 }} more
+                {{ t("…and {n} more", { n: pendingDeactivation.productBarcodes.length - 10 }) }}
               </li>
             </ul>
           </div>
         </k-card-text>
         <k-card-actions>
-          <k-btn variant="text" :disabled="deactivationConfirming" @click="cancelDeactivation">Cancel</k-btn>
+          <k-btn variant="text" :disabled="deactivationConfirming" @click="cancelDeactivation">{{ t("Cancel") }}</k-btn>
           <k-spacer />
           <k-btn color="primary" variant="flat" :loading="deactivationConfirming" @click="confirmDeactivationAndResync">
-            Deactivate and sync
+            {{ t("Deactivate and sync") }}
           </k-btn>
         </k-card-actions>
       </k-card>
@@ -1765,33 +1761,33 @@
 
     <k-dialog v-model="cashMachineConfirm" max-width="520">
       <k-card>
-        <k-card-title>Make this a cash machine?</k-card-title>
+        <k-card-title>{{ t("Make this a cash machine?") }}</k-card-title>
         <k-card-text>
-          <p class="mb-2">Windows will ask for an administrator's approval. Then, on this computer:</p>
+          <p class="mb-2">{{ t("Windows will ask for an administrator's approval. Then, on this computer:") }}</p>
           <ul class="ml-5 mb-2">
-            <li>Startup apps, third-party scheduled tasks and background services are switched off.</li>
-            <li>Apps a till doesn't use are removed: OneDrive, Teams, Xbox, Copilot, widgets, news, games and the like.</li>
-            <li>Notifications, tips and ads are off; the computer never sleeps.</li>
-            <li>Windows Update only restarts outside 7:00-23:00, never during working hours.</li>
+            <li>{{ t("Startup apps, third-party scheduled tasks and background services are switched off.") }}</li>
+            <li>{{ t("Apps a till doesn't use are removed: OneDrive, Teams, Xbox, Copilot, widgets, news, games and the like.") }}</li>
+            <li>{{ t("Notifications, tips and ads are off; the computer never sleeps.") }}</li>
+            <li>{{ t("Windows Update only restarts outside 7:00-23:00, never during working hours.") }}</li>
           </ul>
-          <p>Removed apps don't come back by themselves. It takes a few minutes and runs in the background.</p>
+          <p>{{ t("Removed apps don't come back by themselves. It takes a few minutes and runs in the background.") }}</p>
         </k-card-text>
         <k-card-actions>
-          <k-btn variant="text" @click="cashMachineConfirm = false">Cancel</k-btn>
+          <k-btn variant="text" @click="cashMachineConfirm = false">{{ t("Cancel") }}</k-btn>
           <k-spacer />
-          <k-btn color="primary" variant="flat" @click="setUpCashMachine">Make it a cash machine</k-btn>
+          <k-btn color="primary" variant="flat" @click="setUpCashMachine">{{ t("Make it a cash machine") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
 
     <k-dialog v-model="deleteDialog" max-width="400">
       <k-card>
-        <k-card-title>Delete User</k-card-title>
-        <k-card-text>Are you sure you want to delete {{ deleteTarget?.username }}?</k-card-text>
+        <k-card-title>{{ t("Delete User") }}</k-card-title>
+        <k-card-text>{{ t("Are you sure you want to delete {username}?", { username: deleteTarget?.username }) }}</k-card-text>
         <k-card-actions>
-          <k-btn variant="text" @click="deleteDialog = false">Cancel</k-btn>
+          <k-btn variant="text" @click="deleteDialog = false">{{ t("Cancel") }}</k-btn>
           <k-spacer />
-          <k-btn color="red" variant="flat" @click="deleteUser">Delete</k-btn>
+          <k-btn color="red" variant="flat" @click="deleteUser">{{ t("Delete") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -1801,17 +1797,17 @@
         <k-card-title>
           {{
             !salespersonNameEditable
-              ? "Attendance ID"
+              ? t("Attendance ID")
               : editingSalesperson
-                ? "Edit Salesman"
-                : "New Salesman"
+                ? t("Edit Salesman")
+                : t("New Salesman")
           }}
         </k-card-title>
         <k-card-text>
           <k-text-field
             v-if="salespersonNameEditable"
             v-model="salespersonName"
-            placeholder="Full name"
+            :placeholder="t('Full name')"
             variant="outlined"
             density="compact"
             autofocus
@@ -1820,14 +1816,14 @@
             {{ editingSalesperson?.fullName }} --
             {{
               editingSalesperson?.isSynced
-                ? "name, color and active state are managed from central."
-                : "not in central; add them there to manage their name."
+                ? t("name, color and active state are managed from central.")
+                : t("not in central; add them there to manage their name.")
             }}
           </div>
-          <k-text-field v-model="salespersonAttendanceUserId" placeholder="Akuvox attendance ID" variant="outlined" density="compact" />
+          <k-text-field v-model="salespersonAttendanceUserId" :placeholder="t('Akuvox attendance ID')" variant="outlined" density="compact" />
         </k-card-text>
         <k-card-actions>
-          <k-btn variant="text" @click="salespersonDialog = false">Cancel</k-btn>
+          <k-btn variant="text" @click="salespersonDialog = false">{{ t("Cancel") }}</k-btn>
           <k-spacer />
           <k-btn
             color="primary"
@@ -1835,7 +1831,7 @@
             :disabled="salespersonNameEditable && !salespersonName.trim()"
             :loading="savingSalesperson"
             @click="saveSalesperson"
-            >Save</k-btn
+            >{{ t("Save") }}</k-btn
           >
         </k-card-actions>
       </k-card>
@@ -1843,25 +1839,25 @@
 
     <k-dialog v-model="deleteSalespersonDialog" max-width="400">
       <k-card>
-        <k-card-title>Delete Salesman</k-card-title>
-        <k-card-text>Delete {{ deleteSalespersonTarget?.fullName }}?</k-card-text>
+        <k-card-title>{{ t("Delete Salesman") }}</k-card-title>
+        <k-card-text>{{ t("Delete {name}?", { name: deleteSalespersonTarget?.fullName }) }}</k-card-text>
         <k-card-actions>
-          <k-btn variant="text" @click="deleteSalespersonDialog = false">Cancel</k-btn>
+          <k-btn variant="text" @click="deleteSalespersonDialog = false">{{ t("Cancel") }}</k-btn>
           <k-spacer />
-          <k-btn color="red" variant="flat" @click="deleteSalesperson">Delete</k-btn>
+          <k-btn color="red" variant="flat" @click="deleteSalesperson">{{ t("Delete") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
 
     <k-dialog v-model="manageListDialog" max-width="520">
       <k-card>
-        <k-card-title>{{ manageListName }} items</k-card-title>
+        <k-card-title>{{ t("{name} items", { name: manageListName }) }}</k-card-title>
         <k-card-text>
           <k-table density="compact">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>{{ manageListType === "price" ? "Price" : "Discount" }}</th>
+                <th>{{ t("Product") }}</th>
+                <th>{{ manageListType === "price" ? t("Price") : t("Discount") }}</th>
               </tr>
             </thead>
             <tbody>
@@ -1870,26 +1866,26 @@
                 <td>{{ manageListType === "price" ? `$${Number(item.price).toFixed(2)}` : `${item.discount}%` }}</td>
               </tr>
               <tr v-if="!manageListItems.length">
-                <td colspan="2" class="text-medium-emphasis">No items yet.</td>
+                <td colspan="2" class="text-medium-emphasis">{{ t("No items yet.") }}</td>
               </tr>
             </tbody>
           </k-table>
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="manageListDialog = false">Close</k-btn>
+          <k-btn variant="text" @click="manageListDialog = false">{{ t("Close") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
 
     <k-dialog v-model="openingFloatDialog" max-width="380">
       <k-card>
-        <k-card-title>Save opening float</k-card-title>
+        <k-card-title>{{ t("Save opening float") }}</k-card-title>
         <k-card-text>
           <div class="text-body-2 mb-3">
-            Applies to shifts opened after saving. Requires the manager password.
+            {{ t("Applies to shifts opened after saving. Requires the manager password.") }}
           </div>
-          <div class="text-caption text-medium-emphasis mb-1">Manager password</div>
+          <div class="text-caption text-medium-emphasis mb-1">{{ t("Manager password") }}</div>
           <k-text-field
             v-model="openingFloatPassword"
             placeholder="••••••••"
@@ -1903,8 +1899,8 @@
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="openingFloatDialog = false">Cancel</k-btn>
-          <k-btn color="primary" :loading="openingFloatSaving" @click="confirmOpeningFloatSave">Save</k-btn>
+          <k-btn variant="text" @click="openingFloatDialog = false">{{ t("Cancel") }}</k-btn>
+          <k-btn color="primary" :loading="openingFloatSaving" @click="confirmOpeningFloatSave">{{ t("Save") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -1917,6 +1913,7 @@
 
 <script lang="ts" setup>
 import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from "vue";
+import { t } from "@/i18n";
 import {
   GetAppSettings,
   GetDatabaseStatus,
@@ -2064,20 +2061,20 @@ const { refresh: refreshVisitorCounter } = useVisitorCounter();
 const theme = useTheme();
 const tab = ref("general");
 
-const settingsTabs = [
-  { value: "general", label: "General", icon: "mdi-cog-outline" },
-  { value: "money", label: "Money", icon: "mdi-cash-multiple" },
-  { value: "payments", label: "Payments", icon: "mdi-credit-card-outline" },
-  { value: "coupons", label: "Coupons", icon: "mdi-ticket-percent-outline" },
-  { value: "behaviour", label: "Behaviour", icon: "mdi-button-pointer" },
-  { value: "display", label: "Till display", icon: "mdi-monitor-dashboard" },
-  { value: "quick_access", label: "Quick access", icon: "mdi-flash" },
-  { value: "cash", label: "Cash & shifts", icon: "mdi-cash-register" },
-  { value: "printing", label: "Printing", icon: "mdi-printer-outline" },
-  { value: "attendance", label: "Attendance", icon: "mdi-clipboard-check-outline" },
-  { value: "users", label: "Users", icon: "mdi-account-group-outline" },
-  { value: "pages", label: "Page access", icon: "mdi-lock-outline" },
-] as const;
+const settingsTabs = computed(() => [
+  { value: "general", label: t("General"), icon: "mdi-cog-outline" },
+  { value: "money", label: t("Money"), icon: "mdi-cash-multiple" },
+  { value: "payments", label: t("Payments"), icon: "mdi-credit-card-outline" },
+  { value: "coupons", label: t("Coupons"), icon: "mdi-ticket-percent-outline" },
+  { value: "behaviour", label: t("Behaviour"), icon: "mdi-button-pointer" },
+  { value: "display", label: t("Till display"), icon: "mdi-monitor-dashboard" },
+  { value: "quick_access", label: t("Quick access"), icon: "mdi-flash" },
+  { value: "cash", label: t("Cash & shifts"), icon: "mdi-cash-register" },
+  { value: "printing", label: t("Printing"), icon: "mdi-printer-outline" },
+  { value: "attendance", label: t("Attendance"), icon: "mdi-clipboard-check-outline" },
+  { value: "users", label: t("Users"), icon: "mdi-account-group-outline" },
+  { value: "pages", label: t("Page access"), icon: "mdi-lock-outline" },
+] as const);
 
 // Static index of every settings "panel" (its tab + searchable text) used by
 // the search box below. Keep in sync with the v-show="panelMatches(...)" on
@@ -2221,10 +2218,10 @@ async function setDarkTheme(value: boolean | null) {
   themeSaving.value = true;
   try {
     await SetTheme(next);
-    notify(`${value ? "Dark" : "Light"} theme enabled`);
+    notify(value ? t("Dark theme enabled") : t("Light theme enabled"));
   } catch (error) {
     theme.change(previous);
-    notify(error instanceof Error ? error.message : "Failed to save theme", "red");
+    notify(error instanceof Error ? error.message : t("Failed to save theme"), "red");
   } finally {
     themeSaving.value = false;
   }
@@ -2319,17 +2316,19 @@ const form = reactive({
   attendanceCashierHistory: false,
   attendanceManagerApproval: true,
 });
-const roundingModes = [
-  { title: "Half up (standard)", value: "half_up" },
-  { title: "Always down", value: "down" },
-  { title: "Always up", value: "up" },
-];
+const roundingModes = computed(() => [
+  { title: t("Half up (standard)"), value: "half_up" },
+  { title: t("Always down"), value: "down" },
+  { title: t("Always up"), value: "up" },
+]);
 const currencies = ref<any[]>([]);
 const roundingCurrencies = computed(() =>
   currencies.value
     .filter((c) => c.isActive)
     .map((c) => ({
-      title: `${c.name} (${c.cashRoundingUnit > 1 ? `nearest ${c.cashRoundingUnit.toLocaleString()} ${c.code}` : `nearest ${c.symbol}1`})`,
+      title: c.cashRoundingUnit > 1
+        ? t("{name} (nearest {amount} {code})", { name: c.name, amount: c.cashRoundingUnit.toLocaleString(), code: c.code })
+        : t("{name} (nearest {symbol}1)", { name: c.name, symbol: c.symbol }),
       value: c.code,
     })),
 );
@@ -2353,11 +2352,11 @@ const overchangeConfirmationSaving = ref(false);
 const closeShiftRequiresSyncSaving = ref(false);
 const openingFloatEnabledSaving = ref(false);
 const shiftReceiptUploadModeSaving = ref(false);
-const shiftReceiptUploadModes = [
-  { title: "Hybrid (office when online, else this machine)", value: 2 },
-  { title: "Local only (this machine, over shop Wi-Fi)", value: 3 },
-  { title: "Central only (straight to the office)", value: 1 },
-];
+const shiftReceiptUploadModes = computed(() => [
+  { title: t("Hybrid (office when online, else this machine)"), value: 2 },
+  { title: t("Local only (this machine, over shop Wi-Fi)"), value: 3 },
+  { title: t("Central only (straight to the office)"), value: 1 },
+]);
 const countOpeningCashOnCloseSaving = ref(false);
 const editingPaymentMethodId = ref<number | null>(null);
 const paymentMethodSaving = ref(false);
@@ -2459,14 +2458,14 @@ const couponIssuing = ref(false);
 const pricingSettingsSaving = ref(false);
 const { pageUnlocks } = usePageUnlocks();
 const pageUnlockSaving = ref(false);
-const pageUnlockLabels: Record<string, string> = {
-  clients: "Clients",
-  inventory: "Inventory",
-  products: "Products",
-  transfers: "Transfers",
-  attendance: "Attendance",
-  salespersons: "Salesmen",
-};
+const pageUnlockLabels = computed<Record<string, string>>(() => ({
+  clients: t("Clients"),
+  inventory: t("Inventory"),
+  products: t("Products"),
+  transfers: t("Transfers"),
+  attendance: t("Attendance"),
+  salespersons: t("Salesmen"),
+}));
 const adminSettingsSaving = ref(false);
 const samplePrinting = ref(false);
 const showApiKey = ref(false);
@@ -2484,12 +2483,12 @@ const savingCashierPin = ref(false);
 
 const users = ref<any[]>([]);
 const roles = ref<any[]>([]);
-const userHeaders = [
-  { title: "Username", key: "username" },
-  { title: "Role", key: "role" },
-  { title: "Status", key: "active" },
+const userHeaders = computed(() => [
+  { title: t("Username"), key: "username" },
+  { title: t("Role"), key: "role" },
+  { title: t("Status"), key: "active" },
   { title: "", key: "actions", sortable: false, align: "end" as const },
-];
+]);
 
 const userDialog = ref(false);
 const editingUser = ref<any>(null);
@@ -2502,13 +2501,13 @@ const deleteDialog = ref(false);
 const deleteTarget = ref<any>(null);
 
 const salespersons = ref<any[]>([]);
-const salespersonHeaders = [
+const salespersonHeaders = computed(() => [
   { title: "", key: "color", sortable: false, width: "40px" },
-  { title: "Name", key: "fullName" },
-  { title: "Attendance ID", key: "attendanceUserId" },
-  { title: "Status", key: "isActive", sortable: false },
+  { title: t("Name"), key: "fullName" },
+  { title: t("Attendance ID"), key: "attendanceUserId" },
+  { title: t("Status"), key: "isActive", sortable: false },
   { title: "", key: "actions", sortable: false, align: "end" as const },
-];
+]);
 // When central sync (central) is configured this branch's salesperson roster is
 // owned upstream and only the local attendance ID is editable. With no central
 // server set, salespersons are managed entirely locally (add/rename/delete).
@@ -2561,7 +2560,7 @@ async function changeQuickAccessMode(mode: string) {
     await SetQuickAccessMode(mode);
     await loadQuickAccessItems();
   } catch (error) {
-    notify(`Could not change where Quick Access comes from: ${error}`, "error");
+    notify(t("Could not change where Quick Access comes from: {error}", { error }), "error");
   } finally {
     changingQuickAccessMode.value = false;
   }
@@ -2577,7 +2576,7 @@ async function setQuickAccessItemColor(
     await SetQuickAccessColor(item.id, item.quickAccessColor ?? "", item.quickAccessTextColor ?? "");
   } catch (error) {
     Object.assign(item, previous);
-    notify(`Could not save color: ${error}`, "error");
+    notify(t("Could not save color: {error}", { error }), "error");
   }
 }
 
@@ -2587,9 +2586,9 @@ async function exportQuickAccessCsv() {
   exportingQuickAccess.value = true;
   try {
     const path = await ExportQuickAccessCSV();
-    if (path) notify(`Quick access exported to ${path}`);
+    if (path) notify(t("Quick access exported to {path}", { path }));
   } catch (e: any) {
-    notify(e?.toString() || "Could not export quick access", "error");
+    notify(e?.toString() || t("Could not export quick access"), "error");
   } finally {
     exportingQuickAccess.value = false;
   }
@@ -2607,15 +2606,15 @@ async function loadCouponTypes() {
 }
 
 async function removeCoupon(coupon: any) {
-  if (!window.confirm(`Delete coupon ${coupon.code}?`)) return;
-  try { await DeleteCoupon(coupon.code); await loadCouponTypes(); notify("Coupon deleted"); }
-  catch (error) { notify(error instanceof Error ? error.message : "Failed to delete coupon", "red"); }
+  if (!window.confirm(t("Delete coupon {code}?", { code: coupon.code }))) return;
+  try { await DeleteCoupon(coupon.code); await loadCouponTypes(); notify(t("Coupon deleted")); }
+  catch (error) { notify(error instanceof Error ? error.message : t("Failed to delete coupon"), "red"); }
 }
 
 async function removeCouponType(couponType: any) {
-  if (!window.confirm(`Delete coupon type ${couponType.name}?`)) return;
-  try { await DeleteCouponType(Number(couponType.id)); await loadCouponTypes(); notify("Coupon type deleted"); }
-  catch (error) { notify(error instanceof Error ? error.message : "Failed to delete coupon type", "red"); }
+  if (!window.confirm(t("Delete coupon type {name}?", { name: couponType.name }))) return;
+  try { await DeleteCouponType(Number(couponType.id)); await loadCouponTypes(); notify(t("Coupon type deleted")); }
+  catch (error) { notify(error instanceof Error ? error.message : t("Failed to delete coupon type"), "red"); }
 }
 
 function editCouponType(couponType: any) {
@@ -2654,8 +2653,8 @@ async function saveCouponType() {
     const wasEditing = Boolean(editingCouponTypeId.value);
     cancelCouponTypeEdit();
     await loadCouponTypes();
-    notify(wasEditing ? "Coupon type updated" : "Coupon type added");
-  } catch (error) { notify(error instanceof Error ? error.message : "Failed to add coupon type", "red"); }
+    notify(wasEditing ? t("Coupon type updated") : t("Coupon type added"));
+  } catch (error) { notify(error instanceof Error ? error.message : t("Failed to add coupon type"), "red"); }
   finally { couponTypeSaving.value = false; }
 }
 
@@ -2665,8 +2664,8 @@ async function issueCoupon() {
   try {
     await CreateCoupon(couponCodeForm.value.trim(), couponIssueTypeId.value, 0);
     couponCodeForm.value = "";
-    notify("Coupon issued");
-  } catch (error) { notify(error instanceof Error ? error.message : "Failed to issue coupon", "red"); }
+    notify(t("Coupon issued"));
+  } catch (error) { notify(error instanceof Error ? error.message : t("Failed to issue coupon"), "red"); }
   finally { couponIssuing.value = false; }
 }
 
@@ -2785,7 +2784,7 @@ async function chooseDatabase() {
     const path = await ChooseDatabase();
     if (path) WindowReloadApp();
   } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to load database", "red");
+    notify(error instanceof Error ? error.message : t("Failed to load database"), "red");
   } finally {
     databaseSwitching.value = false;
   }
@@ -2808,7 +2807,7 @@ async function setUpCashMachine() {
   cashMachineConfirm.value = false;
   try {
     await StartCashMachineSetup();
-    notify("Making this a cash machine. Approve Windows' prompt; you can keep using the till.", "info");
+    notify(t("Making this a cash machine. Approve Windows' prompt; you can keep using the till."), "info");
   } catch (error) {
     notify(error instanceof Error ? error.message : String(error), "red");
   }
@@ -2854,7 +2853,7 @@ async function setDefaultBranch(code: string) {
   try {
     await SetDefaultBranch(code);
     defaultBranchCode.value = code;
-    notify("Default branch updated");
+    notify(t("Default branch updated"));
   } catch (error) {
     branchActionError.value = error instanceof Error ? error.message : String(error);
   } finally {
@@ -2893,9 +2892,9 @@ async function saveAdminSettings() {
   adminSettingsSaving.value = true;
   try {
     await adminBridge()?.UpdateAdminConfig(Boolean(form.adminEnabled), form.adminListen.trim(), form.adminToken);
-    notify(form.adminEnabled ? "Remote admin settings saved" : "Remote admin disabled");
+    notify(form.adminEnabled ? t("Remote admin settings saved") : t("Remote admin disabled"));
   } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save remote admin settings", "red");
+    notify(error instanceof Error ? error.message : t("Failed to save remote admin settings"), "red");
   } finally {
     adminSettingsSaving.value = false;
   }
@@ -2913,10 +2912,10 @@ async function setCustomDiscountsEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetCustomItemDiscountsEnabled(enabled);
-    notify(`Custom product discounts ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Custom product discounts enabled") : t("Custom product discounts disabled"));
   } catch {
     form.customItemDiscountsEnabled = previous;
-    notify("Failed to update custom product discounts", "red");
+    notify(t("Failed to update custom product discounts"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -2929,10 +2928,10 @@ async function setCustomPricesEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetCustomItemPricesEnabled(enabled);
-    notify(`Custom item prices ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Custom item prices enabled") : t("Custom item prices disabled"));
   } catch {
     form.customItemPricesEnabled = previous;
-    notify("Failed to update custom item prices", "red");
+    notify(t("Failed to update custom item prices"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -2945,10 +2944,10 @@ async function setPerUnitPricesEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetPerUnitItemPricesEnabled(enabled);
-    notify(`Per-unit price and discount editing ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Per-unit price and discount editing enabled") : t("Per-unit price and discount editing disabled"));
   } catch {
     form.perUnitItemPricesEnabled = previous;
-    notify("Failed to update per-unit price and discount editing", "red");
+    notify(t("Failed to update per-unit price and discount editing"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -2961,10 +2960,10 @@ async function setPriceChangeManualOverrideEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetPriceChangeManualOverrideEnabled(enabled);
-    notify(`Price changes now use ${enabled ? "manual override" : "discount"} mode`);
+    notify(enabled ? t("Price changes now use manual override mode") : t("Price changes now use discount mode"));
   } catch {
     form.priceChangeManualOverrideEnabled = previous;
-    notify("Failed to update price change mode", "red");
+    notify(t("Failed to update price change mode"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -2977,10 +2976,10 @@ async function setInvoiceKeyboardModeEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetInvoiceKeyboardModeEnabled(enabled);
-    notify(`Invoice keyboard mode ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Invoice keyboard mode enabled") : t("Invoice keyboard mode disabled"));
   } catch {
     form.invoiceKeyboardModeEnabled = previous;
-    notify("Failed to update invoice keyboard mode", "red");
+    notify(t("Failed to update invoice keyboard mode"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -2993,10 +2992,10 @@ async function setProductSearchEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetProductSearchEnabled(enabled);
-    notify(`Product search button ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Product search button enabled") : t("Product search button disabled"));
   } catch {
     form.productSearchEnabled = previous;
-    notify("Failed to update product search button", "red");
+    notify(t("Failed to update product search button"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3009,10 +3008,10 @@ async function setScanByCodeEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetScanByCodeEnabled(enabled);
-    notify(`Product codes in the scan field ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Product codes in the scan field enabled") : t("Product codes in the scan field disabled"));
   } catch {
     form.scanByCodeEnabled = previous;
-    notify("Failed to update the scan field setting", "red");
+    notify(t("Failed to update the scan field setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3025,10 +3024,10 @@ async function setInvoiceRatingsEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetInvoiceRatingsEnabled(enabled);
-    notify(`Client ratings in the invoices list ${enabled ? "shown" : "hidden"}`);
+    notify(enabled ? t("Client ratings in the invoices list shown") : t("Client ratings in the invoices list hidden"));
   } catch {
     form.invoiceRatingsEnabled = previous;
-    notify("Failed to update the client ratings setting", "red");
+    notify(t("Failed to update the client ratings setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3041,10 +3040,10 @@ async function setProductSearchCodeOnly(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetProductSearchCodeOnly(enabled);
-    notify(`Code-only product search ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Code-only product search enabled") : t("Code-only product search disabled"));
   } catch {
     form.productSearchCodeOnly = previous;
-    notify("Failed to update the product search setting", "red");
+    notify(t("Failed to update the product search setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3057,10 +3056,10 @@ async function setDiscountToggleEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetDiscountToggleEnabled(enabled);
-    notify(`Turning discounts off at the till ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Turning discounts off at the till enabled") : t("Turning discounts off at the till disabled"));
   } catch {
     form.discountToggleEnabled = previous;
-    notify("Failed to update the discount toggle setting", "red");
+    notify(t("Failed to update the discount toggle setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3073,10 +3072,10 @@ async function setDiscountToggleDefaultOff(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetDiscountToggleDefaultOff(enabled);
-    notify(`Discounts start off ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Discounts start off enabled") : t("Discounts start off disabled"));
   } catch {
     form.discountToggleDefaultOff = previous;
-    notify("Failed to update the discount default setting", "red");
+    notify(t("Failed to update the discount default setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3089,10 +3088,10 @@ async function setDealToggleEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetDealToggleEnabled(enabled);
-    notify(`Turning deals off at the till ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Turning deals off at the till enabled") : t("Turning deals off at the till disabled"));
   } catch {
     form.dealToggleEnabled = previous;
-    notify("Failed to update the deal toggle setting", "red");
+    notify(t("Failed to update the deal toggle setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3105,10 +3104,10 @@ async function setPriceEditRestricted(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetPriceEditRestricted(enabled);
-    notify(`Price edits limited to selected codes ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Price edits limited to selected codes enabled") : t("Price edits limited to selected codes disabled"));
   } catch {
     form.priceEditRestricted = previous;
-    notify("Failed to update the price edit setting", "red");
+    notify(t("Failed to update the price edit setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3118,36 +3117,36 @@ async function savePriceEditCodes() {
   pricingSettingsSaving.value = true;
   try {
     await SetPriceEditCodes(form.priceEditCodes);
-    notify("Allowed price edit codes saved");
+    notify(t("Allowed price edit codes saved"));
   } catch {
-    notify("Failed to save the allowed codes", "red");
+    notify(t("Failed to save the allowed codes"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
 }
 
-const oversellModes = [
-  { title: "Allow: sell, fix stock in central later", value: "allow" },
-  { title: "Warn: cashier confirms before selling", value: "warn" },
-  { title: "Block: refuse the sale", value: "block" },
-];
+const oversellModes = computed(() => [
+  { title: t("Allow: sell, fix stock in central later"), value: "allow" },
+  { title: t("Warn: cashier confirms before selling"), value: "warn" },
+  { title: t("Block: refuse the sale"), value: "block" },
+]);
 
-const productSearchFieldOptions = [
-  { title: "Code", value: "code" },
-  { title: "Name", value: "name" },
-  { title: "Brand", value: "brand" },
-  { title: "Color", value: "color" },
-  { title: "Size", value: "size" },
-  { title: "Price", value: "price" },
-];
+const productSearchFieldOptions = computed(() => [
+  { title: t("Code"), value: "code" },
+  { title: t("Name"), value: "name" },
+  { title: t("Brand"), value: "brand" },
+  { title: t("Color"), value: "color" },
+  { title: t("Size"), value: "size" },
+  { title: t("Price"), value: "price" },
+]);
 
 async function saveOversellMode(value: string) {
   pricingSettingsSaving.value = true;
   try {
     await SetOversellMode(value);
-    notify("Oversell mode saved");
+    notify(t("Oversell mode saved"));
   } catch {
-    notify("Failed to save the oversell mode", "red");
+    notify(t("Failed to save the oversell mode"), "red");
     await loadSettings();
   } finally {
     pricingSettingsSaving.value = false;
@@ -3157,41 +3156,41 @@ async function saveOversellMode(value: string) {
 async function saveProductSearchHiddenFields(value: string[]) {
   try {
     await SetProductSearchHiddenFields(value.join(","));
-    notify("Product search columns saved");
+    notify(t("Product search columns saved"));
   } catch {
-    notify("Failed to save the product search columns", "red");
+    notify(t("Failed to save the product search columns"), "red");
     await loadSettings();
   }
 }
 
-const unknownPicturesModeOptions = [
-  { title: "Right after adding an unknown item", value: false },
-  { title: "At checkout", value: true },
-];
+const unknownPicturesModeOptions = computed(() => [
+  { title: t("Right after adding an unknown item"), value: false },
+  { title: t("At checkout"), value: true },
+]);
 
 async function setUnknownPicturesAtCheckout(value: boolean) {
   const previous = form.unknownPicturesAtCheckout;
   form.unknownPicturesAtCheckout = value;
   try {
     await SetUnknownPicturesAtCheckout(value);
-    notify(value ? "Unknown item QR code shows at checkout" : "Unknown item QR code shows right after adding one");
+    notify(value ? t("Unknown item QR code shows at checkout") : t("Unknown item QR code shows right after adding one"));
   } catch {
     form.unknownPicturesAtCheckout = previous;
-    notify("Failed to save the unknown item pictures setting", "red");
+    notify(t("Failed to save the unknown item pictures setting"), "red");
   }
 }
 
 async function saveUnknownProductBarcode() {
   try {
     await SetUnknownProductBarcode(form.unknownProductBarcode);
-    notify("Unknown item product saved");
+    notify(t("Unknown item product saved"));
   } catch {
-    notify("Failed to save the unknown item product", "red");
+    notify(t("Failed to save the unknown item product"), "red");
   }
 }
 
 function onReceiptLookSaved() {
-  notify("Receipt look saved");
+  notify(t("Receipt look saved"));
 }
 
 async function setSoundsEnabled(value: boolean | null) {
@@ -3201,10 +3200,10 @@ async function setSoundsEnabled(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetSoundsEnabled(enabled);
-    notify(`Sounds ${enabled ? "on" : "off"}`);
+    notify(enabled ? t("Sounds on") : t("Sounds off"));
   } catch {
     form.soundsEnabled = previous;
-    notify("Failed to update the sounds setting", "red");
+    notify(t("Failed to update the sounds setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3217,10 +3216,10 @@ async function setReleaseStuckKeys(value: boolean | null) {
   pricingSettingsSaving.value = true;
   try {
     await SetReleaseStuckKeys(enabled);
-    notify(`Letting go of stuck keys ${enabled ? "on" : "off"}`);
+    notify(enabled ? t("Letting go of stuck keys on") : t("Letting go of stuck keys off"));
   } catch {
     form.releaseStuckKeys = previous;
-    notify("Failed to update the stuck keys setting", "red");
+    notify(t("Failed to update the stuck keys setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3234,10 +3233,10 @@ async function setVisitorCounterEnabled(value: boolean | null) {
   try {
     await SetVisitorCounterEnabled(enabled);
     await refreshVisitorCounter();
-    notify(`People visits counter ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("People visits counter enabled") : t("People visits counter disabled"));
   } catch {
     form.visitorCounterEnabled = previous;
-    notify("Failed to update people visits counter", "red");
+    notify(t("Failed to update people visits counter"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3251,10 +3250,10 @@ async function setClientRequired(value: boolean | null) {
   try {
     await SetClientRequired(enabled);
     setClientRequiredState(enabled);
-    notify(`Client on checkout is now ${enabled ? "required" : "optional"}`);
+    notify(enabled ? t("Client on checkout is now required") : t("Client on checkout is now optional"));
   } catch {
     form.clientRequired = previous;
-    notify("Failed to update client requirement", "red");
+    notify(t("Failed to update client requirement"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3270,12 +3269,12 @@ async function setSalespersonPerInvoiceRequired(value: boolean | null) {
     setSalespersonPerInvoiceRequiredState(enabled);
     notify(
       enabled
-        ? "Salesman must now be picked on every invoice"
-        : "Salesman now carries forward between invoices",
+        ? t("Salesman must now be picked on every invoice")
+        : t("Salesman now carries forward between invoices"),
     );
   } catch {
     form.salespersonPerInvoiceRequired = previous;
-    notify("Failed to update salesman requirement", "red");
+    notify(t("Failed to update salesman requirement"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3290,12 +3289,12 @@ async function setNonAdminMonthNavEnabled(value: boolean | null) {
     await SetNonAdminMonthNavEnabled(enabled);
     notify(
       enabled
-        ? "Non-admins can now browse other months on the income chart"
-        : "Income chart month navigation is now admin-only",
+        ? t("Non-admins can now browse other months on the income chart")
+        : t("Income chart month navigation is now admin-only"),
     );
   } catch {
     form.nonAdminMonthNavEnabled = previous;
-    notify("Failed to update income chart month navigation setting", "red");
+    notify(t("Failed to update income chart month navigation setting"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3308,10 +3307,10 @@ async function setHidePaymentMethodCurrency(value: boolean | null) {
   paymentMethodSaving.value = true;
   try {
     await SetHidePaymentMethodCurrency(hide);
-    notify(`Payment method currency ${hide ? "hidden" : "shown"}`);
+    notify(hide ? t("Payment method currency hidden") : t("Payment method currency shown"));
   } catch {
     form.hidePaymentMethodCurrency = previous;
-    notify("Failed to update payment method currency visibility", "red");
+    notify(t("Failed to update payment method currency visibility"), "red");
   } finally {
     paymentMethodSaving.value = false;
   }
@@ -3324,10 +3323,10 @@ async function setAutoAppendLbpZeros(value: boolean | null) {
   autoAppendLbpZerosSaving.value = true;
   try {
     await SetAutoAppendLbpZerosEnabled(enabled);
-    notify(`Auto-append LBP zeros ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Auto-append LBP zeros enabled") : t("Auto-append LBP zeros disabled"));
   } catch {
     form.autoAppendLbpZeros = previous;
-    notify("Failed to update auto-append LBP zeros", "red");
+    notify(t("Failed to update auto-append LBP zeros"), "red");
   } finally {
     autoAppendLbpZerosSaving.value = false;
   }
@@ -3340,10 +3339,10 @@ async function setOverchangeConfirmationEnabled(value: boolean | null) {
   overchangeConfirmationSaving.value = true;
   try {
     await SetOverchangeConfirmationEnabled(enabled);
-    notify(`Over-change confirmation ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Over-change confirmation enabled") : t("Over-change confirmation disabled"));
   } catch {
     form.overchangeConfirmationEnabled = previous;
-    notify("Failed to update over-change confirmation", "red");
+    notify(t("Failed to update over-change confirmation"), "red");
   } finally {
     overchangeConfirmationSaving.value = false;
   }
@@ -3356,10 +3355,10 @@ async function setCloseShiftRequiresSync(value: boolean | null) {
   closeShiftRequiresSyncSaving.value = true;
   try {
     await SetCloseShiftRequiresSyncEnabled(enabled);
-    notify(`Upload before closing a shift ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Upload before closing a shift enabled") : t("Upload before closing a shift disabled"));
   } catch {
     form.closeShiftRequiresSync = previous;
-    notify("Failed to update upload-before-close setting", "red");
+    notify(t("Failed to update upload-before-close setting"), "red");
   } finally {
     closeShiftRequiresSyncSaving.value = false;
   }
@@ -3372,10 +3371,10 @@ async function setShiftReceiptUploadMode(value: number | null) {
   shiftReceiptUploadModeSaving.value = true;
   try {
     await SetShiftReceiptUploadMode(mode);
-    notify("Close-shift receipt photo setting updated");
+    notify(t("Close-shift receipt photo setting updated"));
   } catch {
     form.shiftReceiptUploadMode = previous;
-    notify("Failed to update close-shift receipt photo setting", "red");
+    notify(t("Failed to update close-shift receipt photo setting"), "red");
   } finally {
     shiftReceiptUploadModeSaving.value = false;
   }
@@ -3388,10 +3387,10 @@ async function setOpeningFloatEnabled(value: boolean | null) {
   openingFloatEnabledSaving.value = true;
   try {
     await SetOpeningFloatEnabled(enabled);
-    notify(`Opening cash float ${enabled ? "enabled" : "disabled"}`);
+    notify(enabled ? t("Opening cash float enabled") : t("Opening cash float disabled"));
   } catch {
     form.openingFloatEnabled = previous;
-    notify("Failed to update opening cash float setting", "red");
+    notify(t("Failed to update opening cash float setting"), "red");
   } finally {
     openingFloatEnabledSaving.value = false;
   }
@@ -3406,12 +3405,12 @@ async function setCountOpeningCashOnClose(value: boolean | null) {
     await SetCountOpeningCashOnCloseEnabled(enabled);
     notify(
       enabled
-        ? "Close-shift count now includes the opening float"
-        : "Close-shift count now excludes the opening float",
+        ? t("Close-shift count now includes the opening float")
+        : t("Close-shift count now excludes the opening float"),
     );
   } catch {
     form.countOpeningCashOnClose = previous;
-    notify("Failed to update close-shift opening float setting", "red");
+    notify(t("Failed to update close-shift opening float setting"), "red");
   } finally {
     countOpeningCashOnCloseSaving.value = false;
   }
@@ -3424,10 +3423,11 @@ async function togglePageUnlock(page: string, value: boolean | null) {
   pageUnlockSaving.value = true;
   try {
     await SetPageUnlocked(page, enabled);
-    notify(`${pageUnlockLabels[page] ?? page} ${enabled ? "unlocked" : "locked"} for non-admin users`);
+    const label = pageUnlockLabels.value[page] ?? page;
+    notify(enabled ? t("{label} unlocked for non-admin users", { label }) : t("{label} locked for non-admin users", { label }));
   } catch (error) {
     pageUnlocks.value = { ...pageUnlocks.value, [page]: Boolean(previous) };
-    notify(error instanceof Error ? error.message : "Failed to update page access", "red");
+    notify(error instanceof Error ? error.message : t("Failed to update page access"), "red");
   } finally {
     pageUnlockSaving.value = false;
   }
@@ -3504,7 +3504,7 @@ async function saveSettings() {
       Number.isFinite(receiptWidth) && receiptWidth > 0 ? Math.round(receiptWidth) : 80,
       Number.isFinite(receiptHeight) && receiptHeight > 0 ? Math.round(receiptHeight) : 297,
       Number.isFinite(taxRate) ? Math.min(Math.max(taxRate, 0), 1) : 0,
-      roundingModes.some((m) => m.value === form.roundingMode) ? form.roundingMode : "half_up",
+      roundingModes.value.some((m) => m.value === form.roundingMode) ? form.roundingMode : "half_up",
       roundingCurrencies.value.some((item) => item.value === form.roundingCurrency)
         ? form.roundingCurrency
         : (roundingCurrencies.value[0]?.value ?? form.roundingCurrency),
@@ -3534,9 +3534,9 @@ async function saveSettings() {
       Math.max(0, Math.floor(Number(form.exchangeWindowHours) || 0));
     await SetExchangeWindowHours(exchangeWindowHours);
     await SetSplitDisplay(form.splitPrimaryCurrency, Boolean(form.splitPrimaryFirst), Math.max(0, Math.floor(Number(form.splitPrimaryStep) || 0)));
-    notify("Settings saved");
+    notify(t("Settings saved"));
   } catch {
-    notify("Failed to save", "red");
+    notify(t("Failed to save"), "red");
   }
   saving.value = false;
 }
@@ -3562,7 +3562,7 @@ async function confirmOpeningFloatSave() {
     );
     openingFloatDialog.value = false;
     openingFloatPassword.value = "";
-    notify("Default opening float saved");
+    notify(t("Default opening float saved"));
   } catch (error) {
     openingFloatError.value = error instanceof Error ? error.message : String(error);
   } finally {
@@ -3574,9 +3574,9 @@ async function printCloseShiftSample() {
   samplePrinting.value = true;
   try {
     await PrintCurrentCloseShiftSample();
-    notify("Current close-shift sample sent to the printer");
+    notify(t("Current close-shift sample sent to the printer"));
   } catch (error) {
-    notify(error instanceof Error ? error.message : "Could not print close-shift sample", "red");
+    notify(error instanceof Error ? error.message : t("Could not print close-shift sample"), "red");
   } finally {
     samplePrinting.value = false;
   }
@@ -3618,10 +3618,10 @@ async function saveSalesperson() {
     }
     await UpdateSalespersonAttendanceID(id, salespersonAttendanceUserId.value);
     salespersonDialog.value = false;
-    notify(editing ? "Salesman updated" : "Salesman created");
+    notify(editing ? t("Salesman updated") : t("Salesman created"));
     await loadSalespersons();
   } catch {
-    notify("Failed to save salesman", "red");
+    notify(t("Failed to save salesman"), "red");
   } finally {
     savingSalesperson.value = false;
   }
@@ -3636,27 +3636,27 @@ async function deleteSalesperson() {
   try {
     await DeleteSalesperson(deleteSalespersonTarget.value.id);
     deleteSalespersonDialog.value = false;
-    notify("Salesman deleted");
+    notify(t("Salesman deleted"));
     await loadSalespersons();
   } catch {
-    notify("Could not delete salesman", "red");
+    notify(t("Could not delete salesman"), "red");
   }
 }
 
 async function changePassword() {
   if (passwordForm.newPass !== passwordForm.confirm) {
-    notify("Passwords do not match", "red");
+    notify(t("Passwords do not match"), "red");
     return;
   }
   changingPassword.value = true;
   try {
     await ChangeAdminPassword(passwordForm.current, passwordForm.newPass);
-    notify("Admin password changed");
+    notify(t("Admin password changed"));
     passwordForm.current = "";
     passwordForm.newPass = "";
     passwordForm.confirm = "";
   } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to change password", "red");
+    notify(error instanceof Error ? error.message : t("Failed to change password"), "red");
   }
   changingPassword.value = false;
 }
@@ -3671,11 +3671,11 @@ async function loadCashierPin() {
 
 async function saveCashierPin() {
   if (!/^\d{4}$/.test(cashierPinForm.newPin)) {
-    notify("PIN must be exactly 4 digits", "red");
+    notify(t("PIN must be exactly 4 digits"), "red");
     return;
   }
   if (cashierPinForm.newPin !== cashierPinForm.confirm) {
-    notify("PINs do not match", "red");
+    notify(t("PINs do not match"), "red");
     return;
   }
   savingCashierPin.value = true;
@@ -3684,9 +3684,9 @@ async function saveCashierPin() {
     cashierPinCurrent.value = cashierPinForm.newPin;
     cashierPinForm.newPin = "";
     cashierPinForm.confirm = "";
-    notify("Cashier PIN updated");
+    notify(t("Cashier PIN updated"));
   } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to update PIN", "red");
+    notify(error instanceof Error ? error.message : t("Failed to update PIN"), "red");
   }
   savingCashierPin.value = false;
 }
@@ -3738,11 +3738,11 @@ async function saveUser() {
       const created = await CreateUser(userForm.username, userForm.password, userForm.roleId);
       await UpdateUserAttendanceID(Number(created.id), userForm.attendanceUserId.trim());
     }
-    notify(editingUser.value ? "User updated" : "User created");
+    notify(editingUser.value ? t("User updated") : t("User created"));
     userDialog.value = false;
     await loadUsers();
   } catch {
-    notify("Failed to save user", "red");
+    notify(t("Failed to save user"), "red");
   }
   savingUser.value = false;
 }
@@ -3755,11 +3755,11 @@ function deleteUserConfirm(user: any) {
 async function deleteUser() {
   try {
     await DeleteUser(deleteTarget.value.id);
-    notify("User deleted");
+    notify(t("User deleted"));
     deleteDialog.value = false;
     await loadUsers();
   } catch {
-    notify("Failed to delete user", "red");
+    notify(t("Failed to delete user"), "red");
   }
 }
 </script>

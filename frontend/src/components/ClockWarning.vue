@@ -5,26 +5,25 @@
       <k-icon icon="mdi-clock-alert-outline" class="me-3 mt-1" />
       <div>
         <div v-if="status.clockOff">
-          This computer's clock is {{ driftText }} {{ status.driftSeconds > 0 ? "ahead of" : "behind" }} central's,
-          so sales and shifts get the wrong time.
+          {{ t("This computer's clock is {drift} {direction} central's, so sales and shifts get the wrong time.", { drift: driftText, direction: status.driftSeconds > 0 ? t("ahead of") : t("behind") }) }}
         </div>
         <div v-if="status.zoneMismatch">
-          This computer's time zone ({{ status.pcZone }}) isn't the branch's ({{ status.zone }}).
+          {{ t("This computer's time zone ({pcZone}) isn't the branch's ({zone}).", { pcZone: status.pcZone, zone: status.zone }) }}
         </div>
         <div class="text-caption mt-1">
-          Fix it in Windows: Settings › Time &amp; language › Date &amp; time — turn on "Set time automatically"
-          and "Set time zone automatically", or pick the right time zone.
+          {{ t('Fix it in Windows: Settings › Time & language › Date & time — turn on "Set time automatically" and "Set time zone automatically", or pick the right time zone.') }}
         </div>
       </div>
     </div>
     <template #actions>
-      <k-btn variant="text" @click="dismissed = true">Later</k-btn>
+      <k-btn variant="text" @click="dismissed = true">{{ t('Later') }}</k-btn>
     </template>
   </k-snackbar>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { t } from "@/i18n";
 import { GetClockStatus } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import type { main } from "../../wailsjs/go/models";
@@ -38,9 +37,9 @@ const show = computed({
 
 const driftText = computed(() => {
   const minutes = Math.round(Math.abs(status.value.driftSeconds) / 60);
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? t("minute") : t("minutes")}`;
   const hours = Math.round(minutes / 6) / 10;
-  return `${hours} hour${hours === 1 ? "" : "s"}`;
+  return `${hours} ${hours === 1 ? t("hour") : t("hours")}`;
 });
 
 let off: (() => void) | undefined;

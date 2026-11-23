@@ -6,20 +6,20 @@
           <k-icon icon="mdi-swap-horizontal" />
         </k-avatar>
         <div>
-          <div class="text-h6">{{ transfer ? "Transfer balance" : "Swap balance" }}</div>
+          <div class="text-h6">{{ transfer ? t("Transfer balance") : t("Swap balance") }}</div>
           <div class="text-body-2 text-medium-emphasis">
-            {{ transfer ? "Take an amount out of one account, even below zero." : "Move money from one cash account to another." }}
+            {{ transfer ? t("Take an amount out of one account, even below zero.") : t("Move money from one cash account to another.") }}
           </div>
         </div>
       </div>
 
       <k-card-text class="pt-2">
         <k-btn-toggle v-if="auth.isAdmin" v-model="mode" mandatory divided variant="outlined" color="primary" density="comfortable" class="swap-dialog__mode mb-4" data-test="swap-mode">
-          <k-btn value="swap" prepend-icon="mdi-swap-horizontal">Swap</k-btn>
-          <k-btn value="transfer" prepend-icon="mdi-arrow-right">Transfer</k-btn>
+          <k-btn value="swap" prepend-icon="mdi-swap-horizontal">{{ t("Swap") }}</k-btn>
+          <k-btn value="transfer" prepend-icon="mdi-arrow-right">{{ t("Transfer") }}</k-btn>
         </k-btn-toggle>
 
-        <div class="swap-dialog__label">From</div>
+        <div class="swap-dialog__label">{{ t("From") }}</div>
         <div class="swap-dialog__tiles" data-test="swap-sources">
           <button
             v-for="item in sources"
@@ -48,7 +48,7 @@
           <k-icon icon="mdi-arrow-down" size="20" />
         </div>
 
-        <div class="swap-dialog__label">To</div>
+        <div class="swap-dialog__label">{{ t("To") }}</div>
         <div class="swap-dialog__tiles" data-test="swap-destinations">
           <button
             v-for="method in destinations"
@@ -71,14 +71,14 @@
           </button>
         </div>
 
-        <div class="swap-dialog__label mt-4">Amount</div>
+        <div class="swap-dialog__label mt-4">{{ t("Amount") }}</div>
         <div class="swap-dialog__amount">
           <k-text-field
             v-model.number="amount"
             :prepend-inner-icon="currencyIcon(sourceCode)"
             :prefix="sourceIsNegative && !transfer ? '−' : undefined"
             :suffix="sourceCurrency?.symbol && sourceCode !== 'USD' ? sourceCurrency.symbol : undefined"
-            :placeholder="`Amount (${sourceCode})`"
+            :placeholder="t('Amount ({code})', { code: sourceCode })"
             type="number"
             min="0"
             :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01"
@@ -87,18 +87,18 @@
             hide-details
             data-test="swap-amount"
           />
-          <k-btn v-if="source && !transfer" variant="tonal" size="large" data-test="swap-all" @click="fillAll">All</k-btn>
+          <k-btn v-if="source && !transfer" variant="tonal" size="large" data-test="swap-all" @click="fillAll">{{ t("All") }}</k-btn>
         </div>
 
         <div v-if="source && destination && preview?.valid" class="swap-summary" data-test="swap-summary">
           <k-icon icon="mdi-check-circle" color="success" size="20" />
           <div>
             <div>
-              <strong>{{ destination.displayName || destination.name }}</strong> receives
+              <strong>{{ destination.displayName || destination.name }}</strong> {{ t("receives") }}
               <strong>{{ formatBalance(preview.destinationReceivesCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}</strong>
             </div>
             <div v-if="transfer" class="text-medium-emphasis">
-              {{ source.accountName }} is left with {{ formatBalance(preview.sourceRemainingCents, sourceCode, currencies, roundingMode) }}
+              {{ t("{name} is left with {amount}", { name: source.accountName, amount: formatBalance(preview.sourceRemainingCents, sourceCode, currencies, roundingMode) }) }}
             </div>
           </div>
         </div>
@@ -109,9 +109,9 @@
       </k-card-text>
       <k-card-actions class="px-6 pb-4">
         <k-spacer />
-        <k-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</k-btn>
+        <k-btn variant="text" @click="$emit('update:modelValue', false)">{{ t("Cancel") }}</k-btn>
         <k-btn color="primary" variant="flat" :prepend-icon="transfer ? 'mdi-arrow-right' : 'mdi-swap-horizontal'" :loading="saving" :disabled="!valid" data-test="swap-save" @click="save">
-          {{ transfer ? "Transfer" : "Swap" }}
+          {{ transfer ? t("Transfer") : t("Swap") }}
         </k-btn>
       </k-card-actions>
     </k-card>
@@ -119,6 +119,7 @@
 </template>
 
 <script setup lang="ts">
+import { t } from "@/i18n";
 import { computed, ref, watch } from "vue";
 import { ReplaceShiftBalance, PreviewShiftBalanceReplacement, ConvertCashEntryToCents } from "../../../wailsjs/go/main/App";
 import type { Balance, PaymentMethod } from "@/types/shifts";

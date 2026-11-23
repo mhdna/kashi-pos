@@ -38,7 +38,7 @@
                 />
                 <k-dialog v-model="noteDialog" max-width="760">
                   <k-card>
-                    <k-card-title>Add a note</k-card-title>
+                    <k-card-title>{{ t("Add a note") }}</k-card-title>
                     <k-card-text>
                       <k-textarea
                         ref="noteInput"
@@ -46,7 +46,7 @@
                         auto-grow
                         autofocus
                         hide-details
-                        placeholder="Add a note"
+                        :placeholder="t('Add a note')"
                         rows="3"
                         variant="outlined"
                         @keydown.ctrl.enter="saveNote"
@@ -60,11 +60,11 @@
                         color="error"
                         @click="removeNote"
                       >
-                        Remove
+                        {{ t("Remove") }}
                       </k-btn>
                       <k-spacer />
-                      <k-btn variant="text" @click="noteDialog = false">Cancel</k-btn>
-                      <k-btn color="primary" variant="elevated" @click="saveNote">Add</k-btn>
+                      <k-btn variant="text" @click="noteDialog = false">{{ t("Cancel") }}</k-btn>
+                      <k-btn color="primary" variant="elevated" @click="saveNote">{{ t("Add") }}</k-btn>
                     </k-card-actions>
                   </k-card>
                 </k-dialog>
@@ -80,7 +80,7 @@
             :class="barcodeFeedback ? `barcode-flash-${barcodeFeedback}` : ''"
             density="compact"
             hide-details="auto"
-            :placeholder="scanByCodeEnabled ? 'Enter a barcode or a code' : 'Scan or enter barcode'"
+            :placeholder="scanByCodeEnabled ? t('Enter a barcode or a code') : t('Scan or enter barcode')"
             :disabled="pageMode === 'settlement'"
             variant="outlined"
             @blur="onBlur"
@@ -91,7 +91,7 @@
             icon
             class="ms-1"
             variant="text"
-            aria-label="Invoices on hold"
+            :aria-label="t('Invoices on hold')"
             @click="onHoldMenu?.open()"
           >
             <k-icon icon="mdi-pause" size="26" />
@@ -103,8 +103,8 @@
             icon
             class="ms-1"
             variant="text"
-            :aria-label="pageMode === 'exchange' ? 'Returned items' : 'Exchange invoice'"
-            :title="pageMode === 'exchange' ? 'Returned items' : 'Exchange invoice'"
+            :aria-label="pageMode === 'exchange' ? t('Returned items') : t('Exchange invoice')"
+            :title="pageMode === 'exchange' ? t('Returned items') : t('Exchange invoice')"
             @click="pageMode === 'exchange' ? (returnsDialog = true) : returnInvoiceMenu?.open()"
           >
             <k-icon :icon="pageMode === 'exchange' ? 'mdi-swap-horizontal' : 'mdi-autorenew'" size="26" />
@@ -114,7 +114,7 @@
             icon
             class="ms-1"
             variant="text"
-            aria-label="Add an unknown item"
+            :aria-label="t('Add an unknown item')"
             @click="openUnknownPrice('')"
           >
             <k-icon icon="mdi-help-box-outline" size="26" />
@@ -124,7 +124,7 @@
             icon
             class="ms-1"
             variant="text"
-            aria-label="Search products"
+            :aria-label="t('Search products')"
             @click="openProductSearch"
           >
             <k-icon icon="mdi-magnify" size="26" />
@@ -244,7 +244,7 @@
           >
             <k-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
             <div class="empty-cart-label text-subtitle-2">
-              Scan a barcode<br />{{ scanByCodeEnabled ? "or type a code" : "to add a product" }}
+              {{ t("Scan a barcode") }}<br />{{ scanByCodeEnabled ? t("or type a code") : t("to add a product") }}
             </div>
           </k-card>
         </div>
@@ -325,10 +325,10 @@
   <k-overlay v-model="printing" class="align-center justify-center" persistent>
     <k-card class="pa-8 text-center" width="300">
       <div v-if="printCashCents > 0" class="text-subtitle-1 mb-2">
-        {{ formatUsd(printCashCents / 100) }} into cash
+        {{ t("{amount} into cash", { amount: formatUsd(printCashCents / 100) }) }}
       </div>
       <div class="print-spinner mb-4" aria-hidden="true"></div>
-      <div class="text-h6">Printing receipt...</div>
+      <div class="text-h6">{{ t("Printing receipt...") }}</div>
     </k-card>
   </k-overlay>
 
@@ -354,19 +354,18 @@
        products. The cashier decides; central flags it either way. -->
   <k-dialog v-model="oversellDialog.show" max-width="480" persistent>
     <k-card>
-      <k-card-title>Not enough stock</k-card-title>
+      <k-card-title>{{ t("Not enough stock") }}</k-card-title>
       <k-card-text>
-        <p class="mb-3">The branch doesn't have enough of:</p>
+        <p class="mb-3">{{ t("The branch doesn't have enough of:") }}</p>
         <div v-for="line in oversellDialog.lines" :key="line.code" class="mb-1">
-          <strong>{{ line.name || line.code }}</strong> — {{ Math.max(line.available, 0) }} in stock,
-          {{ line.requested }} in this sale
+          <strong>{{ line.name || line.code }}</strong>{{ t(", {available} in stock, {requested} in this sale", { available: Math.max(line.available, 0), requested: line.requested }) }}
         </div>
-        <p class="mt-3 mb-0">Sell anyway? Central will flag the stock to be corrected.</p>
+        <p class="mt-3 mb-0">{{ t("Sell anyway? Central will flag the stock to be corrected.") }}</p>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn text="Cancel" @click="answerOversell(false)" />
-        <k-btn color="primary" text="Sell anyway" variant="flat" @click="answerOversell(true)" />
+        <k-btn :text="t('Cancel')" @click="answerOversell(false)" />
+        <k-btn color="primary" :text="t('Sell anyway')" variant="flat" @click="answerOversell(true)" />
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -375,18 +374,17 @@
        keypad ($3 keyed as $3000); asked once at checkout, not per keystroke. -->
   <k-dialog v-model="priceCheckDialog.show" max-width="480" persistent>
     <k-card>
-      <k-card-title>Check these prices</k-card-title>
+      <k-card-title>{{ t("Check these prices") }}</k-card-title>
       <k-card-text>
         <div v-for="line in priceCheckDialog.lines" :key="line.code" class="mb-1">
-          <strong>{{ line.name || line.code }}</strong> — selling at ${{ line.price.toFixed(2) }},
-          list price ${{ line.listPrice.toFixed(2) }}
+          <strong>{{ line.name || line.code }}</strong>{{ t(", selling at ${price}, list price ${listPrice}", { price: line.price.toFixed(2), listPrice: line.listPrice.toFixed(2) }) }}
         </div>
-        <p class="mt-3 mb-0">Is that right?</p>
+        <p class="mt-3 mb-0">{{ t("Is that right?") }}</p>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn text="Fix prices" @click="answerPriceCheck(false)" />
-        <k-btn color="primary" text="Prices are right" variant="flat" @click="answerPriceCheck(true)" />
+        <k-btn :text="t('Fix prices')" @click="answerPriceCheck(false)" />
+        <k-btn color="primary" :text="t('Prices are right')" variant="flat" @click="answerPriceCheck(true)" />
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -430,7 +428,7 @@
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn size="large" text="Cancel" @click="saleOptionPicker.show = false" />
+        <k-btn size="large" :text="t('Cancel')" @click="saleOptionPicker.show = false" />
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -438,6 +436,7 @@
 
 <script lang="ts" setup>
 import { createDraftSaver } from "@/lib/draftSaver";
+import { t } from "@/i18n";
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
 import { saleOptionLook } from "@/lib/saleOptions";
 import {
@@ -581,7 +580,7 @@ const priceChangeMode = computed(() =>
 // When an admin turns them on they apply to every operator, cashiers included.
 const branchName = ref("Store");
 const screenPort = ref("");
-const invoiceCode = ref("Loading invoice code…");
+const invoiceCode = ref(t("Loading invoice code…"));
 const invoiceNotes = ref("");
 const noteDialog = ref(false);
 // The code of the client who sent this new customer (ReferralCodeButton).
@@ -614,10 +613,10 @@ const pageMode = computed<"sale" | "exchange" | "settlement">(() =>
 );
 const pageModeTitle = computed(() =>
   pageMode.value === "settlement"
-    ? "Change Settlement"
+    ? t("Change Settlement")
     : pageMode.value === "exchange"
-      ? "Exchange"
-      : "Invoice",
+      ? t("Exchange")
+      : t("Invoice"),
 );
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
@@ -712,7 +711,7 @@ function scheduleCartListRefresh() {
       const rows = (await RefreshCartPricing(JSON.stringify(barcodes))) ?? [];
       const changed: string[] = invoiceItems.value?.applyListPricing(rows) ?? [];
       if (changed.length) {
-        snackbar.text = `Price updated: ${changed.join(", ")}`;
+        snackbar.text = t("Price updated: {items}", { items: changed.join(", ") });
         snackbar.color = "info";
         snackbar.icon = "";
         snackbar.show = true;
@@ -843,7 +842,7 @@ async function syncLiveOverrides(announce: boolean) {
     if (!changed && !dealsChanged && !announce) return;
     await refreshQuote();
     if (announce && mine) {
-      snackbar.text = allOff ? "Central changed this sale: every deal is off" : "Central changed this sale";
+      snackbar.text = allOff ? t("Central changed this sale: every deal is off") : t("Central changed this sale");
       snackbar.color = "info";
       snackbar.icon = "";
       snackbar.show = true;
@@ -991,7 +990,7 @@ async function refreshQuote() {
 // cashier can read out over the phone.
 function quoteErrorMessage(e: unknown): string {
   const message = typeof e === "string" ? e : e instanceof Error ? e.message : String(e);
-  return friendlyQuoteError(message) || "pricing failed";
+  return friendlyQuoteError(message) || t("pricing failed");
 }
 
 watch(
@@ -1351,7 +1350,7 @@ function pickVariant(variant: any) {
 }
 
 function showDiscountError(message: string) {
-  snackbar.text = message || "Could not save discount.";
+  snackbar.text = message || t("Could not save discount.");
   snackbar.color = "red-darken-4";
   snackbar.icon = "";
   snackbar.show = true;
@@ -1473,7 +1472,7 @@ async function onSettlementCheckout() {
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
     const result = await SettleInvoicePayments(settlementState.value.invoiceId, paymentsJSON);
-    snackbar.text = `Settlement updated — ${result?.invoiceCode ?? settlementState.value.invoiceCode}`;
+    snackbar.text = t("Settlement updated: {code}", { code: result?.invoiceCode ?? settlementState.value.invoiceCode });
     snackbar.color = "success";
     snackbar.icon = "";
     snackbar.show = true;
@@ -1483,7 +1482,7 @@ async function onSettlementCheckout() {
     notifyIncomeChanged();
     await refreshNextInvoiceCode("sales");
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not update settlement";
+    snackbar.text = e?.toString() || t("Could not update settlement");
     snackbar.color = "red-darken-4";
     snackbar.icon = "";
     snackbar.show = true;
@@ -1587,7 +1586,7 @@ async function onUnknownAdd(price: number, name: string) {
     invoiceItems.value?.addItem({ ...product, name: name || product.name, price, qty: 1, originalPrice: price, unknownRef, unknownBarcode } as any);
     playClickSound();
   } catch (e: any) {
-    showDiscountError(e?.toString() || "Couldn't add an unknown item");
+    showDiscountError(e?.toString() || t("Couldn't add an unknown item"));
   }
   focusBarcode();
 }
@@ -1643,7 +1642,7 @@ function flagMissingAssignment(): boolean {
   if (missingClient) pulseMissingClient();
   if (missingSalesperson) pulseSalesperson();
   notifyCheckoutBlocked(
-    [missingSalesperson && "Pick salesman", missingClient && "Pick client"].filter(Boolean).join(" · "),
+    [missingSalesperson && t("Pick salesman"), missingClient && t("Pick client")].filter(Boolean).join(", "),
     "mdi-account-alert",
   );
   return true;
@@ -1652,15 +1651,15 @@ function flagMissingAssignment(): boolean {
 // The checkout button stays clickable while blocked; explain why, in the same
 // order canCheckout checks things, with the cashier-fixable items first.
 function explainBlockedCheckout() {
-  if (quoteError.value) return notifyCheckoutBlocked("Price error", "mdi-alert-circle");
+  if (quoteError.value) return notifyCheckoutBlocked(t("Price error"), "mdi-alert-circle");
   if (pageMode.value !== "settlement") {
     const hasSale = pageMode.value === "exchange" ? hasItems.value : invoiceTotal.value > 0;
-    if (!hasSale) return notifyCheckoutBlocked("Add items", "mdi-cart-outline");
+    if (!hasSale) return notifyCheckoutBlocked(t("Add items"), "mdi-cart-outline");
     if (flagMissingAssignment()) return;
   }
   if ((quote.value?.exchangeShortfallCents ?? 0) > 0)
-    return notifyCheckoutBlocked("Add more items", "mdi-swap-horizontal");
-  notifyCheckoutBlocked("Not fully paid", "mdi-cash-remove");
+    return notifyCheckoutBlocked(t("Add more items"), "mdi-swap-horizontal");
+  notifyCheckoutBlocked(t("Not fully paid"), "mdi-cash-remove");
 }
 
 async function onCheckout() {
@@ -1714,10 +1713,10 @@ async function onCheckout() {
     snackbar.text = isExchange
       ? exchangeDoneMessage(result?.invoiceCode ?? "", Boolean(result?.receiptPrinted), result?.receiptError)
       : result?.receiptError
-        ? `Invoice created; receipt failed — ${result.receiptError}`
+        ? t("Invoice created; receipt failed: {error}", { error: result.receiptError })
         : receiptEnabled.value
-          ? `Receipt printed — ${result?.invoiceCode ?? ""}`
-          : `Invoice created — ${result?.invoiceCode ?? ""}`;
+          ? t("Receipt printed: {code}", { code: result?.invoiceCode ?? "" })
+          : t("Invoice created: {code}", { code: result?.invoiceCode ?? "" });
     snackbar.color = "success";
     snackbar.icon = "";
     snackbar.show = true;
@@ -1729,7 +1728,7 @@ async function onCheckout() {
     queueScreenUpdate("");
     await refreshNextInvoiceCode("sales");
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Checkout failed";
+    snackbar.text = e?.toString() || t("Checkout failed");
     snackbar.color = "red-darken-4";
     snackbar.icon = "";
     snackbar.show = true;
@@ -1755,7 +1754,7 @@ async function onExchange(payload: ExchangeSelection) {
   };
   await refreshNextInvoiceCode("exchange");
   calculator.value?.clearAll();
-  snackbar.text = "Exchange loaded. Scan or search replacement items, then check out.";
+  snackbar.text = t("Exchange loaded. Scan or search replacement items, then check out.");
   snackbar.color = "info";
   snackbar.icon = "";
   snackbar.show = true;
@@ -1780,7 +1779,7 @@ async function refreshNextInvoiceCode(kind: "sales" | "exchange") {
   try {
     invoiceCode.value = await GetNextInvoiceCode(kind);
   } catch {
-    invoiceCode.value = "Invoice code unavailable";
+    invoiceCode.value = t("Invoice code unavailable");
   }
 }
 

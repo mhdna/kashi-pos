@@ -1,22 +1,22 @@
 <template>
   <div class="look-summary">
     <div class="look-thumb">
-      <img v-if="currentPreview" :src="currentPreview" alt="The receipt look in use" />
+      <img v-if="currentPreview" :src="currentPreview" :alt="t('The receipt look in use')" />
       <k-progress-circular v-else indeterminate size="24" />
     </div>
     <div class="look-summary-text">
       <div class="text-subtitle-1 font-weight-medium">{{ currentTheme?.name }} · {{ currentLayout?.name }}</div>
       <div class="text-body-2 text-medium-emphasis">{{ currentTheme?.description }}</div>
-      <k-btn class="mt-3" color="primary" prepend-icon="mdi-palette" variant="tonal" @click="openDialog">Change look</k-btn>
+      <k-btn class="mt-3" color="primary" prepend-icon="mdi-palette" variant="tonal" @click="openDialog">{{ t("Change look") }}</k-btn>
     </div>
   </div>
 
   <k-dialog v-model="dialog" max-width="1000" scrollable>
     <k-card>
-      <k-card-title>Receipt look</k-card-title>
+      <k-card-title>{{ t("Receipt look") }}</k-card-title>
       <k-card-text class="look-dialog">
         <div class="look-choices">
-          <div class="text-caption text-medium-emphasis mb-1">Theme</div>
+          <div class="text-caption text-medium-emphasis mb-1">{{ t("Theme") }}</div>
           <k-list class="look-themes" density="compact" nav>
             <k-list-item
               v-for="theme in themes"
@@ -33,7 +33,7 @@
             </k-list-item>
           </k-list>
 
-          <div class="text-caption text-medium-emphasis mt-4 mb-1">Layout</div>
+          <div class="text-caption text-medium-emphasis mt-4 mb-1">{{ t("Layout") }}</div>
           <k-btn-toggle v-model="pickedLayout" class="look-layouts" color="primary" density="comfortable" divided mandatory variant="outlined">
             <k-btn v-for="layout in pickedThemeInfo?.layouts ?? []" :key="layout.id" :value="layout.id">
               {{ layout.id }}
@@ -47,15 +47,15 @@
         </div>
 
         <div class="look-preview">
-          <img v-if="pickedPreview" :src="pickedPreview" :alt="`${pickedThemeInfo?.name} receipt preview`" />
+          <img v-if="pickedPreview" :src="pickedPreview" :alt="t('{name} receipt preview', { name: pickedThemeInfo?.name ?? '' })" />
           <k-progress-circular v-else-if="!previewError" indeterminate />
           <div v-else class="text-body-2 text-error">{{ previewError }}</div>
         </div>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
-        <k-btn color="primary" :disabled="!changed" :loading="saving" variant="flat" @click="save">Use this look</k-btn>
+        <k-btn variant="text" @click="dialog = false">{{ t("Cancel") }}</k-btn>
+        <k-btn color="primary" :disabled="!changed" :loading="saving" variant="flat" @click="save">{{ t("Use this look") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -64,6 +64,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { GetReceiptLooks, PreviewReceiptLook, SetReceiptLook } from "../../wailsjs/go/main/App";
+import { t } from "@/i18n";
 
 interface LookLayout {
   id: string;

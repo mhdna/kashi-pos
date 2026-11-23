@@ -2,7 +2,7 @@
   <k-dialog v-model="model" max-width="1100" scrollable>
     <k-card>
       <k-card-title class="d-flex align-center px-4 pt-3 pb-0">
-        <span>Client Profile</span>
+        <span>{{ t("Client Profile") }}</span>
         <k-spacer />
         <k-btn icon="mdi-close" variant="text" density="comfortable" @click="model = false" />
       </k-card-title>
@@ -24,24 +24,24 @@
                     size="small"
                     variant="flat"
                     prepend-icon="mdi-star"
-                  >{{ tier }} Tier</k-chip>
+                  >{{ t("{tier} Tier", { tier }) }}</k-chip>
                 </div>
                 <table class="profile-meta-table">
                   <tbody>
                     <tr v-if="profile.client.uid">
-                      <td class="text-medium-emphasis text-caption pr-4">Client ID</td>
+                      <td class="text-medium-emphasis text-caption pr-4">{{ t("Client ID") }}</td>
                       <td class="text-body-2">{{ profile.client.uid }}</td>
                     </tr>
                     <tr>
-                      <td class="text-medium-emphasis text-caption pr-4">Phone</td>
+                      <td class="text-medium-emphasis text-caption pr-4">{{ t("Phone") }}</td>
                       <td class="text-body-2">{{ formatLebanesePhone(profile.client.phone) }}</td>
                     </tr>
                     <tr v-if="profile.homeBranch">
-                      <td class="text-medium-emphasis text-caption pr-4">Home branch</td>
+                      <td class="text-medium-emphasis text-caption pr-4">{{ t("Home branch") }}</td>
                       <td class="text-body-2">{{ profile.homeBranch }}</td>
                     </tr>
                     <tr v-if="profile.firstPurchaseAt">
-                      <td class="text-medium-emphasis text-caption pr-4">First purchase</td>
+                      <td class="text-medium-emphasis text-caption pr-4">{{ t("First purchase") }}</td>
                       <td class="text-body-2">{{ formatDateMedium(profile.firstPurchaseAt) }}</td>
                     </tr>
                   </tbody>
@@ -69,7 +69,7 @@
         <div class="profile-chart-row mt-4" v-if="hasChartData">
           <!-- Treemap -->
           <k-sheet v-if="profile.categorySpend.length" class="pa-3" rounded border style="flex: 2">
-            <div class="text-subtitle-2 mb-2">Spend by Category</div>
+            <div class="text-subtitle-2 mb-2">{{ t("Spend by Category") }}</div>
             <div class="treemap-container">
               <div
                 v-for="family in treemapFamilies"
@@ -96,7 +96,7 @@
 
           <!-- Payment mix donut -->
           <k-sheet v-if="profile.paymentMix.length" class="pa-3" rounded border style="flex: 1">
-            <div class="text-subtitle-2 mb-2">Payment Mix</div>
+            <div class="text-subtitle-2 mb-2">{{ t("Payment Mix") }}</div>
             <div class="donut-container">
               <svg viewBox="0 0 120 120" class="donut-svg">
                 <g transform="translate(60,60)">
@@ -124,16 +124,16 @@
         <div class="profile-chart-row mt-4">
           <!-- Recent purchases -->
           <k-sheet class="pa-3" rounded border style="flex: 2">
-            <div class="text-subtitle-2 mb-2">Recent Purchases</div>
+            <div class="text-subtitle-2 mb-2">{{ t("Recent Purchases") }}</div>
             <k-table density="compact">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Invoice</th>
-                  <th>Branch</th>
-                  <th class="text-center">Items</th>
-                  <th>Payment</th>
-                  <th class="text-end">Total</th>
+                  <th>{{ t("Date") }}</th>
+                  <th>{{ t("Invoice") }}</th>
+                  <th>{{ t("Branch") }}</th>
+                  <th class="text-center">{{ t("Items") }}</th>
+                  <th>{{ t("Payment") }}</th>
+                  <th class="text-end">{{ t("Total") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -154,7 +154,7 @@
                   <td class="text-caption text-end font-weight-medium">{{ formatUsd(inv.grandTotal / 100) }}</td>
                 </tr>
                 <tr v-if="!profile.recentInvoices.length">
-                  <td colspan="6" class="text-center text-medium-emphasis py-4">No purchases yet.</td>
+                  <td colspan="6" class="text-center text-medium-emphasis py-4">{{ t("No purchases yet.") }}</td>
                 </tr>
               </tbody>
             </k-table>
@@ -162,10 +162,10 @@
 
           <!-- Loyalty progress -->
           <k-sheet class="pa-3" rounded border style="flex: 1">
-            <div class="text-subtitle-2 mb-3">Loyalty</div>
+            <div class="text-subtitle-2 mb-3">{{ t("Loyalty") }}</div>
             <div class="d-flex justify-space-between text-caption text-medium-emphasis mb-1">
-              <span>{{ tier }} Tier</span>
-              <span>{{ nextTierName }} Tier</span>
+              <span>{{ t("{tier} Tier", { tier }) }}</span>
+              <span>{{ t("{tier} Tier", { tier: nextTierName }) }}</span>
             </div>
             <k-progress-linear
               :model-value="tierProgress"
@@ -175,28 +175,28 @@
             />
             <div class="text-caption text-medium-emphasis mt-1">
               <span v-if="pointsToNextTier > 0">
-                {{ pointsToNextTier.toLocaleString() }} pts to {{ nextTierName }} Tier
+                {{ t("{points} pts to {tier} Tier", { points: pointsToNextTier.toLocaleString(), tier: nextTierName }) }}
               </span>
-              <span v-else class="text-green">Max tier reached</span>
+              <span v-else class="text-green">{{ t("Max tier reached") }}</span>
             </div>
 
             <div class="d-flex ga-4 mt-4">
               <div>
-                <div class="text-caption text-medium-emphasis">Lifetime spend</div>
+                <div class="text-caption text-medium-emphasis">{{ t("Lifetime spend") }}</div>
                 <div class="text-body-1 font-weight-bold">{{ formatUsd(profile.totalSpentCents / 100) }}</div>
               </div>
               <div>
-                <div class="text-caption text-medium-emphasis">Points balance</div>
+                <div class="text-caption text-medium-emphasis">{{ t("Points balance") }}</div>
                 <div class="text-body-1 font-weight-bold">{{ profile.pointsRemaining.toLocaleString() }}</div>
               </div>
             </div>
             <div class="d-flex ga-4 mt-2">
               <div>
-                <div class="text-caption text-medium-emphasis">Items bought</div>
+                <div class="text-caption text-medium-emphasis">{{ t("Items bought") }}</div>
                 <div class="text-body-1 font-weight-bold">{{ profile.itemsBought.toLocaleString() }}</div>
               </div>
               <div>
-                <div class="text-caption text-medium-emphasis">Points redeemed</div>
+                <div class="text-caption text-medium-emphasis">{{ t("Points redeemed") }}</div>
                 <div class="text-body-1 font-weight-bold">{{ profile.pointsRedeemed.toLocaleString() }}</div>
               </div>
             </div>
@@ -213,6 +213,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { t } from "@/i18n";
 import { GetClientProfile } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import { loyaltyTier, loyaltyTierColor } from "@/lib/client";
@@ -262,10 +263,10 @@ const tierProgress = computed(() => {
 const statCards = computed(() => {
   if (!profile.value) return [];
   return [
-    { label: "Money Spent",      value: formatUsd(profile.value.totalSpentCents / 100) },
-    { label: "Items Bought",     value: profile.value.itemsBought.toLocaleString() },
-    { label: "Points Remaining", value: profile.value.pointsRemaining.toLocaleString() },
-    { label: "Points Redeemed",  value: profile.value.pointsRedeemed.toLocaleString() },
+    { label: t("Money Spent"),      value: formatUsd(profile.value.totalSpentCents / 100) },
+    { label: t("Items Bought"),     value: profile.value.itemsBought.toLocaleString() },
+    { label: t("Points Remaining"), value: profile.value.pointsRemaining.toLocaleString() },
+    { label: t("Points Redeemed"),  value: profile.value.pointsRedeemed.toLocaleString() },
   ];
 });
 
@@ -331,7 +332,7 @@ async function loadProfile() {
   try {
     profile.value = await GetClientProfile(props.clientId);
   } catch (e: any) {
-    error.value = e?.toString() ?? "Could not load client profile";
+    error.value = e?.toString() ?? t("Could not load client profile");
   } finally {
     loading.value = false;
   }

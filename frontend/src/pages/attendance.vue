@@ -1,8 +1,8 @@
 <template>
   <div class="attendance-page pa-4">
     <div :class="['status-line mb-4', status.reachable ? 'status-line--ok' : 'status-line--down']">
-      <span class="status-line__state">{{ status.reachable ? "Machine connected" : "Machine not connected" }}</span>
-      <span v-if="!status.reachable" class="text-medium-emphasis">Check the cable.</span>
+      <span class="status-line__state">{{ status.reachable ? t("Machine connected") : t("Machine not connected") }}</span>
+      <span v-if="!status.reachable" class="text-medium-emphasis">{{ t("Check the cable.") }}</span>
       <span v-if="auth.isAdmin && !status.reachable && status.message" class="text-caption text-medium-emphasis">
         {{ status.message }}
       </span>
@@ -12,7 +12,7 @@
         v-if="canBrowseHistory"
         v-model="selectedDate"
         type="date"
-        placeholder="Day"
+        :placeholder="t('Day')"
         variant="outlined"
         density="compact"
         hide-details
@@ -22,7 +22,7 @@
         v-if="auth.isAdmin"
         v-model="selectedMonth"
         type="month"
-        placeholder="History month"
+        :placeholder="t('History month')"
         variant="outlined"
         density="compact"
         hide-details
@@ -34,22 +34,22 @@
         class="me-1"
         :disabled="!rows.length"
         @click="openRequestDialog"
-        >Request change</k-btn
+        >{{ t("Request change") }}</k-btn
       ><k-menu v-if="auth.isLoggedIn" :close-on-content-click="false">
         <template #activator="{ props }">
           <k-btn v-bind="props" variant="tonal" class="me-1">
-            Requests<span v-if="pendingComplaints.length" class="ms-1">({{ pendingComplaints.length }})</span>
+            {{ t("Requests") }}<span v-if="pendingComplaints.length" class="ms-1">({{ pendingComplaints.length }})</span>
           </k-btn>
         </template>
         <k-card min-width="390" max-width="520">
-          <k-card-title class="d-flex align-center">Attendance requests<k-spacer /><span class="text-caption text-medium-emphasis">{{ pendingComplaints.length }} pending</span></k-card-title>
+          <k-card-title class="d-flex align-center">{{ t("Attendance requests") }}<k-spacer /><span class="text-caption text-medium-emphasis">{{ t("{n} pending", { n: pendingComplaints.length }) }}</span></k-card-title>
           <k-divider />
           <div v-if="managerApproval && pendingComplaints.length" class="requests-bulk">
             <k-checkbox
               :model-value="allRequestsSelected"
               density="compact"
               hide-details
-              label="Select all"
+              :label="t('Select all')"
               data-test="requests-select-all"
               @update:model-value="selectAllRequests"
             />
@@ -61,7 +61,7 @@
               :disabled="!selectedRequests.length"
               data-test="requests-reject-selected"
               @click="askManager({ kind: 'review', requests: selectedRequests, approved: false })"
-              >Reject selected</k-btn
+              >{{ t("Reject selected") }}</k-btn
             >
             <k-btn
               size="small"
@@ -70,7 +70,7 @@
               :disabled="!selectedRequests.length"
               data-test="requests-approve-selected"
               @click="askManager({ kind: 'review', requests: selectedRequests, approved: true })"
-              >Approve selected</k-btn
+              >{{ t("Approve selected") }}</k-btn
             >
           </div>
           <k-list v-if="pendingComplaints.length" density="compact" class="requests-list">
@@ -89,26 +89,26 @@
               <k-list-item-subtitle>{{ requestSummary(item) }}</k-list-item-subtitle>
               <template v-if="managerApproval" #append>
                 <div class="d-flex ga-2">
-                  <k-btn size="small" variant="flat" color="error" @click="askManager({ kind: 'review', requests: [item], approved: false })">Reject</k-btn>
-                  <k-btn size="small" variant="flat" color="primary" @click="askManager({ kind: 'review', requests: [item], approved: true })">Approve</k-btn>
+                  <k-btn size="small" variant="flat" color="error" @click="askManager({ kind: 'review', requests: [item], approved: false })">{{ t("Reject") }}</k-btn>
+                  <k-btn size="small" variant="flat" color="primary" @click="askManager({ kind: 'review', requests: [item], approved: true })">{{ t("Approve") }}</k-btn>
                 </div>
               </template>
             </k-list-item>
           </k-list>
-          <k-card-text v-else class="text-medium-emphasis">No pending attendance requests.</k-card-text>
+          <k-card-text v-else class="text-medium-emphasis">{{ t("No pending attendance requests.") }}</k-card-text>
         </k-card>
       </k-menu><k-btn v-if="canBrowseHistory" icon="mdi-chevron-left" variant="text" @click="moveDay(-1)" /><k-btn v-if="canBrowseHistory" icon="mdi-chevron-right" variant="text" @click="moveDay(1)" /><k-btn
         v-if="auth.isAdmin"
         variant="tonal"
         class="me-2"
         @click="exportMonth"
-        >Export month</k-btn
+        >{{ t("Export month") }}</k-btn
       ><k-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh()" />
     </div>
     <k-card class="attendance-card">
       <k-card-title class="d-flex align-center">
         {{ selectedDate }}<k-spacer /><span class="text-caption text-medium-emphasis"
-          >{{ presentRows.length }} employees</span
+          >{{ t("{n} employees", { n: presentRows.length }) }}</span
         >
       </k-card-title>
       <k-progress-linear :active="loading" absolute location="top" indeterminate color="primary" />
@@ -130,7 +130,7 @@
           <div class="attendance-item__main">
             <div class="attendance-identity">
               <k-list-item-title class="font-weight-bold">{{ item.employeeName }}</k-list-item-title>
-              <k-list-item-subtitle v-if="item.userId">Attendance ID {{ item.userId }}</k-list-item-subtitle>
+              <k-list-item-subtitle v-if="item.userId">{{ t("Attendance ID {id}", { id: item.userId }) }}</k-list-item-subtitle>
             </div>
             <div class="attendance-item__body">
               <div class="attendance-events">
@@ -145,26 +145,26 @@
                 </div>
               </div>
               <div class="attendance-summary">
-                <span class="text-caption text-medium-emphasis">{{ item.events.length }} event{{ item.events.length === 1 ? "" : "s" }}</span>
+                <span class="text-caption text-medium-emphasis">{{ item.events.length === 1 ? t("{n} event", { n: item.events.length }) : t("{n} events", { n: item.events.length }) }}</span>
               </div>
             </div>
           </div>
         </k-list-item>
         <k-list-item v-if="!presentRows.length && !loading" class="attendance-empty text-medium-emphasis">
-          No attendance records for this day.
+          {{ t("No attendance records for this day.") }}
         </k-list-item>
       </k-list>
     </k-card>
     <k-dialog v-model="complaintDialog" max-width="440"
       ><k-card
-        ><k-card-title>Request attendance change</k-card-title
+        ><k-card-title>{{ t("Request attendance change") }}</k-card-title
         ><k-card-text
           ><k-select
             v-model="complaintAction"
             :items="complaintActionOptions"
             item-title="title"
             item-value="value"
-            placeholder="Action"
+            :placeholder="t('Action')"
             variant="outlined"
             density="compact"
             hide-details
@@ -174,7 +174,7 @@
             :items="complaintPeople"
             item-title="employeeName"
             item-value="employeeId"
-            placeholder="Person"
+            :placeholder="t('Person')"
             prepend-inner-icon="mdi-account-outline"
             variant="outlined"
             density="compact"
@@ -187,7 +187,7 @@
             :items="complaintEventOptions"
             item-title="title"
             item-value="value"
-            placeholder="Attendance scan to modify"
+            :placeholder="t('Attendance scan to modify')"
             variant="outlined"
             density="compact"
             hide-details
@@ -195,11 +195,11 @@
             @update:model-value="selectComplaintEvent"
           /><div class="attendance-correction-row mb-2">
             <div v-if="complaintAction !== 'delete'" class="attendance-time-field">
-              <span class="attendance-time-field__label">{{ complaintAction === "add" ? "Time" : "Corrected time" }}</span>
+              <span class="attendance-time-field__label">{{ complaintAction === "add" ? t("Time") : t("Corrected time") }}</span>
               <div class="attendance-time-field__controls">
-                <NumberPadMenu v-model="complaintHour" :max="23" :max-length="2" preserve-string suffix="h" aria-label="Corrected hour" />
+                <NumberPadMenu v-model="complaintHour" :max="23" :max-length="2" preserve-string suffix="h" :aria-label="t('Corrected hour')" />
                 <span class="attendance-time-field__separator">:</span>
-                <NumberPadMenu v-model="complaintMinute" :max="59" :max-length="2" preserve-string suffix="m" aria-label="Corrected minute" />
+                <NumberPadMenu v-model="complaintMinute" :max="59" :max-length="2" preserve-string suffix="m" :aria-label="t('Corrected minute')" />
               </div>
             </div><k-select
               v-if="complaintAction !== 'delete'"
@@ -213,32 +213,32 @@
             />
           </div></k-card-text
         ><k-card-actions
-          ><k-btn variant="text" @click="complaintDialog = false">Cancel</k-btn><k-spacer /><k-btn
+          ><k-btn variant="text" @click="complaintDialog = false">{{ t("Cancel") }}</k-btn><k-spacer /><k-btn
             v-if="managerApproval && complaintAction === 'add'"
             variant="tonal"
-            title="Record it now with the manager password, without waiting for approval"
+            :title="t('Record it now with the manager password, without waiting for approval')"
             :disabled="!complaintEmployee"
             @click="askManager({ kind: 'add' })"
-            >Add now (manager)</k-btn
+            >{{ t("Add now (manager)") }}</k-btn
           ><k-btn
             color="primary"
             :loading="savingComplaint"
             :disabled="!complaintEmployee || (complaintAction !== 'add' && !complaintEventId)"
             @click="submitComplaint"
-            >Submit request</k-btn
+            >{{ t("Submit request") }}</k-btn
           ></k-card-actions
         ></k-card
       ></k-dialog
     >
     <k-dialog v-model="managerDialog.show" max-width="380">
       <k-card>
-        <k-card-title>Manager approval</k-card-title>
+        <k-card-title>{{ t("Manager approval") }}</k-card-title>
         <k-card-text>
           <p class="mb-3">{{ managerDialogText }}</p>
           <k-text-field
             v-model="managerDialog.password"
             type="password"
-            placeholder="Manager password"
+            :placeholder="t('Manager password')"
             variant="outlined"
             density="compact"
             autofocus
@@ -247,8 +247,8 @@
           />
         </k-card-text>
         <k-card-actions>
-          <k-btn variant="text" @click="managerDialog.show = false">Cancel</k-btn><k-spacer />
-          <k-btn color="primary" :loading="managerDialog.saving" @click="confirmManager">Confirm</k-btn>
+          <k-btn variant="text" @click="managerDialog.show = false">{{ t("Cancel") }}</k-btn><k-spacer />
+          <k-btn color="primary" :loading="managerDialog.saving" @click="confirmManager">{{ t("Confirm") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -275,6 +275,7 @@ import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { t } from "@/i18n";
 const auth = useAuthStore();
 const today = new Date().toISOString().slice(0, 10);
 const selectedDate = ref(today);
@@ -342,7 +343,7 @@ async function refresh(syncDevice = true, quiet = false) {
     }
     await loadHistory();
   } catch {
-    syncStatus.value = { reachable: false, message: "Attendance sync failed" };
+    syncStatus.value = { reachable: false, message: t("Attendance sync failed") };
   } finally {
     refreshing = false;
     if (!quiet) loading.value = false;
@@ -404,9 +405,9 @@ async function loadHistory() {
 // and delete act on one of the person's punches, so only people who punched
 // that day -- and only offered when someone did.
 const complaintActionOptions = computed(() => {
-  const options = [{ title: "Add missing punch", value: "add" }];
+  const options = [{ title: t("Add missing punch"), value: "add" }];
   if (presentRows.value.length) {
-    options.push({ title: "Replace", value: "replace" }, { title: "Delete", value: "delete" });
+    options.push({ title: t("Replace"), value: "replace" }, { title: t("Delete"), value: "delete" });
   }
   return options;
 });
@@ -423,9 +424,9 @@ watch(complaintAction, (action) => {
   }
 });
 function requestSummary(item: any) {
-  if (item.action === "add") return `Add ${item.requestedType} ${item.requestedTime}`;
-  if (item.action === "delete") return `Delete ${item.originalTime}`;
-  return `Replace ${item.originalTime} with ${item.requestedType} ${item.requestedTime}`;
+  if (item.action === "add") return t("Add {type} {time}", { type: item.requestedType, time: item.requestedTime });
+  if (item.action === "delete") return t("Delete {time}", { time: item.originalTime });
+  return t("Replace {from} with {type} {time}", { from: item.originalTime, type: item.requestedType, time: item.requestedTime });
 }
 // One "Request change" button by Requests; the action and then the person
 // are picked in the dialog, and the punch/time follow whoever is picked.
@@ -505,7 +506,7 @@ async function exportMonth() {
       a.remove();
     }, 1000);
   } catch (error) {
-    syncStatus.value = { reachable: syncStatus.value.reachable, message: error instanceof Error ? error.message : "Attendance export failed" };
+    syncStatus.value = { reachable: syncStatus.value.reachable, message: error instanceof Error ? error.message : t("Attendance export failed") };
   }
 }
 // Manager approval on the till (on by default, switchable here or from
@@ -546,14 +547,14 @@ const managerDialogText = computed(() => {
   const action = managerDialog.action;
   if (!action) return "";
   if (action.kind === "add") {
-    return `Record ${complaintType.value} ${correctedTime()} on ${selectedDate.value} for ${complaintEmployee.value?.employeeName ?? "this person"}.`;
+    return t("Record {type} {time} on {date} for {name}.", { type: complaintType.value, time: correctedTime(), date: selectedDate.value, name: complaintEmployee.value?.employeeName ?? t("this person") });
   }
-  const verb = action.approved ? "Approve" : "Reject";
+  const verb = action.approved ? t("Approve") : t("Reject");
   if (action.requests.length === 1) {
     const request = action.requests[0];
-    return `${verb}: ${request.employeeName}, ${request.date}: ${requestSummary(request)}.`;
+    return t("{verb}: {name}, {date}: {summary}.", { verb, name: request.employeeName, date: request.date, summary: requestSummary(request) });
   }
-  return `${verb} ${action.requests.length} requests.`;
+  return t("{verb} {n} requests.", { verb, n: action.requests.length });
 });
 function askManager(action: ManagerAction) {
   Object.assign(managerDialog, { show: true, password: "", error: "", saving: false, action });
@@ -565,7 +566,7 @@ async function confirmManager() {
   managerDialog.error = "";
   try {
     if (action.kind === "add") {
-      if (!complaintEmployee.value) throw new Error("Pick a person first.");
+      if (!complaintEmployee.value) throw new Error(t("Pick a person first."));
       await AddAttendanceWithManagerApproval(
         complaintEmployee.value.employeeId,
         selectedDate.value,
@@ -586,7 +587,7 @@ async function confirmManager() {
       } catch (error) {
         if (done > 0) await Promise.all([loadHistory(), refresh(false)]);
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(done > 0 ? `${done} of ${action.requests.length} done. ${message}` : message);
+        throw new Error(done > 0 ? `${t("{done} of {total} done.", { done, total: action.requests.length })} ${message}` : message);
       }
     }
     managerDialog.show = false;

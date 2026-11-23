@@ -2,7 +2,7 @@
   <div class="records-page">
     <div class="records-head">
       <div class="records-title">
-        <h1>On Account</h1>
+        <h1>{{ t("On Account") }}</h1>
       </div>
       <k-spacer />
       <k-select
@@ -20,7 +20,7 @@
       <k-text-field
         v-model="search"
         class="on-account-search"
-        placeholder="Search client or phone"
+        :placeholder="t('Search client or phone')"
         prepend-inner-icon="mdi-magnify"
         density="compact"
         variant="outlined"
@@ -32,20 +32,20 @@
 
     <div class="on-account-totals" data-test="on-account-totals">
       <div class="on-account-total">
-        <span class="on-account-total-label">Sold</span>
+        <span class="on-account-total-label">{{ t("Sold") }}</span>
         <span class="on-account-total-value" data-test="total-sold">{{ formatUsd(totals.total / 100) }}</span>
       </div>
       <div class="on-account-total">
-        <span class="on-account-total-label">Collected</span>
+        <span class="on-account-total-label">{{ t("Collected") }}</span>
         <span class="on-account-total-value" data-test="total-paid">{{ formatUsd(totals.paid / 100) }}</span>
       </div>
       <div class="on-account-total on-account-total--owed">
-        <span class="on-account-total-label">Owed</span>
+        <span class="on-account-total-label">{{ t("Owed") }}</span>
         <span class="on-account-total-value" data-test="total-owed">{{ formatUsd(totals.outstanding / 100) }}</span>
       </div>
     </div>
 
-    <div v-if="loadError" class="text-error pb-2" data-test="on-account-error">Could not load: {{ loadError }}</div>
+    <div v-if="loadError" class="text-error pb-2" data-test="on-account-error">{{ t("Could not load: {error}", { error: loadError }) }}</div>
 
     <k-data-table-virtual
       class="records-table"
@@ -57,7 +57,7 @@
       fixed-header
       item-value="id"
       hover
-      :no-data-text="search ? 'No client matches.' : 'Nobody owes on account.'"
+      :no-data-text="search ? t('No client matches.') : t('Nobody owes on account.')"
       @click:row="(_e: unknown, row: any) => openDetail(row.item)"
     >
       <template #item.name="{ item }">
@@ -65,7 +65,7 @@
       </template>
       <template #item.phone="{ item }">
         <span v-if="item.phone" dir="ltr">{{ item.phone }}</span>
-        <span v-else class="text-medium-emphasis">No phone</span>
+        <span v-else class="text-medium-emphasis">{{ t("No phone") }}</span>
       </template>
       <template #item.total="{ item }">{{ formatUsd(item.total / 100) }}</template>
       <template #item.paid="{ item }">{{ formatUsd(item.paid / 100) }}</template>
@@ -83,19 +83,19 @@
             <div v-if="selected.phone" class="text-caption text-medium-emphasis" dir="ltr">{{ selected.phone }}</div>
           </div>
           <k-spacer />
-          <span class="owes-chip" data-test="detail-balance">Owes {{ formatUsd(selected.outstanding / 100) }}</span>
-          <k-btn icon="mdi-close" variant="text" aria-label="Close" @click="detailOpen = false" />
+          <span class="owes-chip" data-test="detail-balance">{{ t("Owes {amount}", { amount: formatUsd(selected.outstanding / 100) }) }}</span>
+          <k-btn icon="mdi-close" variant="text" :aria-label="t('Close')" @click="detailOpen = false" />
         </k-card-title>
         <k-progress-linear v-if="detailLoading" indeterminate />
         <k-card-text v-else>
           <k-table density="compact">
             <thead>
               <tr>
-                <th>Invoice</th>
-                <th>Date</th>
-                <th class="text-end">Charged</th>
-                <th class="text-end">Paid</th>
-                <th class="text-end">Due</th>
+                <th>{{ t("Invoice") }}</th>
+                <th>{{ t("Date") }}</th>
+                <th class="text-end">{{ t("Charged") }}</th>
+                <th class="text-end">{{ t("Paid") }}</th>
+                <th class="text-end">{{ t("Due") }}</th>
               </tr>
             </thead>
             <tbody>
@@ -107,7 +107,7 @@
                 <td class="text-end font-weight-bold">{{ formatUsd(Number(entry.outstanding) / 100) }}</td>
               </tr>
               <tr v-if="!openEntries.length">
-                <td colspan="5" class="text-center text-medium-emphasis py-4">Nothing owed.</td>
+                <td colspan="5" class="text-center text-medium-emphasis py-4">{{ t("Nothing owed.") }}</td>
               </tr>
             </tbody>
           </k-table>
@@ -119,20 +119,22 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { t } from "@/i18n";
 import { GetClientAccountDetails, ListOnAccountClients, ListOnAccountMonths } from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
 import { currentMonth, defaultMonth, filterOnAccountClients, monthChoices as buildMonthChoices, onAccountTotals, type OnAccountClient } from "@/lib/onAccount";
 
-const headers = [
-  { title: "Client", key: "name", sortable: false },
-  { title: "Phone", key: "phone", sortable: false },
-  { title: "Invoices", key: "invoiceCount", sortable: false, align: "end" as const },
-  { title: "Sold", key: "total", sortable: false, align: "end" as const },
-  { title: "Paid", key: "paid", sortable: false, align: "end" as const },
-  { title: "Owes", key: "outstanding", sortable: false, align: "end" as const },
-  { title: "Last sale", key: "lastSaleAt", sortable: false },
-];
+// Computed so the column titles follow the language toggle.
+const headers = computed(() => [
+  { title: t("Client"), key: "name", sortable: false },
+  { title: t("Phone"), key: "phone", sortable: false },
+  { title: t("Invoices"), key: "invoiceCount", sortable: false, align: "end" as const },
+  { title: t("Sold"), key: "total", sortable: false, align: "end" as const },
+  { title: t("Paid"), key: "paid", sortable: false, align: "end" as const },
+  { title: t("Owes"), key: "outstanding", sortable: false, align: "end" as const },
+  { title: t("Last sale"), key: "lastSaleAt", sortable: false },
+]);
 
 const clients = ref<OnAccountClient[]>([]);
 const loading = ref(false);

@@ -11,6 +11,7 @@ import { computed, ref, watch } from "vue";
 import { ListProductVariants } from "../../wailsjs/go/main/App";
 import ColorSwatch from "./ColorSwatch.vue";
 import { colorAvailable, matching, priceLabel, sizeAvailable, summarise, type VariantLike } from "@/lib/productGroups";
+import { t } from "@/i18n";
 
 type Variant = VariantLike & Record<string, any>;
 
@@ -118,7 +119,7 @@ function add(variant: Variant | null) {
       <div v-if="name" class="variant-picker-name text-medium-emphasis" dir="auto">{{ name }}</div>
       <k-card-text class="variant-picker-body">
         <section v-if="colors.length" class="variant-picker-section">
-          <div class="variant-picker-label">Color</div>
+          <div class="variant-picker-label">{{ t("Color") }}</div>
           <div class="variant-picker-options">
             <button
               v-for="c in colors"
@@ -136,7 +137,7 @@ function add(variant: Variant | null) {
           </div>
         </section>
         <section v-if="sizes.length" class="variant-picker-section">
-          <div class="variant-picker-label">Size</div>
+          <div class="variant-picker-label">{{ t("Size") }}</div>
           <div class="variant-picker-options">
             <button
               v-for="s in sizes"
@@ -153,7 +154,7 @@ function add(variant: Variant | null) {
           </div>
         </section>
         <section v-if="listed.length || (!colors.length && !sizes.length)" class="variant-picker-section">
-          <div class="variant-picker-label">{{ listed.length ? `${listed.length} matching items` : "Items" }}</div>
+          <div class="variant-picker-label">{{ listed.length ? t("{n} matching items", { n: listed.length }) : t("Items") }}</div>
           <k-list class="variant-picker-list">
             <k-list-item
               v-for="v in listed.length ? listed : all"
@@ -178,13 +179,13 @@ function add(variant: Variant | null) {
             <span dir="auto">{{ [picked.color, picked.size].filter(Boolean).join(" · ") }}</span>
           </template>
           <span v-else-if="!listed.length" class="text-medium-emphasis">
-            {{ colors.length && color === null ? "Choose a color" : sizes.length && size === null ? "Choose a size" : "" }}
+            {{ colors.length && color === null ? t("Choose a color") : sizes.length && size === null ? t("Choose a size") : "" }}
           </span>
           <span v-if="footerPrice" class="variant-picker-price">{{ footerPrice }}</span>
         </span>
         <k-spacer />
-        <k-btn variant="text" class="variant-picker-cancel" @click="close">Cancel</k-btn>
-        <k-btn color="primary" variant="flat" class="variant-picker-add" :disabled="!picked" @click="add(picked)">Add</k-btn>
+        <k-btn variant="text" class="variant-picker-cancel" @click="close">{{ t("Cancel") }}</k-btn>
+        <k-btn color="primary" variant="flat" class="variant-picker-add" :disabled="!picked" @click="add(picked)">{{ t("Add") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
