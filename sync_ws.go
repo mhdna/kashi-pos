@@ -65,6 +65,8 @@ type wsMessage struct {
 	// Control is set on "live_view_start": watchers may click and type on
 	// this till (live_view.go).
 	Control bool `json:"control,omitempty"`
+	// Virtual marks live_view_start / live_view_stop for the separate screen.
+	Virtual bool `json:"virtual,omitempty"`
 }
 
 type wsReview struct {

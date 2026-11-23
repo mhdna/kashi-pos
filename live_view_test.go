@@ -17,6 +17,7 @@ import (
 // fakeKashi stands in for kashi's /branch/live: it records the headers the
 // till dialed with and every frame it sent, and lets a test push frames back.
 type fakeKashi struct {
+	uris []string // request paths of the stream connections, in order
 	*httptest.Server
 	status  atomic.Int32 // non-zero: refuse with this HTTP status
 	dials   atomic.Int32
@@ -45,6 +46,7 @@ func newFakeKashi(t *testing.T) *fakeKashi {
 		}
 		k.mu.Lock()
 		k.headers = r.Header.Clone()
+		k.uris = append(k.uris, r.URL.RequestURI())
 		k.conns = append(k.conns, c)
 		k.mu.Unlock()
 		if k.stall.Load() {

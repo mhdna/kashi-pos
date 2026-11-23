@@ -95,7 +95,10 @@ type App struct {
 	wsClientStop   chan struct{}
 	// liveStream is the live view of this till (live_view.go), built by live().
 	liveStream *liveView
-	liveOnce   sync.Once
+	// liveVirtual is the separate screen's session (live_view.go), built by liveV().
+	liveVirtual *liveView
+	liveVOnce   sync.Once
+	liveOnce    sync.Once
 	// wsClientKick ends a live push session whose central URL/code/key just
 	// changed, so runWSClientLoop redials the new target now instead of
 	// staying bound to the old server until it drops or the process
