@@ -201,6 +201,10 @@ func TestLiveViewControlOnlyWhenAllowed(t *testing.T) {
 	click := `{"t":"click","id":7}`
 	_ = c.WriteMessage(websocket.TextMessage, []byte(click))
 	waitFor(t, "control event", func() bool { return ev.has(`live_view:control "{\"t\":\"click\",\"id\":7}"`) })
+	// The page's stamp (ts) reaches the till page intact: it is echoed back as the ack.
+	stamped := `{"t":"key","key":"5","ts":1700000000123}`
+	_ = c.WriteMessage(websocket.TextMessage, []byte(stamped))
+	waitFor(t, "stamped control", func() bool { return ev.has(`live_view:control "{\"t\":\"key\",\"key\":\"5\",\"ts\":1700000000123}"`) })
 	_ = c.WriteMessage(websocket.TextMessage, []byte(`{"t":"snapshot"}`))
 	waitFor(t, "snapshot event", func() bool { return ev.has("live_view:snapshot") })
 
