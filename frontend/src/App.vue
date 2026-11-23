@@ -13,7 +13,6 @@
     <CashMachineToast />
     <AppUpdateBanner />
     <ClockWarning />
-    <LiveViewBanner />
   </k-app>
 </template>
 
@@ -28,7 +27,6 @@ import WhatsAppToast from "@/components/WhatsAppToast.vue";
 import CashMachineToast from "@/components/CashMachineToast.vue";
 import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
 import ClockWarning from "@/components/ClockWarning.vue";
-import LiveViewBanner from "@/components/LiveViewBanner.vue";
 import { startLiveViewWiring } from "@/lib/liveViewWiring";
 import BranchSetup from "@/components/BranchSetup.vue";
 

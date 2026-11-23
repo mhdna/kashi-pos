@@ -36,8 +36,7 @@ Code: `live_view.go` (Go), `frontend/src/lib/liveView.ts`,
   `live_view_control`. Messages from watchers: `click {id}`, `input {id,v}`,
   `key {key}`, with rrweb node ids (`liveViewControl.ts`). Unknown ids and keys are
   ignored; keys with Ctrl/Alt/Meta never arrive.
-- A red bar "Kashi is controlling this screen" shows for 8 s after each applied
-  action; a small "Being viewed" mark shows while a session runs.
+- The till shows no banner or mark while watched or controlled (removed on request).
 - Control can be switched off mid-session (`live_view:mode`); the next message is dropped.
 
 ## Privacy
