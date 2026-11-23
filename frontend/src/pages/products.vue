@@ -129,7 +129,7 @@
       <k-card-actions>
         <k-spacer />
         <k-btn variant="text" @click="deleteOpen = false">{{ t("Cancel") }}</k-btn>
-        <k-btn color="error" :loading="deleting" @click="deleteSelected">Delete</k-btn>
+        <k-btn color="error" :loading="deleting" @click="deleteSelected">{{ t("Delete") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>

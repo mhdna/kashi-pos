@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 // The product details the invoice screen shows under a sold line, so two
 // products that share a name ("Lady Leather Skirt" as TNV551219 and as
 // TNV551219-16) can be told apart at a glance. GetInvoiceDetails carries the
@@ -23,18 +25,21 @@ export interface InvoiceLineDetail {
 }
 
 // Shown in this order; code and barcode first, they identify the product.
-const FIELDS: Array<[keyof InvoiceLineProduct, string]> = [
-  ["code", "Code"],
-  ["barcode", "Barcode"],
-  ["color", "Color"],
-  ["size", "Size"],
-  ["category", "Category"],
-  ["brand", "Brand"],
-  ["kind", "Kind"],
-  ["family", "Family"],
-  ["season", "Season"],
-  ["productYear", "Year"],
-];
+// A function, not a constant, so the labels follow the EN/FR toggle.
+function fields(): Array<[keyof InvoiceLineProduct, string]> {
+  return [
+    ["code", t("Code")],
+    ["barcode", t("Barcode")],
+    ["color", t("Color")],
+    ["size", t("Size")],
+    ["category", t("Category")],
+    ["brand", t("Brand")],
+    ["kind", t("Kind")],
+    ["family", t("Family")],
+    ["season", t("Season")],
+    ["productYear", t("Year")],
+  ];
+}
 
 // A blank, "-" (the catalogue's "none") or a zero year shows nothing.
 function shown(key: keyof InvoiceLineProduct, raw: unknown): string {
@@ -48,7 +53,7 @@ function shown(key: keyof InvoiceLineProduct, raw: unknown): string {
 export function invoiceLineDetails(line: InvoiceLineProduct | null | undefined): InvoiceLineDetail[] {
   if (!line) return [];
   const out: InvoiceLineDetail[] = [];
-  for (const [key, label] of FIELDS) {
+  for (const [key, label] of fields()) {
     const value = shown(key, line[key]);
     if (value) out.push({ key, label, value });
   }

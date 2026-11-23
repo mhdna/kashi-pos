@@ -27,7 +27,7 @@
           <button
             class="invoice-item-details-trigger"
             type="button"
-            :aria-label="`Open details for ${item.name}`"
+            :aria-label="t('Open details for {name}', { name: item.name })"
             @click.stop="openDetails(item)"
           >
             <span class="invoice-item-title-text">
@@ -41,7 +41,7 @@
                   :name="lineSalesperson(item)!.fullName"
                   :color="salespersonColor(lineSalesperson(item)!)"
                   :size="22"
-                  :title="`Sold by ${lineSalesperson(item)!.fullName}`"
+                  :title="t('Sold by {name}', { name: lineSalesperson(item)!.fullName })"
                 />
                 <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
               </span>
@@ -126,7 +126,7 @@
               color="grey"
               label
               size="x-small"
-              title="No deal · tap to change"
+              :title="t('No deal · tap to change')"
               variant="outlined"
               @click="onDealChipClick($event, item)"
             >
@@ -142,7 +142,7 @@
               color="grey"
               label
               size="x-small"
-              :title="`${offDealFor(item)} turned off`"
+              :title="t('{name} turned off', { name: offDealFor(item) })"
               variant="outlined"
               @click="onDealChipClick($event, item)"
             >
