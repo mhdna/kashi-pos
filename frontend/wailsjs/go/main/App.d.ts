@@ -416,6 +416,8 @@ export function RollBackAppUpdate():Promise<void>;
 
 export function RoundInvoice(arg1:number):Promise<void>;
 
+export function SaveResumeRoute(arg1:string):Promise<void>;
+
 export function SearchClients(arg1:string,arg2:number):Promise<Array<Record<string, any>>>;
 
 export function SetAttendanceCashierHistoryEnabled(arg1:boolean):Promise<void>;
@@ -543,6 +545,8 @@ export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, an
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
 
 export function SyncUnknownItemSession(arg1:string,arg2:string):Promise<Record<string, any>>;
+
+export function TakeResumeSession():Promise<Record<string, any>>;
 
 export function UnknownItemSessionStatus(arg1:string):Promise<Record<string, any>>;
 

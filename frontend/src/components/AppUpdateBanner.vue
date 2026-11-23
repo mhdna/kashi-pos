@@ -64,7 +64,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { ConfirmAppStarted, GetAppUpdateStatus, InstallAppUpdate, WaitUntilReady } from "../../wailsjs/go/main/App";
+import {
+  ConfirmAppStarted,
+  GetAppUpdateStatus,
+  InstallAppUpdate,
+  SaveResumeRoute,
+  TakeResumeSession,
+  WaitUntilReady,
+} from "../../wailsjs/go/main/App";
+import { restoreSession, saveRoute } from "@/lib/resumeSession";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 // The cashier's side of remote updates (updater.go): a banner when one is
@@ -106,10 +114,37 @@ function cancelIdle() {
   if (timer) clearInterval(timer);
 }
 
+// After a forced update's restart: sign the same role back in and return to
+// the screen we were on (the sale screen restores its own draft).
+async function resumeAfterUpdate() {
+  try {
+    const [{ default: router }, { useAuthStore }] = await Promise.all([import("@/router"), import("@/stores/auth")]);
+    const auth = useAuthStore();
+    await restoreSession({
+      take: TakeResumeSession,
+      isLoggedIn: () => auth.isLoggedIn,
+      setUser: (user) => (auth.currentUser = user),
+      go: (route) => router.replace(route),
+    });
+  } catch {
+    // No router or store (a bare test mount): nothing to resume.
+  }
+}
+
 onMounted(async () => {
   offs.push(EventsOn("app_update_state", (s: Record<string, any>) => {
     if (s.state === "ready" && status.value.version !== s.version) dismissed.value = false;
     status.value = s;
+  }));
+  // A forced update is about to restart the till: say where we are, so it
+  // comes back to the same screen, signed in.
+  offs.push(EventsOn("app_update_save_state", async () => {
+    const { default: router } = await import("@/router");
+    await saveRoute({
+      flushDraft: () => window.dispatchEvent(new Event("pagehide")),
+      route: () => router.currentRoute.value.fullPath,
+      save: SaveResumeRoute,
+    });
   }));
   // A forced update restarts silently: no "Updating…" screen.
   offs.push(EventsOn("app_update_installing", (s?: Record<string, any>) => {
@@ -131,6 +166,7 @@ onMounted(async () => {
   // update helper rolls back.
   if (ready.error) return;
   const started = await ConfirmAppStarted();
+  void resumeAfterUpdate();
   if (started.result === "update") {
     // The "updated to … / What's new" dialog is off for now; kept to turn
     // back on later. ConfirmAppStarted above must still run (it tells the

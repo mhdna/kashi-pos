@@ -12,6 +12,8 @@ vi.mock("../../wailsjs/go/main/App", () => ({
   ConfirmAppStarted: vi.fn(),
   GetAppUpdateStatus: vi.fn(async () => ({})),
   InstallAppUpdate: vi.fn(),
+  SaveResumeRoute: vi.fn(),
+  TakeResumeSession: vi.fn(async () => ({})),
   WaitUntilReady: vi.fn(async () => ({})),
 }));
 vi.mock("../../wailsjs/runtime/runtime", () => ({ EventsOn: vi.fn(() => () => {}) }));

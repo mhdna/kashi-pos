@@ -127,6 +127,9 @@ type appUpdater struct {
 	// sales counts checkouts in flight; a forced install waits for zero so
 	// the restart never lands in the middle of a sale (beginSale).
 	sales atomic.Int32
+	// routeCh receives the screen's route while a forced install saves where
+	// the cashier is (resume.go).
+	routeCh chan string
 }
 
 func updatesDir() (string, error) {
@@ -602,8 +605,11 @@ func (a *App) installForced() {
 		a.updater.mu.Unlock()
 		return
 	}
+	st := a.updateStateSnapshot()
+	a.saveResumeBeforeInstall(appVersion, st.Version)
 	if err := a.InstallAppUpdate(); err != nil {
 		log.Printf("app update: forced install: %v", err)
+		discardResume()
 		a.updater.mu.Lock()
 		a.updater.prompted = false
 		a.updater.mu.Unlock()
