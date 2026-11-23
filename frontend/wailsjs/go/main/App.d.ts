@@ -352,6 +352,10 @@ export function ListTransfers():Promise<Array<Record<string, any>>>;
 
 export function ListUsers():Promise<Array<Record<string, any>>>;
 
+export function LiveViewSend(arg1:string):Promise<boolean>;
+
+export function LiveViewStatus():Promise<main.LiveViewStatus>;
+
 export function MovePrinterToPort(arg1:string,arg2:string):Promise<void>;
 
 export function OpenShift():Promise<Record<string, any>>;

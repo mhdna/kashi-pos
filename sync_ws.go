@@ -62,6 +62,9 @@ type wsMessage struct {
 	// Review is set on "review": a client just answered the rating poll
 	// for a sale at this branch.
 	Review *wsReview `json:"review,omitempty"`
+	// Control is set on "live_view_start": watchers may click and type on
+	// this till (live_view.go).
+	Control bool `json:"control,omitempty"`
 }
 
 type wsReview struct {
@@ -338,6 +341,9 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		log.Printf("ws client: bad message: %v", err)
 		return
 	}
+	if a.handleLiveMessage(client, msg) {
+		return
+	}
 	if msg.Type == "command" {
 		// Deliberately re-fetches *all* pending commands, not just
 		// CommandID -- a redundant or out-of-order push just means an extra
@@ -372,6 +378,7 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		// 15s poll. runWSSession clears this when the session ends.
 		a.wsPushesAll.Store(slices.Contains(msg.Features, "sync_changed"))
 		a.kashiQuickAccess.Store(slices.Contains(msg.Features, "quick_access"))
+		a.live().setFeatures(msg.Features)
 		return
 	}
 	if msg.Type == "pull_all" {
