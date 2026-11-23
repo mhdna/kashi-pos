@@ -83,3 +83,43 @@ describe("the Updating GB Cloud screen", () => {
     expect(block).not.toMatch(/<k-icon/);
   });
 });
+
+// A forced update installs with no dialog, countdown, snackbar or "Updating…"
+// screen; a normal one keeps them.
+describe("AppUpdateBanner with a forced update", () => {
+  async function mountWithEvents() {
+    const handlers: Record<string, (s?: any) => void> = {};
+    const { EventsOn } = await import("../../wailsjs/runtime/runtime");
+    vi.mocked(EventsOn).mockImplementation(((name: string, fn: any) => {
+      handlers[name] = fn;
+      return () => {};
+    }) as any);
+    vi.mocked(ConfirmAppStarted).mockResolvedValue({ result: "" } as any);
+    wrapper = mount(AppUpdateBanner, { global: { plugins: [ui] }, attachTo: document.body });
+    await flushPromises();
+    return handlers;
+  }
+
+  it("shows no 'ready' snackbar and no 'Updating' screen when forced", async () => {
+    const h = await mountWithEvents();
+    const forced = { state: "ready", version: "1.2.0", supported: true, force: true };
+    h.app_update_state(forced);
+    h.app_update_installing(forced);
+    await flushPromises();
+    const text = document.body.textContent ?? "";
+    expect(text).not.toContain("is ready");
+    expect(text).not.toContain("Updating GB Cloud");
+    expect(text).not.toContain("required update");
+  });
+
+  it("still shows the snackbar and the 'Updating' screen for a normal update", async () => {
+    const h = await mountWithEvents();
+    const normal = { state: "ready", version: "1.2.0", supported: true, force: false };
+    h.app_update_state(normal);
+    await flushPromises();
+    expect(document.body.textContent).toContain("GB Cloud 1.2.0 is ready");
+    h.app_update_installing(normal);
+    await flushPromises();
+    expect(document.body.textContent).toContain("Updating GB Cloud");
+  });
+});

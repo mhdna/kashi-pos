@@ -141,7 +141,7 @@ export KASHI_URL KASHI_USER
 #   git tag v1.2.3 && make publish
 #   git tag v1.2.3 && make publish-all NOTES="what changed"
 # publish-all-force (and publish-compact-all-force) also makes them install it
-# right away, even mid-shift, after a one-minute countdown on the till.
+# the moment they have it, even mid-shift, with no notice on the till.
 #   git tag v1.2.3 && make publish-all-force NOTES="urgent fix"
 # force-publish / force-release are short names for the -all-force targets:
 #   make force-publish            publish-all-force (tag already made)

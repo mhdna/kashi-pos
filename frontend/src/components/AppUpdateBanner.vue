@@ -21,17 +21,13 @@
   </k-dialog>
 
   <!-- No shift open: install by itself unless the cashier says not now.
-       Forced from central: install even mid-shift, and no "not now". -->
+       (A forced update from central never gets here: it installs silently.) -->
   <k-dialog v-model="idlePrompt" max-width="440" persistent>
-    <k-card :title="status.force ? 'A required update' : 'Installing an update'">
-      <k-card-text v-if="status.force">
-        GB Cloud {{ status.version }} installs in {{ countdown }} seconds. Finish the current sale now; GB Cloud
-        closes and reopens by itself.
-      </k-card-text>
-      <k-card-text v-else>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</k-card-text>
+    <k-card title="Installing an update">
+      <k-card-text>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn v-if="!status.force" variant="text" @click="cancelIdle">Not now</k-btn>
+        <k-btn variant="text" @click="cancelIdle">Not now</k-btn>
         <k-btn color="primary" variant="flat" @click="install">Install now</k-btn>
       </k-card-actions>
     </k-card>
@@ -84,7 +80,8 @@ const resultDialog = ref(false);
 const resultTitle = ref("");
 const resultText = ref("");
 const showReady = computed({
-  get: () => status.value.state === "ready" && status.value.supported && !dismissed.value && !installing.value,
+  // A forced update installs by itself with no notice, so nothing to offer.
+  get: () => status.value.state === "ready" && status.value.supported && !status.value.force && !dismissed.value && !installing.value,
   set: (v) => { if (!v) dismissed.value = true; },
 });
 let timer: ReturnType<typeof setInterval> | undefined;
@@ -114,10 +111,14 @@ onMounted(async () => {
     if (s.state === "ready" && status.value.version !== s.version) dismissed.value = false;
     status.value = s;
   }));
-  offs.push(EventsOn("app_update_installing", () => (installing.value = true)));
+  // A forced update restarts silently: no "Updating…" screen.
+  offs.push(EventsOn("app_update_installing", (s?: Record<string, any>) => {
+    if (s?.force) return;
+    installing.value = true;
+  }));
   offs.push(EventsOn("app_update_prompt", (s: Record<string, any>) => {
     status.value = s;
-    countdown.value = s.force ? 60 : 30;
+    countdown.value = 30;
     idlePrompt.value = true;
     timer = setInterval(() => {
       countdown.value -= 1;

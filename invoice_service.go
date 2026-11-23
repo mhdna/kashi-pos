@@ -248,6 +248,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 // cashier picked (picksJSON, a JSON list of uids; "" for none). The quote
 // takes the same list, so it charges what was shown.
 func (a *App) CheckoutInvoicePicked(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes, referralCode, picksJSON string) (map[string]any, error) {
+	defer a.beginSale()()
 	picked, err := parsePickedDiscounts(picksJSON)
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)

@@ -82,6 +82,7 @@ var adminReturnExchangePolicy = exchangePolicy{allowLate: true, allowLowerTotal:
 // exchange receipts" (set from central); false, the receipt isn't printed even
 // with receipts on.
 func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string, printReceipt bool) (map[string]any, error) {
+	defer a.beginSale()()
 	// Only replacements are sold, so only they need pictures (a returned
 	// unknown item has qty < 0 and is skipped by unknownUnitCount).
 	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
