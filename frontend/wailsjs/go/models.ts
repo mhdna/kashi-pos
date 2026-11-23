@@ -693,6 +693,20 @@ export namespace main {
 	        this.lastPullError = source["lastPullError"];
 	    }
 	}
+	export class LiveViewStatus {
+	    active: boolean;
+	    control: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new LiveViewStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.active = source["active"];
+	        this.control = source["control"];
+	    }
+	}
 	export class ManagedProductPage {
 	    items: any[];
 	    nextCursor: number;
@@ -1380,20 +1394,6 @@ export namespace main {
 	        this.Barcode = source["Barcode"];
 	        this.ProductUID = source["ProductUID"];
 	        this.ReceivedQuantity = source["ReceivedQuantity"];
-	    }
-	}
-	export class LiveViewStatus {
-	    active: boolean;
-	    control: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new LiveViewStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.active = source["active"];
-	        this.control = source["control"];
 	    }
 	}
 	export class liveCartLineOverride {
