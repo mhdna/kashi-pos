@@ -34,7 +34,7 @@
     </div>
 
     <template v-if="mode === 'pin'">
-      <div class="pin-dots" :class="{ 'pin-dots--error': error }" aria-label="PIN entry">
+      <div class="pin-dots" :class="{ 'pin-dots--error': error }" :aria-label="t('PIN entry')">
         <span v-for="index in 4" :key="index" :class="{ filled: index <= pin.length }" />
       </div>
 

@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 // Whether a checkout prints its receipt. A sale prints whenever receipts are
 // on; an exchange also needs this till's "Print return and exchange
 // receipts", which is set from central (branch settings; it reaches the till
@@ -14,6 +16,8 @@ export function checkoutPrints(mode: CheckoutMode, receiptsOn: boolean, returnTi
 
 /** The snackbar after an exchange checks out. */
 export function exchangeDoneMessage(invoiceCode: string, printed: boolean, receiptError?: string): string {
-  if (receiptError) return `Invoice created; receipt failed — ${receiptError}`;
-  return printed ? `Exchange completed — ${invoiceCode}` : `Exchange completed, no receipt printed — ${invoiceCode}`;
+  if (receiptError) return t("Invoice created; receipt failed — {error}", { error: receiptError });
+  return printed
+    ? t("Exchange completed — {code}", { code: invoiceCode })
+    : t("Exchange completed, no receipt printed — {code}", { code: invoiceCode });
 }

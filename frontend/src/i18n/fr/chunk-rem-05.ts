@@ -58,7 +58,6 @@ export default {
   "Cancel this loan?": "Annuler ce prêt ?",
   "\"{name}\" ({amount} {currency}) stays in the list marked cancelled, and the shift and central stop counting it.": "« {name} » ({amount} {currency}) reste dans la liste, marqué comme annulé, et la caisse et le central cessent de le compter.",
   "Keep it": "Garder",
-  "Category": "Catégorie",
   "No loan categories yet -- they're set up in central and appear here after the next sync.": "Aucune catégorie de prêt pour l'instant. Elles sont configurées dans le central et apparaîtront ici après la prochaine synchronisation.",
   "Description": "Description",
   "Deposited to": "Déposé dans",

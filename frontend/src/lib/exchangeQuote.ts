@@ -5,6 +5,8 @@
 // stale or broken quote) the screen says so instead of showing numbers that
 // don't.
 
+import { t } from "../i18n";
+
 // One cart line as the quote priced it, in the order the cart sent it.
 export interface ExchangeQuoteLine {
   index: number;
@@ -109,45 +111,45 @@ export function exchangeQuoteProblem(q: ExchangeQuoteResult, cart: ExchangeCartL
     q.grandTotalCents,
     q.shortfallCents,
   ];
-  if (amounts.some((n) => !Number.isInteger(n))) return "the exchange came back without amounts";
-  if (q.lines.length !== cart.length) return "the exchange was priced for a different cart";
+  if (amounts.some((n) => !Number.isInteger(n))) return t("the exchange came back without amounts");
+  if (q.lines.length !== cart.length) return t("the exchange was priced for a different cart");
   let sum = 0;
   let returned = 0;
   let replacements = 0;
   for (const [i, l] of q.lines.entries()) {
-    if (!matchesCartLine(l, cart[i], i)) return "the exchange was priced for a different cart";
-    if (!Number.isInteger(l.lineTotalCents)) return "a line came back without an amount";
+    if (!matchesCartLine(l, cart[i], i)) return t("the exchange was priced for a different cart");
+    if (!Number.isInteger(l.lineTotalCents)) return t("a line came back without an amount");
     sum += l.lineTotalCents;
     if (l.qty < 0) {
       returned -= l.lineTotalCents;
       const parts = (l.paidCents ?? 0) + (l.swapCreditCents ?? 0) - (l.chargedBackCents ?? 0);
-      if (parts !== -l.lineTotalCents) return `${l.code}'s credit doesn't add up`;
+      if (parts !== -l.lineTotalCents) return t("{code}'s credit doesn't add up", { code: l.code });
       if ((l.swapCreditCents ?? 0) > (l.swapAllowanceCents ?? 0)) {
-        return `${l.code}'s free item credit is more than it allows`;
+        return t("{code}'s free item credit is more than it allows", { code: l.code });
       }
     } else {
       replacements += l.lineTotalCents;
     }
   }
   if (returned !== q.returnedTotalCents || replacements !== q.replacementTotalCents) {
-    return "the lines don't add up to the exchange";
+    return t("the lines don't add up to the exchange");
   }
   if (sum !== q.netCents || q.replacementTotalCents - q.returnedTotalCents !== q.netCents) {
-    return "the lines don't add up to the exchange";
+    return t("the lines don't add up to the exchange");
   }
-  if (q.netCents + q.taxCents !== q.unroundedCents) return "the tax doesn't add up";
+  if (q.netCents + q.taxCents !== q.unroundedCents) return t("the tax doesn't add up");
   if (Math.max(0, q.unroundedCents + q.roundingCents) !== q.grandTotalCents)
-    return "the total doesn't add up";
+    return t("the total doesn't add up");
   const lineBack = q.lines.reduce((s, l) => s + (l.chargedBackCents ?? 0), 0);
   const dealBack = q.adjustments.reduce((s, a) => s + (a.chargedBackCents ?? 0), 0);
-  if (lineBack !== dealBack) return "the deal charge back doesn't add up";
+  if (lineBack !== dealBack) return t("the deal charge back doesn't add up");
   // "Add $X more" is what the lines on screen are short of, to the cent;
   // and asking for nothing more, the lines never come to a refund.
-  if (q.needsMoreReplacementValue !== q.shortfallCents > 0) return "the shortfall doesn't add up";
+  if (q.needsMoreReplacementValue !== q.shortfallCents > 0) return t("the shortfall doesn't add up");
   if (q.needsMoreReplacementValue && q.shortfallCents !== -q.netCents) {
-    return "the shortfall doesn't match the lines";
+    return t("the shortfall doesn't match the lines");
   }
-  if (!q.needsMoreReplacementValue && q.netCents < 0) return "the lines come to a refund";
+  if (!q.needsMoreReplacementValue && q.netCents < 0) return t("the lines come to a refund");
   return "";
 }
 
@@ -178,11 +180,11 @@ export function checkExchangeQuote(
   try {
     cart = JSON.parse(itemsJson);
   } catch {
-    return { quote: null, error: "Can't show this exchange: the cart couldn't be read" };
+    return { quote: null, error: t("Can't show this exchange: the cart couldn't be read") };
   }
   const quote = normalizeExchangeQuote(raw);
   const problem = exchangeQuoteProblem(quote, Array.isArray(cart) ? cart : []);
-  if (problem) return { quote: null, error: `Can't show this exchange: ${problem}` };
+  if (problem) return { quote: null, error: t("Can't show this exchange: {problem}", { problem }) };
   return { quote, error: "" };
 }
 
@@ -234,18 +236,30 @@ export function returnedLineNotes(l: ExchangeQuoteLine): string[] {
   if (credit === -l.shelfCents && swap === 0 && back === 0 && !l.free) return [];
   const notes: string[] = [];
   if (l.free) {
-    if (allowance <= 0) notes.push("Free item");
-    else if (swap === 0) notes.push(`Free item · up to ${formatCents(allowance)} off new items`);
+    if (allowance <= 0) notes.push(t("Free item"));
+    else if (swap === 0) {
+      notes.push(t("Free item · up to {amount} off new items", { amount: formatCents(allowance) }));
+    }
     else if (swap < allowance) {
       notes.push(
-        `Free item · ${formatCents(swap)} of its ${formatCents(allowance)} off the new items`,
+        t("Free item · {swap} of its {allowance} off the new items", {
+          swap: formatCents(swap),
+          allowance: formatCents(allowance),
+        }),
       );
-    } else notes.push(`Free item · ${formatCents(swap)} off the new items`);
+    } else notes.push(t("Free item · {swap} off the new items", { swap: formatCents(swap) }));
   } else {
-    notes.push(`Paid ${formatCents(paid)}`);
-    if (swap > 0) notes.push(`${formatCents(swap)} off the new items`);
+    notes.push(t("Paid {amount}", { amount: formatCents(paid) }));
+    if (swap > 0) notes.push(t("{amount} off the new items", { amount: formatCents(swap) }));
   }
-  if (back > 0) notes.push(`${l.deal || "Deal"} charged back ${formatCents(back)}`);
+  if (back > 0) {
+    notes.push(
+      t("{deal} charged back {amount}", {
+        deal: l.deal || t("Deal"),
+        amount: formatCents(back),
+      }),
+    );
+  }
   return [notes.join(" · ")];
 }
 
@@ -264,13 +278,16 @@ export interface ExchangeSummaryRow {
 // the returned items yet, the total is 0 and the shortfall says why.
 export function exchangeSummaryRows(q: ExchangeQuoteResult): ExchangeSummaryRow[] {
   const rows: ExchangeSummaryRow[] = [];
-  rows.push({ key: "new", label: "New items", cents: q.replacementTotalCents });
-  rows.push({ key: "returned", label: "Returned credit", cents: -q.returnedTotalCents });
+  rows.push({ key: "new", label: t("New items"), cents: q.replacementTotalCents });
+  rows.push({ key: "returned", label: t("Returned credit"), cents: -q.returnedTotalCents });
   for (const a of q.adjustments) {
     if ((a.chargedBackCents ?? 0) > 0) {
       rows.push({
         key: `back-${a.deal}`,
-        label: `${a.deal} no longer applies: ${formatCents(a.chargedBackCents ?? 0)} charged back`,
+        label: t("{deal} no longer applies: {amount} charged back", {
+          deal: a.deal,
+          amount: formatCents(a.chargedBackCents ?? 0),
+        }),
         cents: a.chargedBackCents ?? 0,
         note: true,
       });
@@ -280,24 +297,27 @@ export function exchangeSummaryRows(q: ExchangeQuoteResult): ExchangeSummaryRow[
     if ((a.forfeitedCents ?? 0) > 0 && !q.needsMoreReplacementValue) {
       rows.push({
         key: `forfeit-${a.deal}`,
-        label: `Unused free item credit (${a.deal}): ${formatCents(a.forfeitedCents ?? 0)}`,
+        label: t("Unused free item credit ({deal}): {amount}", {
+          deal: a.deal,
+          amount: formatCents(a.forfeitedCents ?? 0),
+        }),
         cents: a.forfeitedCents ?? 0,
         note: true,
       });
     }
   }
-  if (q.taxCents !== 0) rows.push({ key: "tax", label: "Tax", cents: q.taxCents });
+  if (q.taxCents !== 0) rows.push({ key: "tax", label: t("Tax"), cents: q.taxCents });
   if (q.roundingCents !== 0)
-    rows.push({ key: "rounding", label: "Cash rounding", cents: q.roundingCents });
+    rows.push({ key: "rounding", label: t("Cash rounding"), cents: q.roundingCents });
   if (q.needsMoreReplacementValue) {
     rows.push({
       key: "shortfall",
-      label: `Add ${formatCents(q.shortfallCents)} more in new items`,
+      label: t("Add {amount} more in new items", { amount: formatCents(q.shortfallCents) }),
       cents: q.shortfallCents,
       note: true,
     });
   }
-  rows.push({ key: "total", label: "To pay", cents: q.grandTotalCents, total: true });
+  rows.push({ key: "total", label: t("To pay"), cents: q.grandTotalCents, total: true });
   return rows;
 }
 

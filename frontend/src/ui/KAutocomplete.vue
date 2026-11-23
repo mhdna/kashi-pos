@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useAttrs, watch } from "vue";
+import { t } from "@/i18n";
 import KField from "./KField.vue";
 import KList from "./KList.vue";
 import KListItem from "./KListItem.vue";
@@ -115,7 +116,7 @@ defineExpose({ focus: () => input.value?.focus() });
             <KListItem :title="item.title" :active="item.value === modelValue" @mousedown.prevent @click="pick(item)" />
           </slot>
         </template>
-        <KListItem v-if="!filtered.length && !loading" title="No data available" />
+        <KListItem v-if="!filtered.length && !loading" :title="t('No data available')" />
       </KList>
     </KMenu>
   </KField>

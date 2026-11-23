@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
+import { t } from "@/i18n";
 import { tabsKey } from "./keys";
 import KIcon from "./KIcon";
 import { arrowState, pageTarget, revealTarget, wheelToX } from "./tabsScroll";
@@ -66,11 +67,11 @@ defineExpose({ update, page });
 </script>
 <template>
   <div class="k-tabs" :class="[grow && 'k-tabs--grow', density && density !== 'default' && `k-tabs--density-${density}`]">
-    <button v-if="prev" type="button" class="k-tabs__arrow k-tabs__arrow--prev" aria-label="Earlier tabs" data-test="tabs-prev" @click="page(-1)">
+    <button v-if="prev" type="button" class="k-tabs__arrow k-tabs__arrow--prev" :aria-label="t('Earlier tabs')" data-test="tabs-prev" @click="page(-1)">
       <KIcon icon="mdi-chevron-left" />
     </button>
     <div ref="track" class="k-tabs__track" role="tablist" @scroll.passive="update" @wheel="onWheel"><slot /></div>
-    <button v-if="next" type="button" class="k-tabs__arrow k-tabs__arrow--next" aria-label="More tabs" data-test="tabs-next" @click="page(1)">
+    <button v-if="next" type="button" class="k-tabs__arrow k-tabs__arrow--next" :aria-label="t('More tabs')" data-test="tabs-next" @click="page(1)">
       <KIcon icon="mdi-chevron-right" />
     </button>
   </div>
