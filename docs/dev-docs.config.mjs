@@ -16,6 +16,7 @@ export default {
       { file: 'dev/money-and-selling.md', title: 'Money and selling', icon: 'mdiCashRegister', group: 'Selling' },
       { file: 'dev/shifts-and-logins.md', title: 'Shifts and logins', icon: 'mdiAccountClock', group: 'Selling' },
       { file: 'dev/sync.md', title: 'Sync with central', icon: 'mdiSync', group: 'Sync and devices' },
+      { file: 'dev/live-view.md', title: 'Live view', icon: 'mdiMonitorEye', group: 'Sync and devices' },
       { file: 'dev/attendance.md', title: 'Attendance', icon: 'mdiFingerprint', group: 'Sync and devices' },
       { file: 'dev/windows-till.md', title: 'The Windows till', icon: 'mdiMonitor', group: 'Sync and devices' },
       { file: 'dev/data-and-config.md', title: 'Data and config', icon: 'mdiDatabaseCog', group: 'Platform' },

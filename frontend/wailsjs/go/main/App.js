@@ -702,6 +702,14 @@ export function ListUsers() {
   return window['go']['main']['App']['ListUsers']();
 }
 
+export function LiveViewSend(arg1) {
+  return window['go']['main']['App']['LiveViewSend'](arg1);
+}
+
+export function LiveViewStatus() {
+  return window['go']['main']['App']['LiveViewStatus']();
+}
+
 export function MovePrinterToPort(arg1, arg2) {
   return window['go']['main']['App']['MovePrinterToPort'](arg1, arg2);
 }

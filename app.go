@@ -87,6 +87,9 @@ type App struct {
 	// install already tolerates a no-op sync worker.
 	syncWorkerKick chan struct{}
 	wsClientStop   chan struct{}
+	// liveStream is the live view of this till (live_view.go), built by live().
+	liveStream *liveView
+	liveOnce   sync.Once
 	// wsClientKick ends a live push session whose central URL/code/key just
 	// changed, so runWSClientLoop redials the new target now instead of
 	// staying bound to the old server until it drops or the process

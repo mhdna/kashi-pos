@@ -13,6 +13,7 @@
     <CashMachineToast />
     <AppUpdateBanner />
     <ClockWarning />
+    <LiveViewBanner />
   </k-app>
 </template>
 
@@ -27,6 +28,8 @@ import WhatsAppToast from "@/components/WhatsAppToast.vue";
 import CashMachineToast from "@/components/CashMachineToast.vue";
 import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
 import ClockWarning from "@/components/ClockWarning.vue";
+import LiveViewBanner from "@/components/LiveViewBanner.vue";
+import { startLiveViewWiring } from "@/lib/liveViewWiring";
 import BranchSetup from "@/components/BranchSetup.vue";
 
 const theme = useTheme();
@@ -36,6 +39,7 @@ const databaseMissing = ref(false);
 const knownBranches = ref([]);
 onMounted(async () => {
 	EventsOn("admin:reload", () => window.location.reload());
+	startLiveViewWiring();
 	try {
     const result = await WaitUntilReady();
     startupError.value = result.error;
