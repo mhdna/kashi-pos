@@ -3,7 +3,7 @@
 // to kashi. Everything starts only when Go says "live_view:start", so with the
 // feature off nothing here runs and rrweb is never loaded. Docs: docs/dev/live-view.md.
 import { reactive } from "vue";
-import { applyControl, parseControl, type NodeMirror } from "./liveViewControl";
+import { applyControl, parseControl, parseStamp, type NodeMirror } from "./liveViewControl";
 
 export const FLUSH_MS = 100;
 /** Right after a watcher action the till sends on the next frame, not after FLUSH_MS. */
@@ -31,8 +31,10 @@ export const liveViewState = reactive({ active: false, control: false, controlle
  * start of the text to tell a full snapshot from an increment without
  * parsing it (api/live_hub.go fullFramePrefix).
  */
-export function framePacket(events: unknown[], actions: LiveAction[], full: boolean): string {
-  return full ? JSON.stringify({ full: true, e: events, a: actions }) : JSON.stringify({ e: events, a: actions });
+export function framePacket(events: unknown[], actions: LiveAction[], full: boolean, ack: number | null = null): string {
+  const packet: Record<string, unknown> = full ? { full: true, e: events, a: actions } : { e: events, a: actions };
+  if (ack !== null) packet.ack = ack;
+  return JSON.stringify(packet);
 }
 
 /** What a click was on, in a few words, for the watcher's activity list. */
@@ -71,14 +73,17 @@ export function createLiveView(deps: LiveViewDeps) {
   let full = false;
   let timer: unknown = null;
   let fastUntil = 0;
+  /** The stamp of the last watcher action, sent back once in the next packet. */
+  let pendingAck: number | null = null;
   let lastSnapshot = 0;
   let generation = 0;
   let removeClicks: (() => void) | null = null;
 
   function flush() {
     timer = null;
-    if (!liveViewState.active || (events.length === 0 && actions.length === 0)) return;
-    const packet = framePacket(events, actions, full);
+    if (!liveViewState.active || (events.length === 0 && actions.length === 0 && pendingAck === null)) return;
+    const packet = framePacket(events, actions, full, pendingAck);
+    pendingAck = null;
     events = [];
     actions = [];
     full = false;
@@ -152,6 +157,7 @@ export function createLiveView(deps: LiveViewDeps) {
     if (timer !== null) clearTimer(timer);
     timer = null;
     fastUntil = 0;
+    pendingAck = null;
     events = [];
     actions = [];
     full = false;
@@ -162,6 +168,7 @@ export function createLiveView(deps: LiveViewDeps) {
     const message = parseControl(raw);
     if (message && applyControl(message, rrweb.record.mirror, doc)) {
       liveViewState.controlledUntil = now() + CONTROLLED_MS;
+      pendingAck = parseStamp(raw);
       speedUp();
     }
   }

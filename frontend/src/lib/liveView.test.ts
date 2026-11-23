@@ -55,6 +55,8 @@ describe("framePacket", () => {
   it("puts full first, which is what kashi looks for", () => {
     expect(framePacket([{ type: 2 }], [], true).startsWith('{"full":true')).toBe(true);
     expect(framePacket([{ type: 3 }], [], false).startsWith('{"e":')).toBe(true);
+    expect(JSON.parse(framePacket([1], [], false, 9))).toEqual({ e: [1], a: [], ack: 9 });
+    expect(framePacket([1], [], true, 9).startsWith('{"full":true')).toBe(true);
     expect(JSON.parse(framePacket([1], [{ k: "click", l: "Pay", at: 5 }], false))).toEqual({ e: [1], a: [{ k: "click", l: "Pay", at: 5 }] });
   });
 });
@@ -248,6 +250,57 @@ describe("live view recorder", () => {
       r.advance(CONTROL_FAST_MS);
       r.emit({ type: 3 });
       expect(r.timers.map((t) => t.ms)).toEqual([FLUSH_MS]);
+    });
+
+    it("echoes the control's stamp once, even when nothing on the screen changed", async () => {
+      const r = rig();
+      document.body.innerHTML = '<button id="b">Pay</button>';
+      r.mirror.getNode.mockReturnValue(document.getElementById("b"));
+      await r.live.start(true);
+      r.live.control('{"t":"click","id":3,"ts":1700000000123}');
+      r.runTimers();
+      const first = JSON.parse(r.sent[0]!);
+      expect(first.e).toEqual([]);
+      expect(first.ack).toBe(1700000000123);
+
+      // Once only: the next change carries no ack.
+      r.emit({ type: 3 });
+      r.runTimers();
+      expect(JSON.parse(r.sent[1]!)).toEqual({ e: [{ type: 3 }], a: [] });
+      expect(r.sent).toHaveLength(2);
+    });
+
+    it("sends the latest stamp when several controls come before a flush, and keeps full first", async () => {
+      const r = rig();
+      document.body.innerHTML = '<button id="b">Pay</button>';
+      r.mirror.getNode.mockReturnValue(document.getElementById("b"));
+      await r.live.start(true);
+      r.emit({ type: 2 });
+      r.live.control('{"t":"click","id":3,"ts":10}');
+      r.live.control('{"t":"click","id":3,"ts":20}');
+      r.runTimers();
+      expect(r.sent).toHaveLength(1);
+      expect(r.sent[0]!.startsWith('{"full":true')).toBe(true);
+      expect(JSON.parse(r.sent[0]!).ack).toBe(20);
+    });
+
+    it("sends no ack for a missing, wrong or ignored stamp", async () => {
+      const r = rig();
+      document.body.innerHTML = '<button id="b">Pay</button>';
+      const b = document.getElementById("b");
+      await r.live.start(true);
+      r.mirror.getNode.mockReturnValue(b);
+      r.emit({ type: 3 });
+      for (const raw of ['{"t":"click","id":3}', '{"t":"click","id":3,"ts":"x"}', '{"t":"click","id":3,"ts":-5}', '{"t":"click","id":3,"ts":1.5}']) {
+        r.live.control(raw);
+        r.runTimers();
+      }
+      expect(r.sent.every((p) => !("ack" in JSON.parse(p)))).toBe(true);
+      // A control that did nothing (unknown node) is not acked either.
+      r.mirror.getNode.mockReturnValue(null);
+      r.live.control('{"t":"click","id":9,"ts":77}');
+      r.runTimers();
+      expect(r.sent.every((p) => !p.includes('"ack":77'))).toBe(true);
     });
 
     it("does not speed up for an ignored control, and idle stays at 100 ms", async () => {

@@ -31,6 +31,16 @@ export function parseControl(raw: string): ControlMessage | null {
   return null;
 }
 
+/** The watcher's clock stamp on a control message (ts), echoed back as an ack so the page can show the delay. */
+export function parseStamp(raw: string): number | null {
+  try {
+    const ts = JSON.parse(raw)?.ts;
+    return Number.isSafeInteger(ts) && ts > 0 ? ts : null;
+  } catch {
+    return null;
+  }
+}
+
 const asElement = (node: Node | null): HTMLElement | null => {
   if (!node) return null;
   if (node.nodeType === 1) return node as HTMLElement;
