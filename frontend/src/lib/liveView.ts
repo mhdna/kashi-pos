@@ -6,6 +6,10 @@ import { reactive } from "vue";
 import { applyControl, parseControl, type NodeMirror } from "./liveViewControl";
 
 export const FLUSH_MS = 100;
+/** Right after a watcher action the till sends on the next frame, not after FLUSH_MS. */
+export const CONTROL_FLUSH_MS = 16;
+/** How long after a watcher action the quick sending lasts, to catch what the action changes. */
+export const CONTROL_FAST_MS = 600;
 /** Full snapshots are big: never ask for one more often than this. */
 export const SNAPSHOT_MIN_MS = 2000;
 export const CHECKOUT_MS = 5 * 60 * 1000;
@@ -66,6 +70,7 @@ export function createLiveView(deps: LiveViewDeps) {
   let actions: LiveAction[] = [];
   let full = false;
   let timer: unknown = null;
+  let fastUntil = 0;
   let lastSnapshot = 0;
   let generation = 0;
   let removeClicks: (() => void) | null = null;
@@ -84,7 +89,14 @@ export function createLiveView(deps: LiveViewDeps) {
   }
 
   function schedule() {
-    if (timer === null) timer = setTimer(flush, FLUSH_MS);
+    if (timer === null) timer = setTimer(flush, now() < fastUntil ? CONTROL_FLUSH_MS : FLUSH_MS);
+  }
+
+  /** A watcher just acted: send what changed on the next frame instead of waiting. */
+  function speedUp() {
+    fastUntil = now() + CONTROL_FAST_MS;
+    if (timer !== null) clearTimer(timer);
+    timer = setTimer(flush, CONTROL_FLUSH_MS);
   }
 
   function snapshot() {
@@ -139,6 +151,7 @@ export function createLiveView(deps: LiveViewDeps) {
     removeClicks = null;
     if (timer !== null) clearTimer(timer);
     timer = null;
+    fastUntil = 0;
     events = [];
     actions = [];
     full = false;
@@ -149,6 +162,7 @@ export function createLiveView(deps: LiveViewDeps) {
     const message = parseControl(raw);
     if (message && applyControl(message, rrweb.record.mirror, doc)) {
       liveViewState.controlledUntil = now() + CONTROLLED_MS;
+      speedUp();
     }
   }
 

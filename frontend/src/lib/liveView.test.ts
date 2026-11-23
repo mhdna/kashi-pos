@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CONTROLLED_MS, createLiveView, FLUSH_MS, framePacket, liveViewState, SNAPSHOT_MIN_MS, clickLabel } from "./liveView";
+import { CONTROL_FAST_MS, CONTROL_FLUSH_MS, CONTROLLED_MS, createLiveView, FLUSH_MS, framePacket, liveViewState, SNAPSHOT_MIN_MS, clickLabel } from "./liveView";
 
 function rig() {
   let clock = 1_000_000;
@@ -221,6 +221,44 @@ describe("live view recorder", () => {
       r.live.control('{"t":"click","id":3}');
       expect(onClick).toHaveBeenCalledTimes(1);
       expect(liveViewState.controlledUntil).toBe(0);
+    });
+
+    it("sends on the next frame after a control, then goes back to the normal batching", async () => {
+      const r = rig();
+      document.body.innerHTML = '<button id="b">Pay</button>';
+      r.mirror.getNode.mockReturnValue(document.getElementById("b"));
+      await r.live.start(true);
+      r.emit({ type: 2 });
+      expect(r.timers.map((t) => t.ms)).toEqual([FLUSH_MS]);
+
+      r.live.control('{"t":"click","id":3}');
+      // The waiting 100 ms timer is replaced by one frame.
+      expect(r.timers.map((t) => t.ms)).toEqual([CONTROL_FLUSH_MS]);
+
+      r.runTimers();
+      expect(r.sent).toHaveLength(1);
+
+      // What the click changes arrives shortly after: still quick.
+      r.advance(CONTROL_FAST_MS - 1);
+      r.emit({ type: 3 });
+      expect(r.timers.map((t) => t.ms)).toEqual([CONTROL_FLUSH_MS]);
+      r.runTimers();
+
+      // Window over: back to 100 ms.
+      r.advance(CONTROL_FAST_MS);
+      r.emit({ type: 3 });
+      expect(r.timers.map((t) => t.ms)).toEqual([FLUSH_MS]);
+    });
+
+    it("does not speed up for an ignored control, and idle stays at 100 ms", async () => {
+      const r = rig();
+      r.mirror.getNode.mockReturnValue(null);
+      await r.live.start(true);
+      r.live.control('{"t":"click","id":9}');
+      r.live.control("junk");
+      expect(r.timers).toHaveLength(0);
+      r.emit({ type: 3 });
+      expect(r.timers.map((t) => t.ms)).toEqual([FLUSH_MS]);
     });
 
     it("ignores junk, unknown nodes, and anything while stopped", async () => {
