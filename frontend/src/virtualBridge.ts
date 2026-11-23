@@ -92,11 +92,14 @@ export function installVirtualBridge(win: any): VirtualBridge {
   Object.defineProperty(win, "runtime", { value: runtimeProxy(parent.runtime, cancels), configurable: true, writable: true });
   Object.defineProperty(win, "localStorage", { value: prefixedStorage(win.localStorage), configurable: true });
   Object.defineProperty(win, "sessionStorage", { value: prefixedStorage(win.sessionStorage), configurable: true });
-  return {
+  const bridge: VirtualBridge = {
     teardown() {
       for (const c of cancels.splice(0)) c();
     },
   };
+  // The till's window calls this before it removes the frame.
+  Object.defineProperty(win, "__virtualTeardown", { value: bridge.teardown, configurable: true });
+  return bridge;
 }
 
 export const isVirtual = detectVirtual(window);

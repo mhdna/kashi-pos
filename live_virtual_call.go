@@ -42,6 +42,8 @@ var deniedOnVirtual = []string{
 	"SwitchBranch", "CreateBranch", "SetDefaultBranch",
 	"RestartApp", "RestartComputer",
 	"StartCashMachineSetup", "InstallAppUpdate",
+	// The separate screen's cart is not the till's sale.
+	"ReportLiveCart", "GetLiveCartOverrides",
 }
 
 var deniedVirtualPrefixes = []string{"LiveView", "LiveVirtual"}
