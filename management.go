@@ -238,6 +238,12 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 // command goes through replaceShiftBalance, since central checks its own
 // user's permission before queuing it.
 func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) error {
+	return a.replaceShiftBalanceAs(a.cashierCaller(), shiftID, fromCashboxID, toCashboxID, amountCents, allowNegative)
+}
+
+// replaceShiftBalanceAs is ReplaceShiftBalance for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) replaceShiftBalanceAs(c caller, shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -245,7 +251,7 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 	if err != nil {
 		return err
 	}
-	if err := a.checkNegativeTransferAllowed(check); err != nil {
+	if err := a.checkNegativeTransferAllowed(c, check); err != nil {
 		return err
 	}
 	return a.writeShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, check)
@@ -264,8 +270,8 @@ func (a *App) replaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 // checkNegativeTransferAllowed refuses a non-admin a transfer that leaves
 // the source balance below zero. A transfer that keeps the source at or
 // above zero is no different from an ordinary swap, so anyone may do it.
-func (a *App) checkNegativeTransferAllowed(check shiftBalanceReplacementCheck) error {
-	if check.SourceRemainingCents < 0 && !a.currentUserIsAdmin() {
+func (a *App) checkNegativeTransferAllowed(c caller, check shiftBalanceReplacementCheck) error {
+	if check.SourceRemainingCents < 0 && !c.admin {
 		return fmt.Errorf("only an admin can take a balance below zero")
 	}
 	return nil
@@ -296,12 +302,18 @@ type ShiftBalanceReplacementPreview struct {
 // applying it. A validation failure is returned as Valid=false with a
 // Reason, not a Go error, so the frontend can show it inline.
 func (a *App) PreviewShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) (ShiftBalanceReplacementPreview, error) {
+	return a.previewShiftBalanceReplacementAs(a.cashierCaller(), shiftID, fromCashboxID, toCashboxID, amountCents, allowNegative)
+}
+
+// previewShiftBalanceReplacementAs is PreviewShiftBalanceReplacement for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) previewShiftBalanceReplacementAs(c caller, shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) (ShiftBalanceReplacementPreview, error) {
 	if a.store == nil {
 		return ShiftBalanceReplacementPreview{}, fmt.Errorf("database not initialized")
 	}
 	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents, allowNegative)
 	if err == nil {
-		err = a.checkNegativeTransferAllowed(check)
+		err = a.checkNegativeTransferAllowed(c, check)
 	}
 	if err != nil {
 		return ShiftBalanceReplacementPreview{Reason: err.Error()}, nil

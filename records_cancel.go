@@ -25,10 +25,16 @@ const (
 // CancelExpense cancels one of this till's expenses and tells central. Admin
 // only, like CancelInvoice.
 func (a *App) CancelExpense(id int64) error {
+	return a.cancelExpenseAs(a.cashierCaller(), id)
+}
+
+// cancelExpenseAs is CancelExpense for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) cancelExpenseAs(c caller, id int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	if !a.currentUserIsAdmin() {
+	if !c.admin {
 		return fmt.Errorf("only an admin can cancel an expense")
 	}
 	expense, err := a.store.GetExpense(a.ctx, id)
@@ -40,10 +46,16 @@ func (a *App) CancelExpense(id int64) error {
 
 // CancelLoan is CancelExpense's counterpart for loans.
 func (a *App) CancelLoan(id int64) error {
+	return a.cancelLoanAs(a.cashierCaller(), id)
+}
+
+// cancelLoanAs is CancelLoan for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) cancelLoanAs(c caller, id int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	if !a.currentUserIsAdmin() {
+	if !c.admin {
 		return fmt.Errorf("only an admin can cancel a loan")
 	}
 	loan, err := a.store.GetLoan(a.ctx, id)

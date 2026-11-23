@@ -40,10 +40,16 @@ func formatHistoryTime(t time.Time) string {
 // identity) and resolveHistoricalProduct (line items with no barcode/uid
 // ever recorded) for the two known, disclosed limitations.
 func (a *App) PullBranchHistory() (map[string]interface{}, error) {
+	return a.pullBranchHistoryAs(a.cashierCaller())
+}
+
+// pullBranchHistoryAs is PullBranchHistory for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) pullBranchHistoryAs(c caller) (map[string]interface{}, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	if !a.currentUserIsAdmin() {
+	if !c.admin {
 		return nil, fmt.Errorf("only an admin can import branch history")
 	}
 

@@ -64,10 +64,16 @@ type ConversionReport struct {
 // ("YYYY-MM-DD", inclusive). An admin's range is used as given; anyone else
 // must pass the manager password and gets the current month to date.
 func (a *App) GetConversionReport(from, to, managerPassword string) (*ConversionReport, error) {
+	return a.getConversionReportAs(a.cashierCaller(), from, to, managerPassword)
+}
+
+// getConversionReportAs is GetConversionReport for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) getConversionReportAs(c caller, from, to, managerPassword string) (*ConversionReport, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	monthOnly := !a.currentUserIsAdmin()
+	monthOnly := !c.admin
 	if monthOnly {
 		if err := a.verifyManagerPassword(managerPassword); err != nil {
 			return nil, err

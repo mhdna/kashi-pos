@@ -439,13 +439,19 @@ var quickAccessColorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 // quick-access card ("" = default background / automatic text colour). Only
 // reachable from Settings, so it's admin-only.
 func (a *App) SetQuickAccessColor(productID int64, color string, textColor string) error {
+	return a.setQuickAccessColorAs(a.cashierCaller(), productID, color, textColor)
+}
+
+// setQuickAccessColorAs is SetQuickAccessColor for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) setQuickAccessColorAs(c caller, productID int64, color string, textColor string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
 	if a.quickAccessManagedInKashi() {
 		return errQuickAccessManagedInKashi
 	}
-	if !a.currentUserIsAdmin() {
+	if !c.admin {
 		return fmt.Errorf("only an admin can change quick-access colors")
 	}
 	if productID <= 0 {

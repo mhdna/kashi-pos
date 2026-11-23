@@ -76,6 +76,12 @@ type App struct {
 	// currentUserIsAdmin for server-side gating of admin-only actions
 	// (branch management) that previously relied on the frontend alone.
 	currentRole string
+	// virtual is the separate screen's own sign-in (live_virtual_call.go),
+	// guarded by pinMu. It never touches currentRole or the lockout above.
+	virtual virtualAuth
+	// virtualTableCache is the separate screen's method table, built once.
+	virtualTableMu    sync.Mutex
+	virtualTableCache map[string]virtualEntry
 
 	syncWorkerStop chan struct{}
 	// syncWorkerKick lets a checkout wake the sync worker immediately after
@@ -671,6 +677,22 @@ func (a *App) currentUserIsAdmin() bool {
 	a.pinMu.Lock()
 	defer a.pinMu.Unlock()
 	return a.currentRole == "admin"
+}
+
+// caller says who is acting, so a gate never reads a shared "current user"
+// that the other screen could change in the middle of a call. The cashier's
+// own calls use cashierCaller; the separate screen's use virtualCaller
+// (live_virtual_call.go).
+type caller struct {
+	admin    bool
+	signedIn bool
+}
+
+// cashierCaller is the till screen's own sign-in, read in one step.
+func (a *App) cashierCaller() caller {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+	return caller{admin: a.currentRole == "admin", signedIn: a.currentRole != ""}
 }
 
 // anyoneSignedInThisSession reports whether the login screen has been

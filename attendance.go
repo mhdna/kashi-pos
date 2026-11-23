@@ -650,7 +650,13 @@ func (a *App) verifyManagerPassword(password string) error {
 // VerifyManagerPassword lets the frontend open a manager-only page (Expenses,
 // Loans) after asking for the manager password. The admin is let straight in.
 func (a *App) VerifyManagerPassword(password string) error {
-	if a.currentUserIsAdmin() {
+	return a.verifyManagerPasswordAs(a.cashierCaller(), password)
+}
+
+// verifyManagerPasswordAs is VerifyManagerPassword for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) verifyManagerPasswordAs(c caller, password string) error {
+	if c.admin {
 		return nil
 	}
 	return a.verifyManagerPassword(password)
