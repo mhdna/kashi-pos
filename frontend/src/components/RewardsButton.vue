@@ -1,11 +1,11 @@
 <template>
   <div v-if="visible" class="rewards-pair">
   <div class="header-btn-wrap">
-    <div class="header-btn-subtitle">Sales</div>
+    <div class="header-btn-subtitle">{{ t("Sales") }}</div>
     <k-btn
       size="small"
       variant="text"
-      aria-label="Sales"
+      :aria-label="t('Sales')"
       class="rewards-btn"
       :class="{ 'rewards-on': activeCount > 0 }"
       data-test="rewards-open"
@@ -18,11 +18,11 @@
   <!-- The referral code has its own button beside Rewards: it opens the code
        straight away, without going through the Rewards dialog. -->
   <div v-if="referralEnabled" class="header-btn-wrap">
-    <div class="header-btn-subtitle">Referral</div>
+    <div class="header-btn-subtitle">{{ t("Referral") }}</div>
     <k-btn
       size="small"
       variant="text"
-      aria-label="Referral code"
+      :aria-label="t('Referral code')"
       class="rewards-btn"
       :class="{ 'rewards-on': Boolean(modelValue) }"
       data-test="referral-open"
@@ -34,9 +34,9 @@
   </div>
     <k-dialog v-model="dialog" max-width="780">
       <k-card>
-        <k-card-title>Sales</k-card-title>
+        <k-card-title>{{ t("Sales") }}</k-card-title>
         <k-card-text class="rewards-body">
-          <div v-if="pickable.length" class="rewards-heading">Choose</div>
+          <div v-if="pickable.length" class="rewards-heading">{{ t("Choose") }}</div>
           <div v-if="pickable.length" class="rewards-grid" data-test="rewards-pick-grid">
             <button
               v-for="d in pickable"
@@ -92,21 +92,21 @@
         </k-card-text>
         <k-card-actions class="pa-4">
           <k-spacer />
-          <k-btn color="primary" variant="elevated" data-test="rewards-done" @click="dialog = false">Done</k-btn>
+          <k-btn color="primary" variant="elevated" data-test="rewards-done" @click="dialog = false">{{ t("Done") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
     <k-dialog v-model="codeDialog" max-width="560">
       <k-card>
-        <k-card-title>Referral code</k-card-title>
+        <k-card-title>{{ t("Referral code") }}</k-card-title>
         <k-card-text>
           <div v-if="modelValue" class="reward-referral-current" data-test="referral-current">
             <div>
               <div class="reward-line">{{ modelValue }}</div>
-              <div class="rewards-explain">{{ ownerName ? `Sent by ${ownerName}` : "Added to this sale" }}</div>
-              <div v-if="friendPercent > 0" class="rewards-explain text-error" data-test="referral-friend-off">{{ friendPercent }}% off this sale</div>
+              <div class="rewards-explain">{{ ownerName ? t("Sent by {name}", { name: ownerName }) : t("Added to this sale") }}</div>
+              <div v-if="friendPercent > 0" class="rewards-explain text-error" data-test="referral-friend-off">{{ t("{percent}% off this sale", { percent: friendPercent }) }}</div>
             </div>
-            <k-btn variant="text" color="error" data-test="referral-remove" @click="removeCode">Remove</k-btn>
+            <k-btn variant="text" color="error" data-test="referral-remove" @click="removeCode">{{ t("Remove") }}</k-btn>
           </div>
           <template v-else>
             <div class="d-flex align-center ga-2">
@@ -115,12 +115,12 @@
                 autofocus
                 class="flex-grow-1"
                 hide-details
-                placeholder="Code"
+                :placeholder="t('Code')"
                 variant="outlined"
                 data-test="referral-input"
                 @keydown.enter="check"
               />
-              <k-btn color="primary" variant="elevated" :loading="checking" :disabled="draft.length < referralCodeLength" data-test="referral-add" @click="check">Send reward</k-btn>
+              <k-btn color="primary" variant="elevated" :loading="checking" :disabled="draft.length < referralCodeLength" data-test="referral-add" @click="check">{{ t("Send reward") }}</k-btn>
             </div>
             <div v-if="message" class="rewards-message" :class="messageError ? 'text-error' : ''" data-test="referral-message">
               {{ message }}
@@ -130,7 +130,7 @@
         </k-card-text>
         <k-card-actions class="pa-4">
           <k-spacer />
-          <k-btn variant="text" data-test="referral-close" @click="codeDialog = false">Close</k-btn>
+          <k-btn variant="text" data-test="referral-close" @click="codeDialog = false">{{ t("Close") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -140,6 +140,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import { t } from "@/i18n";
 import { CheckReferralCode, GetReferralInfo, ListRewardDeals } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { normalizeReferralCode, referralCodeHint, referralCodeInput, referralCodeLength } from "@/lib/referralCode";

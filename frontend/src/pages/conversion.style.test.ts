@@ -13,7 +13,7 @@ const nav = read("../components/NavDrawer.vue");
 describe("manager password screens", () => {
   it("the Stats page unlock is the centred Manager password form, no lock", () => {
     const block = page.slice(page.indexOf('<div v-if="!unlocked"'), page.indexOf('<template v-else-if="report">'));
-    expect(block).toMatch(/<h2 class="unlock-title">Manager password<\/h2>/);
+    expect(block).toMatch(/<h2 class="unlock-title">\{\{ t\("Manager password"\) \}\}<\/h2>/);
     expect(block).not.toMatch(/mdi-lock|unlock-badge/);
     expect(page).toMatch(/\.unlock-card \{[^}]*text-align: center/);
   });
@@ -27,7 +27,7 @@ describe("manager password screens", () => {
 
 describe("nav", () => {
   it("names the conversion page Stats, with a chart icon", () => {
-    expect(nav).toMatch(/to: "\/conversion",\s*icon: "mdi-chart-bar",\s*t: "Stats",/);
+    expect(nav).toMatch(/to: "\/conversion",\s*icon: "mdi-chart-bar",\s*t: t\("Stats"\),/);
     expect(nav).not.toMatch(/t: "Conversion"/);
   });
 });
@@ -51,7 +51,7 @@ describe("day table header", () => {
 describe("headline wording", () => {
   it("is short: Buy rate, then sales and visitors", () => {
     expect(page).not.toMatch(/of every 100 visitors buy/);
-    expect(page).toMatch(/>\s*Buy rate\s*<\/div>/);
+    expect(page).toMatch(/<div class="day__rate">\{\{ t\("Buy rate"\) \}\}<\/div>/);
   });
 });
 

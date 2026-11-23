@@ -20,7 +20,7 @@
     </div>
     <div v-if="open" class="quick-access__body" :style="{ height: `${bodyHeight}px` }">
       <div v-if="!items.length" class="text-caption text-medium-emphasis text-center pa-2">
-        {{ managedByKashi ? "No Quick Access cards set in central for this branch yet." : "Add frequently used items here." }}
+        {{ managedByKashi ? t("No Quick Access cards set in central for this branch yet.") : t("Add frequently used items here.") }}
       </div>
       <div ref="itemsEl" class="quick-access__items" :class="{ 'quick-access__items--dragging': dragIndex !== null }">
         <k-card
@@ -53,7 +53,7 @@
               <div v-if="quickAccessShowName" class="quick-access__name text-caption font-weight-medium text-truncate">{{ item.name }}</div>
               <div class="quick-access__price text-caption">
                 <template v-if="item.priced !== false">${{ Number(item.price).toFixed(2) }}</template>
-                <template v-else>No price</template>
+                <template v-else>{{ t("No price") }}</template>
               </div>
             </div>
           </div>
@@ -63,7 +63,7 @@
             size="x-small"
             variant="text"
             class="quick-access__remove"
-            title="Remove item"
+            :title="t('Remove item')"
             @click.stop.prevent="removePinnedItem(item.code)"
           >
             <k-icon icon="mdi-close" size="14" />
@@ -75,14 +75,14 @@
 
   <k-dialog v-model="removeDialog" max-width="360">
     <k-card>
-      <k-card-title>Remove quick-access item?</k-card-title>
+      <k-card-title>{{ t("Remove quick-access item?") }}</k-card-title>
       <k-card-text
-        >Remove <strong>{{ removalName }}</strong> from quick access?</k-card-text
+        >{{ t("Remove") }} <strong>{{ removalName }}</strong> {{ t("from quick access?") }}</k-card-text
       >
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="removeDialog = false">Cancel</k-btn>
-        <k-btn color="error" variant="flat" @click="confirmRemoval">Remove</k-btn>
+        <k-btn variant="text" @click="removeDialog = false">{{ t("Cancel") }}</k-btn>
+        <k-btn color="error" variant="flat" @click="confirmRemoval">{{ t("Remove") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -99,6 +99,7 @@ import {
   quickAccessFontScale,
 } from "@/lib/display";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import { t } from "@/i18n";
 import {
   AddQuickAccessProduct,
   GetProductByCode,

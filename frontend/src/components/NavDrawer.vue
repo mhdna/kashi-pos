@@ -18,7 +18,7 @@
               <span
                 v-if="item.status"
                 :class="['nav-status-dot', `nav-status-dot--${item.status}`]"
-                :aria-label="item.status === 'down' ? 'Disconnected' : 'Connected'"
+                :aria-label="item.status === 'down' ? t('Disconnected') : t('Connected')"
               />
             </span>
             <span class="nav-item-label text-center mt-1">{{ item.t }}</span>
@@ -26,13 +26,13 @@
         </k-list-item>
       </div>
 
-      <div v-if="visitorCounterEnabled" class="visitor-counter" aria-label="People visits today">
+      <div v-if="visitorCounterEnabled" class="visitor-counter" :aria-label="t('People visits today')">
         <k-btn
           class="visitor-counter-btn"
           icon
           variant="flat"
           rounded="lg"
-          aria-label="Increase visitor count"
+          :aria-label="t('Increase visitor count')"
           @click="adjustVisitors(1)"
         >
           <k-icon icon="mdi-chevron-up" size="32" />
@@ -44,7 +44,7 @@
           icon
           variant="flat"
           rounded="lg"
-          aria-label="Decrease visitor count"
+          :aria-label="t('Decrease visitor count')"
           @click="adjustVisitors(-1)"
         >
           <k-icon icon="mdi-chevron-down" size="32" />
@@ -53,7 +53,7 @@
 
       <SyncIndicator />
 
-      <div class="device-panel" role="button" aria-label="Devices" @click="devicesOpen = true">
+      <div class="device-panel" role="button" :aria-label="t('Devices')" @click="devicesOpen = true">
         <div class="device-status">
           <!-- Internet and the live link to central, with the devices. -->
           <ConnectionIcons />
@@ -76,7 +76,7 @@
       >
         <div class="nav-item-content">
           <k-icon icon="mdi-logout" size="24" />
-          <span class="nav-item-label text-center mt-1">Quit</span>
+          <span class="nav-item-label text-center mt-1">{{ t("Quit") }}</span>
         </div>
       </k-list-item>
     </k-list>
@@ -88,7 +88,7 @@
         <k-btn
           icon="mdi-close"
           variant="text"
-          aria-label="Close out menu"
+          :aria-label="t('Close out menu')"
           @click="optionsOpen = false"
         />
       </div>
@@ -125,43 +125,43 @@
 
   <k-dialog v-model="reloadAppConfirmOpen" max-width="360">
     <k-card class="options-dialog-card" data-test="reload-app-dialog">
-      <k-card-title>Reload app</k-card-title>
+      <k-card-title>{{ t("Reload app") }}</k-card-title>
       <k-card-text>
-        Reload the app? It closes and opens again in a few seconds.
+        {{ t("Reload the app? It closes and opens again in a few seconds.") }}
         <div v-if="reloadAppError" class="text-error mt-2" data-test="reload-app-error">{{ reloadAppError }}</div>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="reloadAppConfirmOpen = false">Cancel</k-btn>
-        <k-btn color="primary" variant="flat" data-test="reload-app-confirm" @click="confirmReloadApp">Reload</k-btn>
+        <k-btn variant="text" @click="reloadAppConfirmOpen = false">{{ t("Cancel") }}</k-btn>
+        <k-btn color="primary" variant="flat" data-test="reload-app-confirm" @click="confirmReloadApp">{{ t("Reload") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
 
   <k-dialog v-model="closeAppConfirmOpen" max-width="360">
     <k-card class="options-dialog-card">
-      <k-card-title>Close app</k-card-title>
-      <k-card-text>Close the app and go to Windows?</k-card-text>
+      <k-card-title>{{ t("Close app") }}</k-card-title>
+      <k-card-text>{{ t("Close the app and go to Windows?") }}</k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="closeAppConfirmOpen = false">Cancel</k-btn>
-        <k-btn color="error" variant="flat" @click="confirmCloseApp">Close App</k-btn>
+        <k-btn variant="text" @click="closeAppConfirmOpen = false">{{ t("Cancel") }}</k-btn>
+        <k-btn color="error" variant="flat" @click="confirmCloseApp">{{ t("Close app") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
 
   <k-dialog :model-value="powerConfirm !== null" max-width="360" @update:model-value="powerConfirm = null">
     <k-card class="options-dialog-card">
-      <k-card-title>{{ powerConfirm === 'restart' ? 'Restart PC' : 'Shut down PC' }}</k-card-title>
+      <k-card-title>{{ powerConfirm === 'restart' ? t('Restart PC') : t('Shut down PC') }}</k-card-title>
       <k-card-text>
-        {{ powerConfirm === 'restart' ? 'Restart this computer now?' : 'Turn this computer off now?' }}
+        {{ powerConfirm === 'restart' ? t('Restart this computer now?') : t('Turn this computer off now?') }}
         <div v-if="powerError" class="text-error mt-2">{{ powerError }}</div>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="powerConfirm = null">Cancel</k-btn>
+        <k-btn variant="text" @click="powerConfirm = null">{{ t("Cancel") }}</k-btn>
         <k-btn color="error" variant="flat" @click="confirmPower">
-          {{ powerConfirm === 'restart' ? 'Restart PC' : 'Shut Down PC' }}
+          {{ powerConfirm === 'restart' ? t('Restart PC') : t('Shut Down PC') }}
         </k-btn>
       </k-card-actions>
     </k-card>
@@ -170,6 +170,7 @@
 </template>
 
 <script setup lang="ts">
+import { t } from "@/i18n";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
@@ -274,40 +275,40 @@ function openCloseShift() {
 
 const items = computed(() => {
   const all = [
-    { value: "invoice", to: "/home", icon: "mdi-cash-register", t: "Invoice" },
+    { value: "invoice", to: "/home", icon: "mdi-cash-register", t: t("Invoice") },
     {
       value: "invoices-list",
       to: "/invoices-list",
       icon: "mdi-format-list-bulleted-square",
-      t: "Invoices",
+      t: t("Invoices"),
     },
-    { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance" },
+    { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: t("Balance") },
     {
       value: "clients",
       to: "/clients",
       icon: "mdi-account-multiple",
-      t: "Clients",
+      t: t("Clients"),
       locked: !auth.isAdmin && !pageUnlocks.value.clients,
     },
     {
       value: "inventory",
       to: "/inventory",
       icon: "mdi-package-variant-closed",
-      t: "Inventory",
+      t: t("Inventory"),
       locked: !auth.isAdmin && !pageUnlocks.value.inventory,
     },
     {
       value: "products",
       to: "/products",
       icon: "mdi-tag-multiple-outline",
-      t: "Products",
+      t: t("Products"),
       locked: !auth.isAdmin && !pageUnlocks.value.products,
     },
     {
       value: "salespersons",
       to: "/salespersons",
       icon: "mdi-chart-bar",
-      t: "Sales",
+      t: t("Sales"),
       locked: !auth.isAdmin && !pageUnlocks.value.salespersons,
     },
     // Sales per visitor, so only while visitors are being counted (admins
@@ -316,25 +317,25 @@ const items = computed(() => {
       value: "conversion",
       to: "/conversion",
       icon: "mdi-chart-bar",
-      t: "Stats",
+      t: t("Stats"),
       locked: !auth.isAdmin && !visitorCounterEnabled.value,
     },
     {
       value: "transfers",
       to: "/transfers",
       icon: "mdi-truck",
-      t: "Transfers",
+      t: t("Transfers"),
       locked: !auth.isAdmin && !pageUnlocks.value.transfers,
     },
     {
       value: "attendance",
       to: "/attendance",
       icon: "mdi-account-clock",
-      t: "Attend",
+      t: t("Attend"),
       locked: !auth.isAdmin && !pageUnlocks.value.attendance,
       status: attendanceStatus.value.reachable ? "up" : "down",
     },
-    { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
+    { value: "settings", to: "/settings", icon: "mdi-cog", t: t("Settings") },
   ];
   return all.filter((item) => (item.value !== "settings" || auth.isAdmin) && !item.locked);
 });

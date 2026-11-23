@@ -49,7 +49,7 @@
                   icon="mdi-star"
                   color="amber-darken-2"
                   size="12"
-                  :title="group.first.priceListName ? `Price from list: ${group.first.priceListName}` : 'List price'"
+                  :title="group.first.priceListName ? t('Price from list: {name}', { name: group.first.priceListName }) : t('List price')"
                 />
               </span>
             </span>
@@ -110,7 +110,7 @@
                     icon="mdi-star"
                     color="amber-darken-2"
                     size="12"
-                    :title="group.first.priceListName ? `Price from list: ${group.first.priceListName}` : 'List price'"
+                    :title="group.first.priceListName ? t('Price from list: {name}', { name: group.first.priceListName }) : t('List price')"
                   />
                 </span>
               </template>
@@ -121,7 +121,7 @@
     </k-virtual-scroll>
     <div v-if="loadError" class="product-list-status product-list-status-error">
       <span class="product-error-message text-error">{{ loadErrorMessage }}</span>
-      <k-btn size="small" variant="text" @click="loadMore">Retry</k-btn>
+      <k-btn size="small" variant="text" @click="loadMore">{{ t("Retry") }}</k-btn>
     </div>
     <div v-else class="product-list-status text-medium-emphasis">
       <k-progress-circular
@@ -152,6 +152,7 @@ import { matchParts } from "@/lib/highlight";
 import { groupProducts, priceLabel, type ProductGroup } from "@/lib/productGroups";
 import ColorSwatch from "./ColorSwatch.vue";
 import VariantPicker from "./VariantPicker.vue";
+import { t } from "@/i18n";
 
 // The products search's results: a list, or columns of tiles, paged in as
 // they're scrolled to. Shown in the search dialog and, in the sale screen's
@@ -240,11 +241,11 @@ const groups = computed(() => groupProducts(products.value));
 
 // Counted in products (codes), as they show, not variants.
 const countLabel = computed(() => {
-  if (total.value === 0) return "No products found";
-  if (total.value < 0) return loading.value ? "Loading…" : "";
-  const noun = total.value === 1 ? "product" : "products";
-  if (!hasMore.value) return `${total.value} ${noun} · all loaded`;
-  return `${total.value} ${noun} · ${groups.value.length} loaded`;
+  if (total.value === 0) return t("No products found");
+  if (total.value < 0) return loading.value ? t("Loading…") : "";
+  const noun = total.value === 1 ? t("product") : t("products");
+  if (!hasMore.value) return t("{total} {noun} · all loaded", { total: total.value, noun });
+  return t("{total} {noun} · {loaded} loaded", { total: total.value, noun, loaded: groups.value.length });
 });
 
 function resetList() {

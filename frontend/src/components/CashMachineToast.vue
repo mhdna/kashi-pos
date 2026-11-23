@@ -4,10 +4,14 @@
       <k-icon :icon="result.failed ? 'mdi-alert-circle' : 'mdi-check-circle'" :color="result.failed ? 'warning' : 'success'" size="32" />
       <div>
         <div class="cash-machine-toast__title">
-          {{ result.failed ? "Cash machine set up, with problems" : "This till is now a cash machine" }}
+          {{ result.failed ? t("Cash machine set up, with problems") : t("This till is now a cash machine") }}
         </div>
         <div class="cash-machine-toast__detail">
-          {{ result.done }} of {{ result.total }} steps done{{ result.failed ? " · see Settings → Cash machine" : "" }}
+          {{
+            result.failed
+              ? t("{done} of {total} steps done, see Settings → Cash machine", { done: result.done, total: result.total })
+              : t("{done} of {total} steps done", { done: result.done, total: result.total })
+          }}
         </div>
       </div>
     </div>
@@ -18,6 +22,7 @@
 import { onUnmounted, ref } from "vue";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import type { main } from "../../wailsjs/go/models";
+import { t } from "@/i18n";
 
 // "Make this a cash machine" runs in the background for minutes
 // (cash_machine.go), so its result is announced here, on whatever page is

@@ -2,13 +2,13 @@
   <div class="events-page">
     <div class="events-head">
       <k-icon icon="mdi-calendar-month" size="30" color="primary" />
-      <h1>Events</h1>
+      <h1>{{ t("Events") }}</h1>
     </div>
 
     <div class="events-body">
       <section class="upcoming">
-        <h2>Coming up</h2>
-        <div v-if="!upcoming.length" class="text-medium-emphasis">Nothing in the next {{ UPCOMING_DAYS }} days.</div>
+        <h2>{{ t("Coming up") }}</h2>
+        <div v-if="!upcoming.length" class="text-medium-emphasis">{{ t("Nothing in the next {days} days.", { days: UPCOMING_DAYS }) }}</div>
         <div v-for="e in upcoming" :key="e.key" class="upcoming-row">
           <span class="upcoming-icon"><k-icon :icon="e.icon" :color="e.color" size="24" /></span>
           <div class="upcoming-text">
@@ -21,17 +21,17 @@
 
       <section class="month">
         <div class="month-nav">
-          <k-btn icon="mdi-chevron-left" variant="text" aria-label="Previous month" @click="shiftMonth(-1)" />
+          <k-btn icon="mdi-chevron-left" variant="text" :aria-label="t('Previous month')" @click="shiftMonth(-1)" />
           <div class="month-title">{{ monthTitle }}</div>
-          <k-btn icon="mdi-chevron-right" variant="text" aria-label="Next month" @click="shiftMonth(1)" />
-          <k-btn class="today-btn" variant="tonal" prepend-icon="mdi-calendar-today" @click="goToday">Today</k-btn>
+          <k-btn icon="mdi-chevron-right" variant="text" :aria-label="t('Next month')" @click="shiftMonth(1)" />
+          <k-btn class="today-btn" variant="tonal" prepend-icon="mdi-calendar-today" @click="goToday">{{ t("Today") }}</k-btn>
         </div>
         <div class="grid">
           <div v-for="w in weekdays" :key="w" class="grid-head">{{ w }}</div>
           <div v-for="cell in cells" :key="cell.iso" class="cell" :class="{ outside: !cell.inMonth, today: cell.isToday }">
             <div class="cell-num">{{ cell.day }}</div>
             <div v-for="e in cell.events.slice(0, 3)" :key="e.key" class="cell-event" dir="auto" :style="chipStyle(e)" :title="e.name">{{ e.name }}</div>
-            <div v-if="cell.events.length > 3" class="cell-more">+{{ cell.events.length - 3 }} more</div>
+            <div v-if="cell.events.length > 3" class="cell-more">{{ t("+{n} more", { n: cell.events.length - 3 }) }}</div>
           </div>
         </div>
       </section>
@@ -51,6 +51,7 @@ import {
   type SyncedEvent,
 } from "@/lib/retailCalendar";
 import { onColor, resolveColor } from "@/ui/colors";
+import { t } from "@/i18n";
 
 const UPCOMING_DAYS = 120;
 const MS_DAY = 86_400_000;
@@ -77,15 +78,15 @@ const upcoming = computed(() =>
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 function rangeLabel(e: CalendarEvent) {
   const sameDay = startOfDay(e.start).getTime() === startOfDay(e.end).getTime();
-  return sameDay ? fmt(e.start) : `${fmt(e.start)} to ${fmt(e.end)}`;
+  return sameDay ? fmt(e.start) : t("{from} to {to}", { from: fmt(e.start), to: fmt(e.end) });
 }
 function whenLabel(e: CalendarEvent) {
-  if (e.start <= today.value) return "Now";
+  if (e.start <= today.value) return t("Now");
   const days = Math.round((startOfDay(e.start).getTime() - today.value.getTime()) / MS_DAY);
-  return days === 1 ? "Tomorrow" : `In ${days} days`;
+  return days === 1 ? t("Tomorrow") : t("In {days} days", { days });
 }
 
-const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const weekdays = computed(() => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => t(d)));
 const monthTitle = computed(() => month.value.toLocaleDateString(undefined, { month: "long", year: "numeric" }));
 
 const cells = computed(() => {

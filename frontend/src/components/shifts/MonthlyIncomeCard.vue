@@ -2,7 +2,7 @@
   <k-sheet class="monthly-income-card shifts-card pa-3" style="flex: 2; min-width: 0">
     <div class="monthly-income-title d-flex align-center">
       <k-card-title class="text-body-1 font-weight-bold px-0">
-        Monthly Shift Income ({{ month }})
+        {{ t("Monthly Shift Income ({month})", { month }) }}
       </k-card-title>
       <k-btn
         v-if="canChangeMonth"
@@ -12,7 +12,7 @@
         size="small"
         class="ms-1"
         :disabled="loading"
-        aria-label="Previous month"
+        :aria-label="t('Previous month')"
         @click="$emit('prev-month')"
       />
       <k-btn
@@ -22,7 +22,7 @@
         density="compact"
         size="small"
         :disabled="loading || atCurrentMonth"
-        aria-label="Next month"
+        :aria-label="t('Next month')"
         @click="$emit('next-month')"
       />
       <k-spacer />
@@ -45,9 +45,9 @@
       data-test="income-header"
     >
       <span />
-      <span>Day</span>
-      <span v-if="showVisitors" class="mi-visitors-head">Visitors</span>
-      <span class="mi-total-head">Total</span>
+      <span>{{ t("Day") }}</span>
+      <span v-if="showVisitors" class="mi-visitors-head">{{ t("Visitors") }}</span>
+      <span class="mi-total-head">{{ t("Total") }}</span>
     </div>
     <k-progress-linear v-if="loading" indeterminate />
     <div ref="monthlyIncomeScroll" v-else class="monthly-income-scroll">
@@ -69,7 +69,7 @@
             density="compact"
             size="small"
             :icon="expandedDays.includes(item.day) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-            :aria-label="`${expandedDays.includes(item.day) ? 'Collapse' : 'Expand'} ${item.day}`"
+            :aria-label="expandedDays.includes(item.day) ? t('Collapse {day}', { day: item.day }) : t('Expand {day}', { day: item.day })"
             @click.stop="$emit('toggle-day', item.day)"
           />
           <span class="mi-day">
@@ -89,7 +89,7 @@
         </div>
         <div v-if="expandedDays.includes(item.day)" class="pa-0">
           <div v-if="!item.shifts.length" class="pa-3 text-caption text-medium-emphasis" data-test="day-empty">
-            No data found for this day.
+            {{ t("No data found for this day.") }}
           </div>
           <template v-else>
             <div v-for="shift in item.shifts" :key="shift.id">
@@ -101,7 +101,7 @@
                   class="text-caption font-weight-medium me-2"
                   :class="shift.isClosed ? 'text-medium-emphasis' : 'text-green-darken-2'"
                   data-test="shift-state"
-                  >{{ shift.isClosed ? "Closed" : "Open" }}</span
+                  >{{ shift.isClosed ? t("Closed") : t("Open") }}</span
                 >
                 <span class="text-caption me-2">#{{ shift.id }}</span>
                 <span class="text-caption me-2">{{ formatServerDateTime(shift.createdAt) }}</span>
@@ -123,8 +123,8 @@
                   variant="text"
                   density="compact"
                   size="small"
-                  title="Print end-of-shift receipt"
-                  aria-label="Print end-of-shift receipt"
+                  :title="t('Print end-of-shift receipt')"
+                  :aria-label="t('Print end-of-shift receipt')"
                   :loading="printingShiftId === shift.id"
                   @click.stop="$emit('print-shift', shift.id)"
                 />
@@ -135,22 +135,22 @@
               </div>
               <div v-if="shiftExpanded.has(shift.id)" class="pa-3">
                 <div v-if="shift.closedBySalesperson" class="d-flex align-center text-caption text-medium-emphasis mb-3">
-                  <span>Closed by: {{ shift.closedBySalesperson }}</span>
+                  <span>{{ t("Closed by: {name}", { name: shift.closedBySalesperson }) }}</span>
                 </div>
                 <template v-if="shift.isClosed">
-                  <div class="text-caption font-weight-bold mb-1">Expected vs Counted</div>
+                  <div class="text-caption font-weight-bold mb-1">{{ t("Expected vs Counted") }}</div>
                   <k-table density="compact" class="mb-3">
                     <thead>
                       <tr>
-                        <th>Method</th>
-                        <th>Expected</th>
-                        <th>Counted</th>
-                        <th>Variance</th>
+                        <th>{{ t("Method") }}</th>
+                        <th>{{ t("Expected") }}</th>
+                        <th>{{ t("Counted") }}</th>
+                        <th>{{ t("Variance") }}</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="row in expectedVsCounted(shift)" :key="row.label">
-                        <td>{{ row.label }}</td>
+                        <td>{{ t(row.label) }}</td>
                         <td>{{ row.expected }}</td>
                         <td>{{ row.counted }}</td>
                         <td :class="row.varianceCents === 0 ? 'text-medium-emphasis' : row.varianceCents > 0 ? 'text-green-darken-2' : 'text-red-darken-2'">
@@ -160,14 +160,14 @@
                     </tbody>
                   </k-table>
                 </template>
-                <div class="text-caption font-weight-bold mb-1">Balances</div>
+                <div class="text-caption font-weight-bold mb-1">{{ t("Balances") }}</div>
                 <k-progress-linear v-if="balanceLoading[shift.id]" indeterminate />
                 <k-list v-else-if="balanceCache[shift.id]?.length" density="compact" class="pa-0">
                   <k-list-item v-for="balance in balanceCache[shift.id]" :key="balance.accountId">
                     <template #title>
-                      {{ balance.isOnAccount ? "(On Account)" : balance.accountName }}
+                      {{ balance.isOnAccount ? t("(On Account)") : balance.accountName }}
                       <small v-if="balance.isOnAccount" class="text-medium-emphasis">
-                        — not collected</small
+                        {{ t("Not collected") }}</small
                       >
                     </template>
                     <template #append>
@@ -177,7 +177,7 @@
                     </template>
                   </k-list-item>
                 </k-list>
-                <div v-else class="text-caption text-medium-emphasis">No balance data found.</div>
+                <div v-else class="text-caption text-medium-emphasis">{{ t("No balance data found.") }}</div>
               </div>
             </div>
           </template>
@@ -185,23 +185,24 @@
       </div>
     </div>
     <div class="monthly-income-total font-weight-bold" data-test="income-grand-total">
-      <span>Total</span>
+      <span>{{ t("Total") }}</span>
       <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
     <!-- The total counts every sale, as central's reports do; these parts of
          it aren't money in the drawer yet. -->
     <div v-if="couponTotal || onAccountTotal" class="text-caption text-medium-emphasis text-end">
-      Includes
-      <template v-if="couponTotal">{{ formatBalance(couponTotal, "USD", currencies, roundingMode) }} in coupons</template>
-      <template v-if="couponTotal && onAccountTotal"> and </template>
-      <template v-if="onAccountTotal">{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }} on account</template>
-      not collected
+      {{ t("Includes") }}
+      <template v-if="couponTotal">{{ t("{amount} in coupons", { amount: formatBalance(couponTotal, "USD", currencies, roundingMode) }) }}</template>
+      <template v-if="couponTotal && onAccountTotal"> {{ t("and") }} </template>
+      <template v-if="onAccountTotal">{{ t("{amount} on account", { amount: formatBalance(onAccountTotal, "USD", currencies, roundingMode) }) }}</template>
+      {{ t("not collected") }}
     </div>
     <TargetsProgressCard :targets="targets" class="mt-3" />
   </k-sheet>
 </template>
 
 <script setup lang="ts">
+import { t } from "@/i18n";
 import { computed, nextTick, ref, watch, type ComponentPublicInstance } from "vue";
 import type { Balance, DayRow, Shift } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
@@ -277,9 +278,11 @@ const showVisitors = computed(() => props.visitorCounterEnabled);
 function visitorTitle(day: string, total: number): string {
   const count = props.visitorCounts[day];
   if (count == null) return "";
-  const people = `${count} ${count === 1 ? "person" : "people"} visited`;
+  const people = count === 1 ? t("{n} person visited", { n: count }) : t("{n} people visited", { n: count });
   const each = perVisitor(total, count);
-  return each === null ? people : `${people}, ${formatBalance(each, "USD", currencies.value, roundingMode.value)} per visitor`;
+  return each === null
+    ? people
+    : t("{people}, {amount} per visitor", { people, amount: formatBalance(each, "USD", currencies.value, roundingMode.value) });
 }
 
 const monthlyIncomeScroll = ref<HTMLElement | null>(null);

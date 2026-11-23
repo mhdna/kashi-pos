@@ -2,21 +2,21 @@
   <k-dialog :model-value="modelValue" max-width="380" persistent @update:model-value="emit('update:modelValue', $event)">
     <k-card class="text-center pa-4">
       <template v-if="state === 'waiting'">
-        <k-card-title>Preparing upload link…</k-card-title>
+        <k-card-title>{{ t("Preparing upload link…") }}</k-card-title>
         <k-card-text>
           <k-progress-circular class="my-4" color="primary" indeterminate size="48" />
-          <div class="text-body-2">{{ mode === "new" ? `Syncing this ${kind} to the server.` : "Asking the server for a new link." }}</div>
+          <div class="text-body-2">{{ mode === "new" ? (kind === "loan" ? t("Syncing this loan to the server.") : t("Syncing this expense to the server.")) : t("Asking the server for a new link.") }}</div>
         </k-card-text>
       </template>
 
       <template v-else-if="state === 'ready'">
-        <k-card-title>Attach a photo</k-card-title>
+        <k-card-title>{{ t("Attach a photo") }}</k-card-title>
         <k-card-text>
-          <div class="text-body-2">Scan this with your phone and take a photo of the receipt.</div>
+          <div class="text-body-2">{{ t("Scan this with your phone and take a photo of the receipt.") }}</div>
           <div class="text-body-2 mb-3" dir="rtl" lang="ar">
             امسح الرمز بالهاتف والتقط صورة {{ kind === "loan" ? "الإيصال" : "سند الصرف" }}.
           </div>
-          <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
+          <img v-if="qrDataUrl" :src="qrDataUrl" :alt="t('Upload QR code')" style="width: 220px; height: 220px" />
           <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
         </k-card-text>
       </template>
@@ -24,20 +24,20 @@
       <template v-else-if="state === 'success'">
         <k-card-text>
           <k-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
-          <div class="text-h6">Uploaded!</div>
+          <div class="text-h6">{{ t("Uploaded!") }}</div>
         </k-card-text>
       </template>
 
       <template v-else>
-        <k-card-title>Couldn't prepare the upload link</k-card-title>
+        <k-card-title>{{ t("Couldn't prepare the upload link") }}</k-card-title>
         <k-card-text>
-          <div class="text-body-2">{{ errorText || "Check the connection to the server and try again later." }}</div>
+          <div class="text-body-2">{{ errorText || t("Check the connection to the server and try again later.") }}</div>
         </k-card-text>
       </template>
 
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="emit('update:modelValue', false)">Close</k-btn>
+        <k-btn variant="text" @click="emit('update:modelValue', false)">{{ t("Close") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from "vue";
 import QRCode from "qrcode";
+import { t } from "@/i18n";
 import {
   ListExpensePhotoIDs,
   ListLoanPhotoIDs,

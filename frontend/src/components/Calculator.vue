@@ -44,7 +44,7 @@
         icon
         variant="text"
         size="small"
-        aria-label="Clear"
+        :aria-label="t('Clear')"
         @click="clearInput"
       >
         <k-icon icon="mdi-close" size="26" />
@@ -58,7 +58,7 @@
         icon
         variant="text"
         size="small"
-        aria-label="Backspace"
+        :aria-label="t('Backspace')"
         @click="backspace"
       >
         <k-icon icon="mdi-backspace-outline" size="26" />
@@ -78,7 +78,7 @@
           :show-currency="!props.hidePaymentMethodCurrency"
           @select="selectMethodAndConfirm"
         />
-        <div class="calculator-action-cards" role="list" aria-label="Other actions">
+        <div class="calculator-action-cards" role="list" :aria-label="t('Other actions')">
           <k-card
             class="calculator-type-card d-flex flex-column" style="--payment-accent: #757575"
             :class="{ 'calculator-type-card--disabled': !hasItems || restricted }"
@@ -90,7 +90,7 @@
             @keydown.space.prevent="!(!hasItems || restricted) && emit('account')"
           >
             <k-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
-              <span class="payment-method-name text-h6 font-weight-bold" data-test="on-account-name">On<br>Account</span>
+              <span class="payment-method-name text-h6 font-weight-bold" data-test="on-account-name">{{ t("On") }}<br>{{ t("Account") }}</span>
             </k-card-text>
           </k-card>
           <k-card
@@ -104,7 +104,7 @@
             @keydown.space.prevent="!restricted && emit('coupon')"
           >
             <k-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
-              <span class="payment-method-name text-h6 font-weight-bold">Coupon</span>
+              <span class="payment-method-name text-h6 font-weight-bold">{{ t("Coupon") }}</span>
             </k-card-text>
           </k-card>
         </div>
@@ -119,37 +119,36 @@
     />
 
     <k-dialog v-model="couponDialog" max-width="420">
-      <k-card title="Coupon payment">
+      <k-card :title="t('Coupon payment')">
         <k-card-text>
           <k-text-field
             v-if="selectedCouponType?.codeRequired !== false"
             v-model="couponCode"
-            :placeholder="selectedCouponType?.referenceOnly ? 'Reference number' : 'Coupon code'"
-            :hint="selectedCouponType?.referenceOnly ? 'Enter the reference number for this coupon.' : 'Enter the issued coupon code.'"
+            :placeholder="selectedCouponType?.referenceOnly ? t('Reference number') : t('Coupon code')"
+            :hint="selectedCouponType?.referenceOnly ? t('Enter the reference number for this coupon.') : t('Enter the issued coupon code.')"
             persistent-hint
             autofocus
             variant="outlined"
           />
-          <k-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Coupon type" variant="outlined" />
+          <k-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" :placeholder="t('Coupon type')" variant="outlined" />
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn @click="couponDialog = false">Cancel</k-btn>
-          <k-btn color="primary" @click="confirmCoupon">Add coupon</k-btn>
+          <k-btn @click="couponDialog = false">{{ t("Cancel") }}</k-btn>
+          <k-btn color="primary" @click="confirmCoupon">{{ t("Add coupon") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
 
     <k-dialog :model-value="Boolean(pendingOverchange)" max-width="420" @update:model-value="(v) => !v && cancelOverchange()">
-      <k-card title="Confirm change amount" v-if="pendingOverchange">
+      <k-card :title="t('Confirm change amount')" v-if="pendingOverchange">
         <k-card-text>
-          Give {{ pendingOverchange.currencySymbol }} {{ pendingOverchange.amount.toLocaleString() }} in change?
-          This is more than what's owed.
+          {{ t("Give {symbol} {amount} in change? This is more than what's owed.", { symbol: pendingOverchange.currencySymbol, amount: pendingOverchange.amount.toLocaleString() }) }}
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn @click="cancelOverchange">Cancel</k-btn>
-          <k-btn color="primary" @click="confirmOverchange">Confirm</k-btn>
+          <k-btn @click="cancelOverchange">{{ t("Cancel") }}</k-btn>
+          <k-btn color="primary" @click="confirmOverchange">{{ t("Confirm") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -182,6 +181,7 @@ import CalculatorPaymentMethods from "@/components/calculator/CalculatorPaymentM
 import CalculatorStatus from "@/components/calculator/CalculatorStatus.vue";
 import { isCashPaymentMethod, isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { entryUnits, settledPaymentCents, type PaymentEntry } from "@/lib/cashPayments";
+import { t } from "@/i18n";
 
 interface PaymentMethod {
   id: number;
@@ -303,12 +303,12 @@ const totalCents = computed(() => props.totalCents);
 const roundedFromText = computed(() => {
   const unrounded = props.unroundedCents;
   if (unrounded == null || unrounded === totalCents.value) return "";
-  return `Rounded from $${String(Number((unrounded / 100).toFixed(2)))}`;
+  return t("Rounded from {amount}", { amount: `$${String(Number((unrounded / 100).toFixed(2)))}` });
 });
 const invoiceDiscountText = computed(() => {
   const cents = props.invoiceDiscountCents ?? 0;
   if (cents <= 0) return "";
-  return `${props.invoiceDiscountName || "Invoice discount"} −$${String(Number((cents / 100).toFixed(2)))}`;
+  return `${props.invoiceDiscountName || t("Invoice discount")} −$${String(Number((cents / 100).toFixed(2)))}`;
 });
 // How much the sale was discounted in all, for the card.
 const discountText = computed(() => discountLabel(props.discountCents));
@@ -425,14 +425,14 @@ const showReadyState = computed(
 );
 const paymentStatus = computed(() =>
   quoteFailed.value
-    ? "Pricing failed"
+    ? t("Pricing failed")
     : isPaidInFull.value
-    ? "Paid"
+    ? t("Paid")
     : cashRoundedToTotal.value
-      ? "Paid (cash rounded)"
+      ? t("Paid (cash rounded)")
       : diffCents.value > 0
-        ? "Give"
-        : "Get",
+        ? t("Give")
+        : t("Get"),
 );
 const statusColor = computed(() =>
   diff.value > 0 ? "text-red-darken-2" : "calculator-green",

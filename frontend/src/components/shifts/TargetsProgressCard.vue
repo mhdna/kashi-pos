@@ -1,7 +1,7 @@
 <template>
   <div v-if="sorted.length" class="targets-progress">
     <div class="targets-progress-title text-caption font-weight-bold text-medium-emphasis">
-      Targets
+      {{ t("Targets") }}
     </div>
     <div class="target-stack">
       <div v-for="target in sorted" :key="target.id" class="target-row">
@@ -12,9 +12,9 @@
           />
         </div>
         <div class="target-meta">
-          <span data-test="target-dates">{{ formatDate(target.dateFrom) }} to {{ formatDate(target.dateTo) }}</span>
+          <span data-test="target-dates">{{ t("{from} to {to}", { from: formatDate(target.dateFrom), to: formatDate(target.dateTo) }) }}</span>
           <span class="font-weight-bold" data-test="target-amounts">
-            {{ formatUsd(target.achievedCents / 100) }} of {{ formatUsd(target.targetAmountCents / 100) }}
+            {{ t("{achieved} of {target}", { achieved: formatUsd(target.achievedCents / 100), target: formatUsd(target.targetAmountCents / 100) }) }}
             ({{ Math.round(target.progressPct) }}%)
           </span>
         </div>
@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { t } from "@/i18n";
 import { formatUsd } from "@/lib/format";
 
 export interface BranchTarget {

@@ -24,6 +24,6 @@ describe("calculator cards keep one height", () => {
     expect(src).toMatch(/\.calculator-action-cards \{[^}]*grid-auto-rows: 62px;/);
     expect(src).toMatch(/\.calculator-action-cards > \.calculator-type-card \{[^}]*height: 62px;[^}]*max-height: 62px;/);
     expect(src).toMatch(/\.calculator-action-cards \.payment-method-name \{[^}]*white-space: normal;/);
-    expect(src).toContain(">On<br>Account</span>");
+    expect(src).toContain('<br>{{ t("Account") }}</span>');
   });
 });

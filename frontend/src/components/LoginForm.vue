@@ -29,8 +29,8 @@
     <span v-if="branchError" class="pin-branch-error" role="alert">{{ branchError }}</span>
 
     <div class="pin-heading">
-      <h1 id="pin-title">{{ mode === "admin" ? "Admin sign-in" : "Enter PIN" }}</h1>
-      <p v-if="locked">Too many attempts. Try again in {{ lockSeconds }}s</p>
+      <h1 id="pin-title">{{ mode === "admin" ? t("Admin sign-in") : t("Enter PIN") }}</h1>
+      <p v-if="locked">{{ t("Too many attempts. Try again in {seconds}s", { seconds: lockSeconds }) }}</p>
     </div>
 
     <template v-if="mode === 'pin'">
@@ -47,7 +47,7 @@
           size="small"
           variant="tonal"
           :disabled="loading || locked"
-          :aria-label="`Enter ${digit}`"
+          :aria-label="t('Enter {digit}', { digit })"
           @click="enterDigit(digit)"
         >
           {{ digit }}
@@ -58,7 +58,7 @@
           size="small"
           variant="tonal"
           :disabled="loading || locked || pin.length === 0"
-          aria-label="Clear PIN"
+          :aria-label="t('Clear PIN')"
           @click="clearPIN"
         >
           C
@@ -69,7 +69,7 @@
           size="small"
           variant="tonal"
           :disabled="loading || locked"
-          aria-label="Enter 0"
+          :aria-label="t('Enter {digit}', { digit: '0' })"
           @click="enterDigit('0')"
         >
           0
@@ -80,7 +80,7 @@
           size="small"
           variant="tonal"
           :disabled="loading || locked || pin.length === 0"
-          aria-label="Delete last digit"
+          :aria-label="t('Delete last digit')"
           @click="removeDigit"
         >
           <k-icon icon="mdi-backspace-outline" size="20" />
@@ -93,7 +93,7 @@
         v-model="adminPassword"
         autofocus
         type="password"
-        placeholder="Admin password"
+        :placeholder="t('Admin password')"
         variant="outlined"
         density="comfortable"
         hide-details
@@ -109,7 +109,7 @@
         :loading="loading"
         :disabled="locked || adminPassword.length === 0"
       >
-        Sign in
+        {{ t("Sign in") }}
       </k-btn>
     </form>
 
@@ -117,7 +117,7 @@
       <k-progress-circular v-if="loading && mode === 'pin'" indeterminate size="22" width="2" />
       <span v-else-if="!locked && error" class="pin-error" role="alert">{{ error }}</span>
       <span v-if="mode === 'pin' && !locked && attempts > 0" class="pin-attempts text-subtitle-1">
-        {{ 3 - attempts }} {{ 3 - attempts === 1 ? "attempt" : "attempts" }} remaining
+        {{ 3 - attempts }} {{ 3 - attempts === 1 ? t("attempt") : t("attempts") }} {{ t("remaining") }}
       </span>
     </div>
     <div v-if="appVersion" class="pin-version">{{ appVersion }}</div>
@@ -125,6 +125,7 @@
 </template>
 
 <script setup lang="ts">
+import { t } from "@/i18n";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import logo from "@/assets/app-logo.png";
@@ -244,7 +245,7 @@ async function submitPIN() {
     }
 
     attempts.value++;
-    error.value = "Incorrect PIN";
+    error.value = t("Incorrect PIN");
     if (attempts.value >= 3) startLockout();
   } finally {
     loading.value = false;
@@ -268,7 +269,7 @@ async function submitAdmin() {
       startLockout(result.retryAfter);
       return;
     }
-    error.value = "Incorrect password";
+    error.value = t("Incorrect password");
   } finally {
     loading.value = false;
   }

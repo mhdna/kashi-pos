@@ -9,7 +9,7 @@
       <k-btn
         v-bind="activatorProps"
         :icon="!activatorText"
-        :aria-label="activatorText || 'Add products'"
+        :aria-label="activatorText || t('Add products')"
         variant="text"
         class="ms-1"
       >
@@ -43,6 +43,7 @@ import { computed, inject, ref, watch } from "vue";
 import ProductSearchKeyboard from "@/components/ProductSearchKeyboard.vue";
 import ProductSearchResults, { type ProductItem } from "@/components/ProductSearchResults.vue";
 import { useProductGridMode } from "@/composables/useProductGridMode";
+import { t } from "@/i18n";
 import { keepFieldFocus } from "@/lib/keepFocus";
 
 const emit = defineEmits<{ select: [product: ProductItem] }>();
@@ -58,7 +59,7 @@ const props = withDefaults(
     hiddenFields?: string[];
   }>(),
   {
-    activatorText: "Products List",
+    activatorText: t("Products List"),
     activatorIcon: "mdi-format-list-bulleted-square",
     showActivator: true,
     codeOnly: false,

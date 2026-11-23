@@ -3,12 +3,12 @@
     <k-card class="pa-4">
       <!-- Step 1: the price, on a number pad. -->
       <template v-if="step === 'price'">
-        <k-card-title class="px-0 pt-0 text-center text-h5">Unknown item</k-card-title>
+        <k-card-title class="px-0 pt-0 text-center text-h5">{{ t("Unknown item") }}</k-card-title>
         <div v-if="scannedBarcode" class="text-body-1 text-center mb-2" data-testid="unknown-scanned">
-          Not in the catalog: <span class="unknown-scanned-code">{{ scannedBarcode }}</span>
+          {{ t("Not in the catalog:") }} <span class="unknown-scanned-code">{{ scannedBarcode }}</span>
         </div>
         <div class="text-h5 text-medium-emphasis text-center mb-3">
-          Type the price<br />
+          {{ t("Type the price") }}<br />
           <span dir="rtl" lang="ar">أدخل سعر القطعة</span>
         </div>
         <div class="unknown-price-display text-center mb-3" data-testid="unknown-price">
@@ -18,32 +18,32 @@
           <k-btn v-for="key in keys" :key="key" class="unknown-key" variant="tonal" :aria-label="key" @click="press(key)">
             {{ key }}
           </k-btn>
-          <k-btn class="unknown-key" variant="tonal" aria-label="Delete" @click="backspace">
+          <k-btn class="unknown-key" variant="tonal" :aria-label="t('Delete')" @click="backspace">
             <k-icon icon="mdi-backspace-outline" size="26" />
           </k-btn>
         </div>
         <k-card-actions class="px-0 pb-0 mt-3">
-          <k-btn variant="text" @click="emit('update:modelValue', false)">Cancel</k-btn>
+          <k-btn variant="text" @click="emit('update:modelValue', false)">{{ t("Cancel") }}</k-btn>
           <k-spacer />
-          <k-btn color="primary" :disabled="!(price > 0)" variant="flat" data-test="unknown-next" @click="toName">Next</k-btn>
+          <k-btn color="primary" :disabled="!(price > 0)" variant="flat" data-test="unknown-next" @click="toName">{{ t("Next") }}</k-btn>
         </k-card-actions>
       </template>
 
       <!-- Step 2: what it is, on the on-screen keyboard, so the invoice list and
            the receipt say it instead of "Unknown item". -->
       <template v-else>
-        <k-card-title class="px-0 pt-0 text-center text-h4">Name the item</k-card-title>
+        <k-card-title class="px-0 pt-0 text-center text-h4">{{ t("Name the item") }}</k-card-title>
         <div class="text-h5 text-medium-emphasis text-center mb-3">
           <span class="unknown-name-price">${{ display }}</span>
         </div>
         <div class="unknown-name-display mb-3" :class="{ 'unknown-name-display--empty': !name }" data-testid="unknown-name">
-          {{ name || "Name" }}
+          {{ name || t("Name") }}
         </div>
         <InlineKeyboard v-model="name" class="unknown-name-keyboard" layout="code" :max-length="MAX_NAME" />
         <k-card-actions class="px-0 pb-0 mt-3">
-          <k-btn variant="text" data-test="unknown-back" @click="step = 'price'">Back</k-btn>
+          <k-btn variant="text" data-test="unknown-back" @click="step = 'price'">{{ t("Back") }}</k-btn>
           <k-spacer />
-          <k-btn color="primary" :disabled="!trimmedName" variant="flat" data-test="unknown-add" @click="add">Add</k-btn>
+          <k-btn color="primary" :disabled="!trimmedName" variant="flat" data-test="unknown-add" @click="add">{{ t("Add") }}</k-btn>
         </k-card-actions>
       </template>
     </k-card>
@@ -53,6 +53,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import { t } from "@/i18n";
 
 // An "Unknown item" line: first its price, typed on a keypad (this till is a
 // touch screen), then its name, typed on the on-screen keyboard. The name is

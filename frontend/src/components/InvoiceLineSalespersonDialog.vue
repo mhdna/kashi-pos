@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "@/i18n";
 // Change Salesperson, from the invoice list: who the whole invoice is under,
 // then who sold each item. Tap a row to open the picture grid under it;
 // nothing is saved until Save.
@@ -50,7 +51,7 @@ const invoicePerson = computed(() => {
   if (!id) return null;
   const known = salespersons.value.find((s) => s.id === id);
   if (known) return known;
-  return { id, fullName: id === savedInvoiceId.value && props.invoice?.salespersonName ? props.invoice.salespersonName : "Former salesman" };
+  return { id, fullName: id === savedInvoiceId.value && props.invoice?.salespersonName ? props.invoice.salespersonName : t("Former salesman") };
 });
 const invoiceName = computed(() => invoicePerson.value?.fullName ?? "");
 // One item is the whole sale, so the items are only listed from two up.
@@ -76,7 +77,7 @@ function personFor(line: Line): { id: number; fullName: string } | null {
   if (!id) return null;
   const known = salespersons.value.find((s) => s.id === id);
   if (known) return known;
-  return { id, fullName: id === line.salespersonId && line.salespersonName ? line.salespersonName : "Former salesman" };
+  return { id, fullName: id === line.salespersonId && line.salespersonName ? line.salespersonName : t("Former salesman") };
 }
 const rowChanged = (line: Line) => changes.value.some((c) => c.lineId === line.lineId);
 
@@ -104,7 +105,7 @@ async function open() {
       salespersonName: String(item.salespersonName ?? ""),
     }));
   } catch (e: any) {
-    if (mine === request) emit("error", e?.toString() || "Could not load the invoice's items");
+    if (mine === request) emit("error", e?.toString() || t("Could not load the invoice's items"));
   } finally {
     if (mine === request) loading.value = false;
   }
@@ -146,7 +147,7 @@ async function save() {
     emit("saved");
     close();
   } catch (e: any) {
-    emit("error", e?.toString() || "Could not update the items");
+    emit("error", e?.toString() || t("Could not update the items"));
     // Some lines may already be saved; reload so the list shows the truth.
     await open();
   } finally {
@@ -160,27 +161,27 @@ async function save() {
     <k-card class="line-sp-dialog">
       <div class="line-sp-header">
         <div class="line-sp-header__text">
-          <div class="text-h6">Change Salesman</div>
-          <div v-if="invoice?.invoiceCode" class="text-body-2 text-medium-emphasis">Invoice {{ invoice.invoiceCode }}</div>
+          <div class="text-h6">{{ t("Change Salesman") }}</div>
+          <div v-if="invoice?.invoiceCode" class="text-body-2 text-medium-emphasis">{{ t("Invoice {code}", { code: invoice.invoiceCode }) }}</div>
         </div>
       </div>
 
       <k-card-text class="line-sp-body" :class="{ 'line-sp-body--split': showItems }">
         <!-- Left: who the whole invoice is under. Right: each item. -->
         <div class="line-sp-col">
-          <div class="line-sp-label">Whole invoice</div>
+          <div class="line-sp-label">{{ t("Whole invoice") }}</div>
           <!-- Always open: pick who the whole invoice is under. -->
           <div class="line-sp-block" data-test="invoice-block">
             <SalespersonGrid
               :salespersons="salespersons"
               :model-value="invoiceId"
-              default-label="No salesman"
+              :default-label="t('No salesman')"
               @update:model-value="pickInvoice"
             />
           </div>
         </div>
         <div v-if="showItems" class="line-sp-col">
-          <div class="line-sp-label">Items</div>
+          <div class="line-sp-label">{{ t("Items") }}</div>
           <div v-for="line in lines" :key="line.lineId" class="line-sp-item" :class="{ 'line-sp-item--open': openLine === line.lineId }">
             <button type="button" class="line-sp-row" :data-test="`line-${line.lineId}`" @click="toggle(line)">
               <span class="line-sp-row__text">
@@ -192,7 +193,7 @@ async function save() {
                   <InitialsAvatar :name="personFor(line)!.fullName" :color="salespersonColor(personFor(line)!)" :size="28" />
                   <span class="line-sp-who__name">{{ personFor(line)!.fullName }}</span>
                 </template>
-                <span v-else class="line-sp-who__name line-sp-who__name--muted">{{ invoiceName ? `Invoice: ${invoiceName}` : "No salesman" }}</span>
+                <span v-else class="line-sp-who__name line-sp-who__name--muted">{{ invoiceName ? t("Invoice: {name}", { name: invoiceName }) : t("No salesman") }}</span>
                 <k-icon :icon="openLine === line.lineId ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" class="line-sp-chevron" />
               </span>
             </button>
@@ -200,7 +201,7 @@ async function save() {
               <SalespersonGrid
                 :salespersons="salespersons"
                 :model-value="currentId(line)"
-                :default-label="invoiceName ? `Same as invoice (${invoiceName.split(' ')[0]})` : 'Same as invoice'"
+                :default-label="invoiceName ? t('Same as invoice ({name})', { name: invoiceName.split(' ')[0] ?? '' }) : t('Same as invoice')"
                 @update:model-value="pick(line, $event)"
               />
             </div>
@@ -210,8 +211,8 @@ async function save() {
 
       <k-card-actions class="px-6 pb-4">
         <k-spacer />
-        <k-btn variant="text" class="line-sp-cancel" @click="close">Cancel</k-btn>
-        <k-btn color="primary" variant="flat" class="line-sp-save" :loading="saving" :disabled="saveDisabled" @click="save">Save</k-btn>
+        <k-btn variant="text" class="line-sp-cancel" @click="close">{{ t("Cancel") }}</k-btn>
+        <k-btn color="primary" variant="flat" class="line-sp-save" :loading="saving" :disabled="saveDisabled" @click="save">{{ t("Save") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>

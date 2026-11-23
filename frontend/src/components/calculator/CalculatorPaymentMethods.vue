@@ -3,7 +3,7 @@
     class="calculator-types mt-0"
     :class="{ 'calculator-types--vertical': vertical }"
     role="list"
-    aria-label="Payment methods"
+    :aria-label="t('Payment methods')"
   >
     <k-card
       v-for="method in methods"
@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { paymentAccentColor } from "@/lib/paymentColor";
+import { t } from "@/i18n";
 
 const props = withDefaults(
   defineProps<{

@@ -3,7 +3,7 @@
     <template #prepend>
       <k-icon icon="mdi-autorenew" size="20" class="me-2" />
     </template>
-    Exchange
+    {{ t("Exchange") }}
   </k-btn>
 
   <k-dialog
@@ -13,7 +13,7 @@
     @after-leave="clearForm"
   >
     <k-card class="exchange-dialog-card d-flex flex-column">
-      <k-card-title>Exchange Invoice</k-card-title>
+      <k-card-title>{{ t("Exchange Invoice") }}</k-card-title>
 
       <k-card-text
         class="exchange-dialog-layout"
@@ -25,23 +25,25 @@
               <k-text-field
                 v-model="invoiceCode"
                 density="compact"
-                placeholder="Sales invoice code or barcode"
+                :placeholder="t('Sales invoice code or barcode')"
                 prepend-inner-icon="mdi-barcode"
                 variant="outlined"
                 disabled
               />
             </div>
-            <k-btn height="40" variant="text" @click="changeInvoice">Change</k-btn>
+            <k-btn height="40" variant="text" @click="changeInvoice">{{ t("Change") }}</k-btn>
           </div>
 
           <k-alert class="mb-3" density="compact" type="success" variant="tonal">
-            {{ invoice.invoiceCode }} · {{ invoice.client.name }} —
-            {{ invoice.items.length }} available
-            {{ invoice.items.length === 1 ? "item" : "items" }}
+            {{ t("{code} · {client} — {summary}", {
+              code: invoice.invoiceCode,
+              client: invoice.client.name,
+              summary: invoice.items.length === 1 ? t("1 available item") : t("{count} available items", { count: invoice.items.length }),
+            }) }}
           </k-alert>
 
           <k-card class="mb-3" variant="outlined">
-            <k-list-subheader>Items available to return</k-list-subheader>
+            <k-list-subheader>{{ t("Items available to return") }}</k-list-subheader>
             <k-list density="compact" class="exchange-available-items py-0">
               <k-list-item
                 v-for="item in invoice.items"
@@ -49,7 +51,7 @@
                 :active="Boolean(selectedReturn(item))"
                 active-color="primary"
                 :title="item.name"
-                :subtitle="`${item.code} · ${item.barcode}${item.color ? ` · ${item.color}` : ''}${item.size ? ` · ${item.size}` : ''} · ${item.available} available`"
+                :subtitle="`${item.code} · ${item.barcode}${item.color ? ` · ${item.color}` : ''}${item.size ? ` · ${item.size}` : ''} · ${t('{count} available', { count: item.available })}`"
                 @click="selectReturned(item)"
               >
                 <template #prepend>
@@ -64,7 +66,7 @@
                     :color="item.freeQty ? 'success' : undefined"
                     label
                     size="x-small"
-                    :text="item.freeQty ? `${item.freeQty} FREE, ${item.deal}` : item.deal"
+                    :text="item.freeQty ? t('{count} FREE, {deal}', { count: item.freeQty, deal: item.deal }) : item.deal"
                     :variant="item.freeQty ? 'flat' : 'outlined'"
                   />
                 </template>
@@ -74,14 +76,14 @@
                       v-if="selectedReturn(item)"
                       class="text-primary text-caption font-weight-medium"
                     >
-                      Selected ×{{ selectedReturn(item)?.qty ?? 1 }}
+                      {{ t("Selected ×{qty}", { qty: selectedReturn(item)?.qty ?? 1 }) }}
                     </span>
                     <span class="text-body-2 font-weight-medium">
                       ${{ effectivePrice(item).toFixed(2) }}
                     </span>
                     <k-btn
                       v-if="selectedReturn(item)"
-                      aria-label="Remove returned item"
+                      :aria-label="t('Remove returned item')"
                       icon="mdi-delete"
                       size="x-small"
                       variant="text"
@@ -98,7 +100,7 @@
               ref="scanInput"
               v-model="scanValue"
               density="compact"
-              placeholder="Scan or enter product being returned"
+              :placeholder="t('Scan or enter product being returned')"
               prepend-inner-icon="mdi-barcode"
               variant="outlined"
               :error-messages="scanError"
@@ -109,7 +111,7 @@
         </div>
 
         <div v-if="!invoice" class="exchange-inline-numpad">
-          <div class="exchange-inline-numpad-label">Invoice code</div>
+          <div class="exchange-inline-numpad-label">{{ t("Invoice code") }}</div>
           <div class="exchange-inline-numpad-display">
             <k-text-field
               ref="invoiceInput"
@@ -143,7 +145,7 @@
               {{ digit }}
             </k-btn>
             <k-btn
-              aria-label="Clear exchange input"
+              :aria-label="t('Clear exchange input')"
               class="exchange-inline-numpad-key"
               size="small"
               variant="text"
@@ -162,7 +164,7 @@
               0
             </k-btn>
             <k-btn
-              aria-label="Delete last exchange digit"
+              :aria-label="t('Delete last exchange digit')"
               class="exchange-inline-numpad-key"
               size="small"
               variant="text"
@@ -183,15 +185,15 @@
             :loading="exchangePadDisabled"
             @click="submitExchangeInput"
           >
-            Load
+            {{ t("Load") }}
           </k-btn>
         </div>
       </k-card-text>
 
       <k-card-actions class="pa-3">
-        <k-btn class="flex-1-1" variant="text" @click="menu = false">Cancel</k-btn>
+        <k-btn class="flex-1-1" variant="text" @click="menu = false">{{ t("Cancel") }}</k-btn>
         <k-btn class="flex-1-1" color="primary" :disabled="!returned.length" @click="startExchange">
-          Start exchange
+          {{ t("Start exchange") }}
         </k-btn>
       </k-card-actions>
     </k-card>
@@ -202,6 +204,7 @@
 import { computed, inject, nextTick, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
 import { effectiveExchangePrice, type ExchangeSelection } from "@/lib/exchange";
+import { t } from "@/i18n";
 
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];

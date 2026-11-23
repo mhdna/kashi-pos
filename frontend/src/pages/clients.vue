@@ -23,7 +23,7 @@
                   formatLebanesePhone(client.phone)
                 }}</span>
                 <span class="client-points text-medium-emphasis">
-                  {{ formatLoyaltyPoints(client.validLoyaltyPoints) }} pts
+                  {{ formatLoyaltyPoints(client.validLoyaltyPoints) }} {{ t("pts") }}
                 </span>
                 <k-chip
                   :color="loyaltyTierColor(loyaltyTier(Number(client.totalLoyaltyPoints ?? 0)))"
@@ -33,7 +33,7 @@
                   {{ loyaltyTier(Number(client.totalLoyaltyPoints ?? 0)) }}
                 </k-chip>
                 <k-chip v-if="client.isActive === false" size="x-small" variant="tonal">
-                  Inactive
+                  {{ t("Inactive") }}
                 </k-chip>
                 <k-chip
                   v-if="Number(client.accountBalance) > 0"
@@ -50,14 +50,14 @@
                 icon="mdi-account-edit"
                 variant="text"
                 density="comfortable"
-                title="Edit client"
+                :title="t('Edit client')"
                 @click.stop="openEdit(client)"
               />
               <k-btn
                 icon="mdi-wallet"
                 variant="text"
                 density="comfortable"
-                title="View on-account balance"
+                :title="t('View on-account balance')"
                 @click.stop="openAccount(client)"
               />
             </template>
@@ -67,10 +67,10 @@
           <k-progress-circular indeterminate color="primary" size="24" width="2" />
         </div>
         <div v-else-if="loadError" class="client-list-status">
-          <k-btn size="small" variant="text" @click="loadMore">Retry</k-btn>
+          <k-btn size="small" variant="text" @click="loadMore">{{ t("Retry") }}</k-btn>
         </div>
         <div v-else-if="!hasMore" class="client-list-status text-medium-emphasis">
-          {{ clients.length ? "All clients loaded" : "No clients found" }}
+          {{ clients.length ? t("All clients loaded") : t("No clients found") }}
         </div>
       </div>
       <k-divider />
@@ -80,7 +80,7 @@
           class="client-search-control"
           density="compact"
           hide-details
-          placeholder="Search clients..."
+          :placeholder="t('Search clients...')"
           variant="outlined"
           autofocus
         />
@@ -94,23 +94,23 @@
   <k-dialog v-model="accountOpen" max-width="820">
     <k-card>
       <k-card-title class="d-flex align-center">
-        {{ accountDetails?.client?.name || accountTarget?.name }} — On Account
+        {{ t("{name} — On Account", { name: accountDetails?.client?.name || accountTarget?.name }) }}
         <k-spacer />
         <k-chip color="orange-darken-2" variant="tonal">
-          Balance: {{ formatUsd(Number(accountDetails?.balance || 0) / 100) }}
+          {{ t("Balance: {amount}", { amount: formatUsd(Number(accountDetails?.balance || 0) / 100) }) }}
         </k-chip>
       </k-card-title>
       <k-progress-linear v-if="accountLoading" indeterminate />
       <k-card-text v-else>
-        <div class="text-subtitle-2 mb-2">Invoices</div>
+        <div class="text-subtitle-2 mb-2">{{ t("Invoices") }}</div>
         <k-table density="compact">
           <thead>
             <tr>
-              <th>Invoice</th>
-              <th>Date</th>
-              <th class="text-end">Charged</th>
-              <th class="text-end">Paid</th>
-              <th class="text-end">Due</th>
+              <th>{{ t("Invoice") }}</th>
+              <th>{{ t("Date") }}</th>
+              <th class="text-end">{{ t("Charged") }}</th>
+              <th class="text-end">{{ t("Paid") }}</th>
+              <th class="text-end">{{ t("Due") }}</th>
               <th />
             </tr>
           </thead>
@@ -130,14 +130,14 @@
                   color="primary"
                   variant="tonal"
                   @click="startPayment(entry)"
-                  >Pay</k-btn
+                  >{{ t("Pay") }}</k-btn
                 >
-                <k-chip v-else size="x-small" color="green" variant="tonal">Paid</k-chip>
+                <k-chip v-else size="x-small" color="green" variant="tonal">{{ t("Paid") }}</k-chip>
               </td>
             </tr>
             <tr v-if="!accountDetails?.entries?.length">
               <td colspan="6" class="text-center text-medium-emphasis py-4">
-                No on-account invoices.
+                {{ t("No on-account invoices.") }}
               </td>
             </tr>
           </tbody>
@@ -145,21 +145,21 @@
 
         <k-expand-transition>
           <k-sheet v-if="payTarget" class="pa-4 mt-4" rounded border>
-            <div class="text-subtitle-2 mb-3">Pay {{ payTarget.invoiceCode }}</div>
+            <div class="text-subtitle-2 mb-3">{{ t("Pay {invoice}", { invoice: payTarget.invoiceCode }) }}</div>
             <div class="d-flex ga-3 align-start">
               <k-select
                 v-model="paymentMethodId"
                 :items="collectableMethods"
                 item-title="displayName"
                 item-value="id"
-                placeholder="Payment method"
+                :placeholder="t('Payment method')"
                 variant="outlined"
                 density="compact"
                 style="flex: 1"
               />
               <k-text-field
                 v-model.number="paymentAmount"
-                :placeholder="`Amount (${paymentCurrency})`"
+                :placeholder="t('Amount ({currency})', { currency: paymentCurrency })"
                 type="number"
                 min="0"
                 :step="paymentCurrency === 'LBP' ? 1000 : 0.01"
@@ -168,33 +168,33 @@
                 :error-messages="paymentError ? [paymentError] : []"
                 style="flex: 1"
               />
-              <k-btn variant="text" @click="payTarget = null">Cancel</k-btn>
+              <k-btn variant="text" @click="payTarget = null">{{ t("Cancel") }}</k-btn>
               <k-btn
                 color="primary"
                 :loading="paying"
                 :disabled="Boolean(paymentError) || paymentCents <= 0"
                 @click="submitPayment"
-                >Save payment</k-btn
+                >{{ t("Save payment") }}</k-btn
               >
             </div>
           </k-sheet>
         </k-expand-transition>
 
         <template v-if="accountDetails?.payments?.length">
-          <div class="text-subtitle-2 mt-5 mb-2">Payment history</div>
+          <div class="text-subtitle-2 mt-5 mb-2">{{ t("Payment history") }}</div>
           <k-list density="compact" border rounded>
             <k-list-item v-for="payment in accountDetails.payments" :key="payment.id">
               <template #title
-                >{{ payment.accountName }} · {{ formatUsd(Number(payment.amount) / 100) }}</template
+                >{{ t("{account} · {amount}", { account: payment.accountName, amount: formatUsd(Number(payment.amount) / 100) }) }}</template
               >
-              <template #subtitle>{{ formatServerDateTime(payment.createdAt) }} · Shift #{{ payment.shiftId }}</template>
+              <template #subtitle>{{ t("{date} · Shift #{shift}", { date: formatServerDateTime(payment.createdAt), shift: payment.shiftId }) }}</template>
             </k-list-item>
           </k-list>
         </template>
       </k-card-text>
       <k-card-actions
         ><k-spacer /><k-btn variant="text" @click="accountOpen = false"
-          >Close</k-btn
+          >{{ t("Close") }}</k-btn
         ></k-card-actions
       >
     </k-card>
@@ -202,17 +202,17 @@
 
   <k-dialog v-model="editOpen" max-width="420">
     <k-card>
-      <k-card-title>Edit client</k-card-title>
+      <k-card-title>{{ t("Edit client") }}</k-card-title>
       <k-card-text>
         <k-text-field
           v-model="editForm.name"
-          placeholder="Name"
+          :placeholder="t('Name')"
           variant="outlined"
           autofocus
           @keydown="preventClientNameNumber"
           @beforeinput="preventClientNameNumberInput"
         />
-        <k-text-field v-model="editForm.phone" placeholder="Phone" variant="outlined" />
+        <k-text-field v-model="editForm.phone" :placeholder="t('Phone')" variant="outlined" />
       </k-card-text>
       <k-card-actions>
         <k-btn
@@ -220,23 +220,23 @@
           color="error"
           variant="text"
           @click="openDeleteFromEdit"
-          >Delete</k-btn
+          >{{ t("Delete") }}</k-btn
         >
         <k-btn
           v-if="auth.isAdmin && standalone && editTarget?.isActive === false"
           variant="text"
           :loading="reactivating"
           @click="reactivateSelected"
-          >Reactivate</k-btn
+          >{{ t("Reactivate") }}</k-btn
         >
         <k-spacer />
-        <k-btn variant="text" @click="editOpen = false">Cancel</k-btn>
+        <k-btn variant="text" @click="editOpen = false">{{ t("Cancel") }}</k-btn>
         <k-btn
           color="primary"
           :loading="saving"
           :disabled="!editForm.name.trim() || !editForm.phone.trim()"
           @click="saveEdit"
-          >Save</k-btn
+          >{{ t("Save") }}</k-btn
         >
       </k-card-actions>
     </k-card>
@@ -244,16 +244,14 @@
 
   <k-dialog v-model="deleteOpen" max-width="420">
     <k-card>
-      <k-card-title>Delete client?</k-card-title>
+      <k-card-title>{{ t("Delete client?") }}</k-card-title>
       <k-card-text
-        >This will delete {{ deleteTarget?.name || "this client" }}. A client with invoices,
-        coupons or an account balance is deactivated instead, so their history stays
-        intact.</k-card-text
+        >{{ t("This will delete {name}. A client with invoices, coupons or an account balance is deactivated instead, so their history stays intact.", { name: deleteTarget?.name || t("this client") }) }}</k-card-text
       >
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="deleteOpen = false">Cancel</k-btn>
-        <k-btn color="error" :loading="deleting" @click="deleteSelected">Delete</k-btn>
+        <k-btn variant="text" @click="deleteOpen = false">{{ t("Cancel") }}</k-btn>
+        <k-btn color="error" :loading="deleting" @click="deleteSelected">{{ t("Delete") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -291,6 +289,7 @@ import { formatUsd } from "@/lib/format";
 import { formatLebanesePhone } from "@/lib/phone";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { formatServerDateTime } from "@/lib/datetime";
+import { t } from "@/i18n";
 
 const colors = ["grey-darken-1"];
 const auth = useAuthStore();
@@ -362,10 +361,10 @@ const paymentCents = computed(() => {
     : Math.round(amount * 100);
 });
 const paymentError = computed(() => {
-  if (!payTarget.value || !paymentMethodId.value) return "Choose a payment method";
-  if (paymentCents.value <= 0) return "Enter a positive amount";
+  if (!payTarget.value || !paymentMethodId.value) return t("Choose a payment method");
+  if (paymentCents.value <= 0) return t("Enter a positive amount");
   if (paymentCents.value > Number(payTarget.value.outstanding))
-    return "Payment exceeds the amount due";
+    return t("Payment exceeds the amount due");
   return "";
 });
 
@@ -390,7 +389,7 @@ async function openAccount(item: any) {
     const rate = Number((settings as any)?.exchangeRate);
     if (Number.isFinite(rate) && rate > 0) exchangeRate.value = rate;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not load client account";
+    snackbar.text = e?.toString() || t("Could not load client account");
     snackbar.show = true;
   } finally {
     accountLoading.value = false;
@@ -420,10 +419,10 @@ async function submitPayment() {
     const loadedClient = clients.value.find((client) => client.id === accountTarget.value?.id);
     if (loadedClient) loadedClient.accountBalance = Number(accountDetails.value?.balance || 0);
     notifyIncomeChanged();
-    snackbar.text = "Account payment saved";
+    snackbar.text = t("Account payment saved");
     snackbar.show = true;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not save account payment";
+    snackbar.text = e?.toString() || t("Could not save account payment");
     snackbar.show = true;
   } finally {
     paying.value = false;
@@ -459,10 +458,10 @@ async function saveEdit() {
       loadedClient.phone = editForm.phone.trim();
     }
     editOpen.value = false;
-    snackbar.text = "Client updated";
+    snackbar.text = t("Client updated");
     snackbar.show = true;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not update client";
+    snackbar.text = e?.toString() || t("Could not update client");
     snackbar.show = true;
   } finally {
     saving.value = false;
@@ -478,15 +477,15 @@ async function deleteSelected() {
     if (outcome === "deactivated") {
       const loadedClient = clients.value.find((client) => client.id === deleteTarget.value.id);
       if (loadedClient) loadedClient.isActive = false;
-      snackbar.text = "Client has history, so it was deactivated instead";
+      snackbar.text = t("Client has history, so it was deactivated instead");
     } else {
       clients.value = clients.value.filter((client) => client.id !== deleteTarget.value.id);
       if (hasMore.value) void loadMore();
-      snackbar.text = "Client deleted";
+      snackbar.text = t("Client deleted");
     }
     snackbar.show = true;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not delete client";
+    snackbar.text = e?.toString() || t("Could not delete client");
     snackbar.show = true;
   } finally {
     deleting.value = false;
@@ -501,10 +500,10 @@ async function reactivateSelected() {
     const loadedClient = clients.value.find((client) => client.id === editTarget.value.id);
     if (loadedClient) loadedClient.isActive = true;
     editTarget.value.isActive = true;
-    snackbar.text = "Client reactivated";
+    snackbar.text = t("Client reactivated");
     snackbar.show = true;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not reactivate client";
+    snackbar.text = e?.toString() || t("Could not reactivate client");
     snackbar.show = true;
   } finally {
     reactivating.value = false;

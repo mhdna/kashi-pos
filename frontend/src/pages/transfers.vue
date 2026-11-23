@@ -1,17 +1,17 @@
 <template>
   <div class="records-page">
     <div class="records-head">
-      <div class="text-h6">Transfers</div>
+      <div class="text-h6">{{ t("Transfers") }}</div>
       <k-tabs v-model="tab" density="compact" class="ms-4">
-        <k-tab value="outgoing">Outgoing</k-tab>
+        <k-tab value="outgoing">{{ t("Outgoing") }}</k-tab>
         <k-tab value="incoming">
-          Incoming
+          {{ t("Incoming") }}
           <k-badge v-if="unconfirmedIncomingCount > 0" color="warning" :content="unconfirmedIncomingCount" inline />
         </k-tab>
       </k-tabs>
       <k-spacer />
       <k-btn v-if="tab === 'outgoing'" color="primary" variant="flat" prepend-icon="mdi-plus" @click="openCreate">
-        New Transfer
+        {{ t("New Transfer") }}
       </k-btn>
     </div>
 
@@ -28,7 +28,7 @@
       fixed-header
       item-value="id"
       hover
-      no-data-text="No transfers sent yet."
+      :no-data-text="t('No transfers sent yet.')"
       @click:row="(_e: unknown, row: any) => openOutgoing(row.item)"
     >
       <template #item.photo="{ item }">
@@ -57,7 +57,7 @@
       fixed-header
       item-value="id"
       hover
-      no-data-text="No incoming transfers."
+      :no-data-text="t('No incoming transfers.')"
       @click:row="(_e: unknown, row: any) => openIncoming(row.item)"
     >
       <template #item.photo="{ item }">
@@ -84,29 +84,29 @@
       <k-card v-if="outgoingTarget">
         <k-card-title class="d-flex align-center">
           <div>
-            <div class="text-h6">To {{ branchName(outgoingTarget.toBranchCode) }}</div>
+            <div class="text-h6">{{ t("To {branch}", { branch: branchName(outgoingTarget.toBranchCode) }) }}</div>
             <div class="text-caption text-medium-emphasis">{{ formatServerDateTime(outgoingTarget.createdAt) }}</div>
           </div>
           <k-spacer />
           <k-chip :color="statusColor(outgoingTarget.status)" size="small" class="me-2">{{ outgoingTarget.status }}</k-chip>
-          <k-btn icon="mdi-close" variant="text" aria-label="Close" @click="outgoingDialog = false" />
+          <k-btn icon="mdi-close" variant="text" :aria-label="t('Close')" @click="outgoingDialog = false" />
         </k-card-title>
         <k-card-text>
           <div v-if="outgoingTarget.note" class="mb-4">{{ outgoingTarget.note }}</div>
-          <div class="section-label mb-2">Photo</div>
+          <div class="section-label mb-2">{{ t("Photo") }}</div>
           <div v-if="detailPhotoLoading" class="d-flex justify-center pa-6"><k-progress-circular indeterminate /></div>
-          <img v-else-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-4" @click="viewerOpen = true" />
+          <img v-else-if="detailPhoto" :src="detailPhoto" :alt="t('Transfer photo')" class="photo-full mb-4" @click="viewerOpen = true" />
           <div v-else class="empty-photos mb-2">
             <k-icon icon="mdi-image-off-outline" size="32" color="grey" />
-            <div class="text-body-2 text-medium-emphasis">No photo attached</div>
+            <div class="text-body-2 text-medium-emphasis">{{ t("No photo attached") }}</div>
           </div>
-          <div class="section-label mb-2">Items</div>
+          <div class="section-label mb-2">{{ t("Items") }}</div>
           <k-list density="compact" class="pa-0">
             <k-list-item v-for="line in outgoingTarget.items || []" :key="line.id || line.barcode">
               <template #title>{{ line.name || line.barcode }}</template>
               <template #append><span class="font-weight-bold">× {{ line.quantity }}</span></template>
             </k-list-item>
-            <div v-if="!(outgoingTarget.items || []).length" class="text-body-2 text-medium-emphasis">No items listed.</div>
+            <div v-if="!(outgoingTarget.items || []).length" class="text-body-2 text-medium-emphasis">{{ t("No items listed.") }}</div>
           </k-list>
         </k-card-text>
       </k-card>
@@ -115,42 +115,42 @@
     <!-- --------------------------------------------------------- CREATE -->
     <k-dialog v-model="createDialog" max-width="560">
       <k-card>
-        <k-card-title>New Transfer</k-card-title>
+        <k-card-title>{{ t("New Transfer") }}</k-card-title>
         <k-card-text>
           <k-select
             v-model="createForm.toBranchCode"
             item-title="name"
             item-value="code"
             :items="branches"
-            placeholder="Destination branch"
+            :placeholder="t('Destination branch')"
             :rules="[required]"
           />
-          <k-text-field v-model="createForm.note" placeholder="Note (optional)" />
+          <k-text-field v-model="createForm.note" :placeholder="t('Note (optional)')" />
 
-          <div class="text-subtitle-2 mt-4 mb-1">Items</div>
+          <div class="text-subtitle-2 mt-4 mb-1">{{ t("Items") }}</div>
           <div class="d-flex align-center mb-2" style="gap: 12px">
             <k-text-field
               v-model="newItemBarcode"
               density="compact"
               hide-details
-              placeholder="Scan or type barcode"
+              :placeholder="t('Scan or type barcode')"
               @keyup.enter="addCreateItem"
             />
             <k-text-field
               v-model.number="newItemQuantity"
               density="compact"
               hide-details
-              placeholder="Qty"
+              :placeholder="t('Qty')"
               style="max-width: 100px"
               type="number"
             />
-            <k-btn :disabled="!newItemBarcode || !newItemQuantity" @click="addCreateItem">Add</k-btn>
+            <k-btn :disabled="!newItemBarcode || !newItemQuantity" @click="addCreateItem">{{ t("Add") }}</k-btn>
           </div>
           <k-table density="compact">
             <thead>
               <tr>
-                <th>Barcode</th>
-                <th class="text-end">Qty</th>
+                <th>{{ t("Barcode") }}</th>
+                <th class="text-end">{{ t("Qty") }}</th>
                 <th></th>
               </tr>
             </thead>
@@ -167,14 +167,14 @@
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="createDialog = false">Cancel</k-btn>
+          <k-btn variant="text" @click="createDialog = false">{{ t("Cancel") }}</k-btn>
           <k-btn
             color="primary"
             :disabled="!createForm.toBranchCode || createForm.items.length === 0"
             :loading="creating"
             @click="submitCreate"
           >
-            Send
+            {{ t("Send") }}
           </k-btn>
         </k-card-actions>
       </k-card>
@@ -184,19 +184,19 @@
     <k-dialog v-model="uploadDialog" max-width="380" persistent @update:model-value="onUploadDialogVisibilityChange">
       <k-card class="text-center pa-4">
         <template v-if="uploadState === 'waiting'">
-          <k-card-title>Preparing upload link…</k-card-title>
+          <k-card-title>{{ t("Preparing upload link…") }}</k-card-title>
           <k-card-text>
             <k-progress-circular class="my-4" color="primary" indeterminate size="48" />
-            <div class="text-body-2">Syncing this transfer to the server.</div>
+            <div class="text-body-2">{{ t("Syncing this transfer to the server.") }}</div>
           </k-card-text>
         </template>
 
         <template v-else-if="uploadState === 'ready'">
-          <k-card-title>Attach a photo (optional)</k-card-title>
+          <k-card-title>{{ t("Attach a photo (optional)") }}</k-card-title>
           <k-card-text>
-            <div class="text-body-2">Scan this with a phone to upload one photo of the transfer.</div>
+            <div class="text-body-2">{{ t("Scan this with a phone to upload one photo of the transfer.") }}</div>
             <div class="text-body-2 mb-3" dir="rtl" lang="ar">امسح الرمز بالهاتف والتقط صورة واحدة لورقة التحويل.</div>
-            <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
+            <img v-if="qrDataUrl" :src="qrDataUrl" :alt="t('Upload QR code')"style="width: 220px; height: 220px" />
             <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
           </k-card-text>
         </template>
@@ -204,20 +204,20 @@
         <template v-else-if="uploadState === 'success'">
           <k-card-text>
             <k-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
-            <div class="text-h6">Uploaded!</div>
+            <div class="text-h6">{{ t("Uploaded!") }}</div>
           </k-card-text>
         </template>
 
         <template v-else-if="uploadState === 'error'">
-          <k-card-title>Couldn't prepare the upload link</k-card-title>
+          <k-card-title>{{ t("Couldn't prepare the upload link") }}</k-card-title>
           <k-card-text>
-            <div class="text-body-2">Check the connection to the server and try again later.</div>
+            <div class="text-body-2">{{ t("Check the connection to the server and try again later.") }}</div>
           </k-card-text>
         </template>
 
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="closeUploadDialog">Close</k-btn>
+          <k-btn variant="text" @click="closeUploadDialog">{{ t("Close") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -226,18 +226,18 @@
     <k-dialog v-model="incomingDialog" max-width="640">
       <k-card v-if="incomingTarget">
         <k-card-title>
-          From {{ incomingTarget.senderBranchName }}
+          {{ t("From {branch}", { branch: incomingTarget.senderBranchName }) }}
           <k-chip class="ml-2" :color="statusColor(incomingTarget.status)" size="small">{{ incomingTarget.status }}</k-chip>
         </k-card-title>
         <k-card-text>
           <div v-if="incomingTarget.note" class="text-body-2 text-medium-emphasis mb-2">{{ incomingTarget.note }}</div>
-          <img v-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-3" @click="viewerOpen = true" />
+          <img v-if="detailPhoto" :src="detailPhoto" :alt="t('Transfer photo')" class="photo-full mb-3" @click="viewerOpen = true" />
           <k-table density="compact">
             <thead>
               <tr>
-                <th>Barcode</th>
-                <th class="text-end">Sent</th>
-                <th class="text-end">Counted</th>
+                <th>{{ t("Barcode") }}</th>
+                <th class="text-end">{{ t("Sent") }}</th>
+                <th class="text-end">{{ t("Counted") }}</th>
               </tr>
             </thead>
             <tbody>
@@ -256,12 +256,12 @@
               </tr>
             </tbody>
           </k-table>
-          <k-text-field v-model="incomingNote" class="mt-4" placeholder="Note (optional) — e.g. damage, shortage" />
+          <k-text-field v-model="incomingNote" class="mt-4" :placeholder="t('Note (optional) — e.g. damage, shortage')" />
         </k-card-text>
         <k-card-actions>
           <k-spacer />
-          <k-btn variant="text" @click="incomingDialog = false">Close</k-btn>
-          <k-btn color="primary" :loading="confirming" @click="submitConfirm">Confirm receipt</k-btn>
+          <k-btn variant="text" @click="incomingDialog = false">{{ t("Close") }}</k-btn>
+          <k-btn color="primary" :loading="confirming" @click="submitConfirm">{{ t("Confirm receipt") }}</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>
@@ -289,9 +289,10 @@ import RecordPhoto from "@/components/RecordPhoto.vue";
 import { detailPhotoWidth } from "@/lib/photos";
 import PhotoViewer from "@/components/PhotoViewer.vue";
 import { formatServerDateTime } from "@/lib/datetime";
+import { t } from "@/i18n";
 
 const tab = ref("outgoing");
-const required = (v: unknown) => !!v || "Required";
+const required = (v: unknown) => !!v || t("Required");
 const snackbar = reactive({ show: false, text: "" });
 
 function statusColor(s: string) {
@@ -307,13 +308,14 @@ function statusColor(s: string) {
 }
 
 // ------------------------------------------------------------ OUTGOING
-const outgoingHeaders = [
-  { title: "Photo", key: "photo", sortable: false, width: 72 },
-  { title: "To", key: "toBranchCode", sortable: false },
-  { title: "Note", key: "note", sortable: false },
-  { title: "Status", key: "status", sortable: false },
-  { title: "Created", key: "createdAt", sortable: false },
-];
+// Computed so the column titles follow the language toggle.
+const outgoingHeaders = computed(() => [
+  { title: t("Photo"), key: "photo", sortable: false, width: 72 },
+  { title: t("To"), key: "toBranchCode", sortable: false },
+  { title: t("Note"), key: "note", sortable: false },
+  { title: t("Status"), key: "status", sortable: false },
+  { title: t("Created"), key: "createdAt", sortable: false },
+]);
 
 function branchName(code: string) {
   return branches.value.find((b) => b.code === code)?.name || code || "—";
@@ -408,7 +410,7 @@ async function submitCreate() {
     await loadOutgoing();
     if (created?.clientRef) openUploadDialog(created.clientRef);
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not create transfer";
+    snackbar.text = e?.toString() || t("Could not create transfer");
     snackbar.show = true;
   } finally {
     creating.value = false;
@@ -500,14 +502,14 @@ function onUploadDialogVisibilityChange(visible: boolean) {
 }
 
 // ------------------------------------------------------------ INCOMING
-const incomingHeaders = [
-  { title: "Photo", key: "photo", sortable: false, width: 72 },
-  { title: "From", key: "senderBranchName", sortable: false },
-  { title: "Note", key: "note", sortable: false },
-  { title: "Status", key: "status", sortable: false },
-  { title: "Counted", key: "confirmed", sortable: false },
-  { title: "Created", key: "createdAt", sortable: false },
-];
+const incomingHeaders = computed(() => [
+  { title: t("Photo"), key: "photo", sortable: false, width: 72 },
+  { title: t("From"), key: "senderBranchName", sortable: false },
+  { title: t("Note"), key: "note", sortable: false },
+  { title: t("Status"), key: "status", sortable: false },
+  { title: t("Counted"), key: "confirmed", sortable: false },
+  { title: t("Created"), key: "createdAt", sortable: false },
+]);
 const incoming = ref<any[]>([]);
 const incomingLoading = ref(true);
 
@@ -559,7 +561,7 @@ async function submitConfirm() {
     incomingDialog.value = false;
     await loadIncoming();
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not confirm receipt";
+    snackbar.text = e?.toString() || t("Could not confirm receipt");
     snackbar.show = true;
   } finally {
     confirming.value = false;

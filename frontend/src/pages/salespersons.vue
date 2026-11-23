@@ -1,13 +1,13 @@
 <template>
   <div class="salespersons-page pa-4">
     <div class="d-flex align-center mb-4 ga-3">
-      <h2 class="text-h6 font-weight-bold">Salesmen</h2>
+      <h2 class="text-h6 font-weight-bold">{{ t("Salesmen") }}</h2>
       <k-spacer />
       <template v-if="auth.isAdmin">
         <k-text-field
           v-model="fromDate"
           type="date"
-          label="From"
+          :label="t('From')"
           variant="outlined"
           density="compact"
           hide-details
@@ -17,7 +17,7 @@
         <k-text-field
           v-model="toDate"
           type="date"
-          label="To"
+          :label="t('To')"
           variant="outlined"
           density="compact"
           hide-details
@@ -31,9 +31,9 @@
 
     <section class="mb-6">
       <div class="d-flex align-center mb-2">
-        <span class="text-subtitle-1 font-weight-bold">Performance</span>
+        <span class="text-subtitle-1 font-weight-bold">{{ t("Performance") }}</span>
         <k-spacer />
-        <span class="text-caption text-medium-emphasis">{{ rows.length }} salespersons</span>
+        <span class="text-caption text-medium-emphasis">{{ t("{n} salespersons", { n: rows.length }) }}</span>
       </div>
       <k-progress-linear v-if="loading" indeterminate color="primary" class="mb-2" />
       <k-list class="pa-0" bg-color="transparent">
@@ -56,7 +56,7 @@
           </div>
         </k-list-item>
         <k-list-item v-if="!rows.length && !loading" class="text-medium-emphasis">
-          No sales recorded for this range.
+          {{ t("No sales recorded for this range.") }}
         </k-list-item>
       </k-list>
     </section>
@@ -64,10 +64,10 @@
     <k-table class="salespersons-table">
       <thead>
         <tr>
-          <th>Salesman</th>
-          <th class="text-right">Amount Sold</th>
-          <th class="text-right">Invoices</th>
-          <th class="text-right">Items Sold</th>
+          <th>{{ t("Salesman") }}</th>
+          <th class="text-right">{{ t("Amount Sold") }}</th>
+          <th class="text-right">{{ t("Invoices") }}</th>
+          <th class="text-right">{{ t("Items Sold") }}</th>
         </tr>
       </thead>
       <tbody>
@@ -78,7 +78,7 @@
           <td class="text-right">{{ row.itemsSold }}</td>
         </tr>
         <tr v-if="!rows.length && !loading">
-          <td colspan="4" class="text-medium-emphasis">No sales recorded for this range.</td>
+          <td colspan="4" class="text-medium-emphasis">{{ t("No sales recorded for this range.") }}</td>
         </tr>
       </tbody>
     </k-table>
@@ -87,6 +87,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { t } from "@/i18n";
 import { ListSalespersonSalesSummary, ListSalespersons } from "../../wailsjs/go/main/App";
 import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { salespersonColor } from "@/lib/salespersonColor";

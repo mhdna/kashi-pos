@@ -232,7 +232,7 @@ describe("shift Open/Closed label", () => {
 describe("not-collected note", () => {
   it("says 'not collected', with no comma before it", () => {
     const src = readFileSync(resolve(__dirname, "MonthlyIncomeCard.vue"), "utf8");
-    expect(src).toMatch(/on account<\/template>\s+not collected\s/);
+    expect(src).toMatch(/<\/template>\s+\{\{ t\("not collected"\) \}\}/);
     expect(src).not.toMatch(/yet collected<\/?div|on account<\/template>,/);
   });
 });

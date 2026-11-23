@@ -19,6 +19,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { t } from "@/i18n";
 
 // The post-sale WhatsApp message, as seen from the till: "whatsapp_sent"
 // when central sent it (whatsapp.go), "review_received" when the client
@@ -63,7 +64,7 @@ function enqueue(notice: Notice) {
 }
 
 function who(name?: string) {
-  return name?.trim() || "A client";
+  return name?.trim() || t("A client");
 }
 
 onMounted(() => {
@@ -72,17 +73,17 @@ onMounted(() => {
       enqueue({
         icon: "mdi-whatsapp",
         color: "success",
-        title: `WhatsApp sent to ${who(m?.client_name)}`,
-        detail: m?.invoice_code ? `Receipt ${m.invoice_code}` : "",
+        title: t("WhatsApp sent to {name}", { name: who(m?.client_name) }),
+        detail: m?.invoice_code ? t("Receipt {code}", { code: m.invoice_code }) : "",
       }),
     ),
     EventsOn("review_received", (r: { client_name?: string; rating?: number }) => {
       const rating = r?.rating ?? 0;
       if (!rating) return;
-      if (rating >= 4) enqueue({ icon: "mdi-heart", color: "error", title: `${who(r.client_name)} loved their experience` });
+      if (rating >= 4) enqueue({ icon: "mdi-heart", color: "error", title: t("{name} loved their experience", { name: who(r.client_name) }) });
       else if (rating === 3)
-        enqueue({ icon: "mdi-emoticon-neutral-outline", color: "warning", title: `${who(r.client_name)} thought their visit was okay` });
-      else enqueue({ icon: "mdi-emoticon-sad-outline", color: "grey", title: `${who(r.client_name)} wasn't happy with their visit` });
+        enqueue({ icon: "mdi-emoticon-neutral-outline", color: "warning", title: t("{name} thought their visit was okay", { name: who(r.client_name) }) });
+      else enqueue({ icon: "mdi-emoticon-sad-outline", color: "grey", title: t("{name} wasn't happy with their visit", { name: who(r.client_name) }) });
     }),
   );
 });

@@ -1,12 +1,12 @@
 <template>
   <k-card class="pa-4">
     <div class="d-flex align-center ga-3 mb-3">
-      <k-card-title class="pa-0">Products</k-card-title>
+      <k-card-title class="pa-0">{{ t("Products") }}</k-card-title>
       <k-spacer />
       <k-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"
-        placeholder="Search name, code or barcode"
+        :placeholder="t('Search name, code or barcode')"
         density="compact"
         variant="outlined"
         hide-details
@@ -14,31 +14,30 @@
         class="products-search"
       />
       <k-btn variant="tonal" prepend-icon="mdi-download" :loading="exporting" @click="exportCsv">
-        Export CSV
+        {{ t("Export CSV") }}
       </k-btn>
       <k-btn v-if="standalone" variant="tonal" prepend-icon="mdi-upload" :loading="previewing" @click="previewCsv">
-        Import CSV
+        {{ t("Import CSV") }}
       </k-btn>
       <k-btn v-if="standalone" color="primary" prepend-icon="mdi-plus" @click="openCreate">
-        Add product
+        {{ t("Add product") }}
       </k-btn>
     </div>
 
     <k-alert v-if="!standalone" type="info" variant="tonal" density="compact" class="mb-3">
-      This till is connected to central, which manages products. Add, edit or remove them in
-      central; changes arrive here automatically.
+      {{ t("This till is connected to central, which manages products. Add, edit or remove them in central; changes arrive here automatically.") }}
     </k-alert>
 
     <k-table density="compact" hover>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Barcode</th>
-          <th>Code</th>
-          <th>Color / size</th>
-          <th class="text-right">Price</th>
-          <th class="text-right">Discount</th>
-          <th>Status</th>
+          <th>{{ t("Name") }}</th>
+          <th>{{ t("Barcode") }}</th>
+          <th>{{ t("Code") }}</th>
+          <th>{{ t("Color / size") }}</th>
+          <th class="text-right">{{ t("Price") }}</th>
+          <th class="text-right">{{ t("Discount") }}</th>
+          <th>{{ t("Status") }}</th>
         </tr>
       </thead>
       <tbody>
@@ -54,56 +53,56 @@
           <td>{{ [product.color, product.size].filter(Boolean).join(" / ") }}</td>
           <td class="text-right">
             <span v-if="product.priced">{{ formatUsd(product.priceCents / 100) }}</span>
-            <span v-else class="text-medium-emphasis" title="No active price list prices this product yet">No price</span>
+            <span v-else class="text-medium-emphasis" :title="t('No active price list prices this product yet')">{{ t("No price") }}</span>
           </td>
           <td class="text-right">{{ product.discount ? `${product.discount}%` : "" }}</td>
           <td>
-            <k-chip v-if="!product.isActive" size="x-small" variant="tonal">Inactive</k-chip>
+            <k-chip v-if="!product.isActive" size="x-small" variant="tonal">{{ t("Inactive") }}</k-chip>
           </td>
         </tr>
         <tr v-if="!loading && products.length === 0">
-          <td colspan="7" class="text-center text-medium-emphasis">No products</td>
+          <td colspan="7" class="text-center text-medium-emphasis">{{ t("No products") }}</td>
         </tr>
       </tbody>
     </k-table>
 
     <div class="d-flex justify-center mt-3">
       <k-progress-circular v-if="loading" indeterminate color="primary" size="24" width="2" />
-      <k-btn v-else-if="hasMore" variant="text" @click="loadMore">Load more</k-btn>
+      <k-btn v-else-if="hasMore" variant="text" @click="loadMore">{{ t("Load more") }}</k-btn>
     </div>
   </k-card>
 
   <k-dialog v-model="editOpen" max-width="480">
     <k-card>
-      <k-card-title>{{ editTarget ? "Edit product" : "Add product" }}</k-card-title>
+      <k-card-title>{{ editTarget ? t("Edit product") : t("Add product") }}</k-card-title>
       <k-card-text>
-        <k-text-field v-model="form.name" label="Name" variant="outlined" autofocus />
-        <k-text-field v-model="form.barcode" label="Barcode" variant="outlined" />
+        <k-text-field v-model="form.name" :label="t('Name')" variant="outlined" autofocus />
+        <k-text-field v-model="form.barcode" :label="t('Barcode')" variant="outlined" />
         <k-text-field
           v-model="form.code"
-          label="Code"
-          hint="Defaults to the barcode"
+          :label="t('Code')"
+          :hint="t('Defaults to the barcode')"
           persistent-hint
           variant="outlined"
           class="mb-2"
         />
         <div class="d-flex ga-2">
-          <k-text-field v-model="form.color" label="Color" variant="outlined" />
-          <k-text-field v-model="form.size" label="Size" variant="outlined" />
+          <k-text-field v-model="form.color" :label="t('Color')" variant="outlined" />
+          <k-text-field v-model="form.size" :label="t('Size')" variant="outlined" />
         </div>
         <div class="d-flex ga-2">
-          <k-text-field v-model="form.price" label="Price (USD)" type="number" min="0" variant="outlined" />
+          <k-text-field v-model="form.price" :label="t('Price (USD)')" type="number" min="0" variant="outlined" />
           <k-text-field
             v-model="form.discount"
-            label="Discount %"
+            :label="t('Discount %')"
             type="number"
             min="0"
             max="100"
             variant="outlined"
           />
         </div>
-        <k-text-field v-model="form.description" label="Category / description" variant="outlined" />
-        <k-switch v-model="form.isActive" label="Active (sellable)" color="primary" hide-details />
+        <k-text-field v-model="form.description" :label="t('Category / description')" variant="outlined" />
+        <k-switch v-model="form.isActive" :label="t('Active (sellable)')" color="primary" hide-details />
       </k-card-text>
       <k-card-actions>
         <k-btn
@@ -112,25 +111,24 @@
           variant="text"
           :loading="deleting"
           @click="deleteOpen = true"
-          >Delete</k-btn
+          >{{ t("Delete") }}</k-btn
         >
         <k-spacer />
-        <k-btn variant="text" @click="editOpen = false">Cancel</k-btn>
-        <k-btn color="primary" :loading="saving" :disabled="!canSave" @click="save">Save</k-btn>
+        <k-btn variant="text" @click="editOpen = false">{{ t("Cancel") }}</k-btn>
+        <k-btn color="primary" :loading="saving" :disabled="!canSave" @click="save">{{ t("Save") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
 
   <k-dialog v-model="deleteOpen" max-width="420">
     <k-card>
-      <k-card-title>Delete product?</k-card-title>
+      <k-card-title>{{ t("Delete product?") }}</k-card-title>
       <k-card-text>
-        This will delete {{ editTarget?.name || "this product" }}. A product that was sold,
-        transferred, held or still has stock is deactivated instead, so its history stays intact.
+        {{ t("This will delete {name}. A product that was sold, transferred, held or still has stock is deactivated instead, so its history stays intact.", { name: editTarget?.name || t("this product") }) }}
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="deleteOpen = false">Cancel</k-btn>
+        <k-btn variant="text" @click="deleteOpen = false">{{ t("Cancel") }}</k-btn>
         <k-btn color="error" :loading="deleting" @click="deleteSelected">Delete</k-btn>
       </k-card-actions>
     </k-card>
@@ -138,31 +136,31 @@
 
   <k-dialog v-model="importOpen" max-width="640" :persistent="importing">
     <k-card>
-      <k-card-title>{{ importResult ? "Import finished" : "Import products from CSV" }}</k-card-title>
+      <k-card-title>{{ importResult ? t("Import finished") : t("Import products from CSV") }}</k-card-title>
       <k-card-text>
         <template v-if="!importResult && csvPreview">
           <div class="text-body-2 text-medium-emphasis mb-3 text-truncate">{{ csvPreview.file }}</div>
           <div class="d-flex flex-wrap ga-4 mb-3">
-            <span><strong>{{ csvPreview.total }}</strong> rows</span>
-            <span class="text-success"><strong>{{ csvPreview.new }}</strong> new</span>
-            <span class="text-medium-emphasis"><strong>{{ csvPreview.existing }}</strong> already here (skipped)</span>
+            <span><strong>{{ csvPreview.total }}</strong> {{ t("rows") }}</span>
+            <span class="text-success"><strong>{{ csvPreview.new }}</strong> {{ t("new") }}</span>
+            <span class="text-medium-emphasis"><strong>{{ csvPreview.existing }}</strong> {{ t("already here (skipped)") }}</span>
             <span :class="csvPreview.invalid ? 'text-error' : 'text-medium-emphasis'">
-              <strong>{{ csvPreview.invalid }}</strong> with problems
+              <strong>{{ csvPreview.invalid }}</strong> {{ t("with problems") }}
             </span>
           </div>
           <div class="text-body-2">
-            New products are added with their price in the Default price list, so they can be sold right away.
+            {{ t("New products are added with their price in the Default price list, so they can be sold right away.") }}
           </div>
         </template>
         <div v-else-if="importResult" class="d-flex flex-wrap ga-4 mb-3">
-          <span class="text-success"><strong>{{ importResult.imported }}</strong> imported</span>
+          <span class="text-success"><strong>{{ importResult.imported }}</strong> {{ t("imported") }}</span>
           <span :class="importResult.failed ? 'text-error' : 'text-medium-emphasis'">
-            <strong>{{ importResult.failed }}</strong> failed
+            <strong>{{ importResult.failed }}</strong> {{ t("failed") }}
           </span>
         </div>
         <k-table v-if="importProblems.length" density="compact" class="csv-problems mt-3">
           <thead>
-            <tr><th class="text-right">Line</th><th>Barcode</th><th>Problem</th></tr>
+            <tr><th class="text-right">{{ t("Line") }}</th><th>{{ t("Barcode") }}</th><th>{{ t("Problem") }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="problem in importProblems" :key="problem.line + problem.barcode">
@@ -176,12 +174,12 @@
       <k-card-actions>
         <k-spacer />
         <template v-if="importResult">
-          <k-btn color="primary" @click="importOpen = false">Done</k-btn>
+          <k-btn color="primary" @click="importOpen = false">{{ t("Done") }}</k-btn>
         </template>
         <template v-else>
-          <k-btn variant="text" :disabled="importing" @click="importOpen = false">Cancel</k-btn>
+          <k-btn variant="text" :disabled="importing" @click="importOpen = false">{{ t("Cancel") }}</k-btn>
           <k-btn color="primary" :loading="importing" :disabled="!csvPreview?.new" @click="importCsv">
-            Import {{ csvPreview?.new ?? 0 }} new
+            {{ t("Import {n} new", { n: csvPreview?.new ?? 0 }) }}
           </k-btn>
         </template>
       </k-card-actions>
@@ -207,6 +205,7 @@ import { main } from "../../wailsjs/go/models";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { useAuthStore } from "@/stores/auth";
 import { formatUsd } from "@/lib/format";
+import { t } from "@/i18n";
 
 type ManagedProduct = {
   id: number;
@@ -276,7 +275,7 @@ async function loadMore() {
     cursor.value = page.nextCursor;
     hasMore.value = page.hasMore;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not load products";
+    snackbar.text = e?.toString() || t("Could not load products");
     snackbar.show = true;
   } finally {
     if (sequence === requestSequence) loading.value = false;
@@ -343,15 +342,15 @@ async function save() {
     if (editTarget.value) {
       const updated = (await UpdateProduct(editTarget.value.id, formInput())) as ManagedProduct;
       Object.assign(editTarget.value, updated);
-      snackbar.text = "Product updated";
+      snackbar.text = t("Product updated");
     } else {
       await CreateProduct(formInput());
       reload();
-      snackbar.text = "Product added";
+      snackbar.text = t("Product added");
     }
     editOpen.value = false;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not save product";
+    snackbar.text = e?.toString() || t("Could not save product");
   } finally {
     saving.value = false;
     snackbar.show = true;
@@ -366,15 +365,15 @@ async function deleteSelected() {
     const target = editTarget.value;
     if (outcome === "deactivated") {
       target.isActive = false;
-      snackbar.text = "Product has history, so it was deactivated instead";
+      snackbar.text = t("Product has history, so it was deactivated instead");
     } else {
       products.value = products.value.filter((p) => p.id !== target.id);
-      snackbar.text = "Product deleted";
+      snackbar.text = t("Product deleted");
     }
     deleteOpen.value = false;
     editOpen.value = false;
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Could not delete product";
+    snackbar.text = e?.toString() || t("Could not delete product");
   } finally {
     deleting.value = false;
     snackbar.show = true;
@@ -390,9 +389,9 @@ async function exportCsv() {
   exporting.value = true;
   try {
     const path = await ExportProductsCSV();
-    if (path) notify(`Products exported to ${path}`);
+    if (path) notify(t("Products exported to {path}", { path }));
   } catch (e: any) {
-    notify(e?.toString() || "Could not export products");
+    notify(e?.toString() || t("Could not export products"));
   } finally {
     exporting.value = false;
   }
@@ -407,7 +406,7 @@ async function previewCsv() {
     importResult.value = null;
     importOpen.value = true;
   } catch (e: any) {
-    notify(e?.toString() || "Could not read the CSV");
+    notify(e?.toString() || t("Could not read the CSV"));
   } finally {
     previewing.value = false;
   }
@@ -419,7 +418,7 @@ async function importCsv() {
     importResult.value = await ImportPendingProductsCSV();
     if (importResult.value.imported) reload();
   } catch (e: any) {
-    notify(e?.toString() || "Could not import products");
+    notify(e?.toString() || t("Could not import products"));
   } finally {
     importing.value = false;
   }

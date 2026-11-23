@@ -6,13 +6,13 @@
       <button type="button" class="events-card-toggle" data-test="events-open-calendar" @click="router.push('/events')">
         <span class="events-card-count text-body-1 font-weight-bold">{{ countLabel }}</span>
         <span v-if="next" class="events-card-next text-body-2 text-medium-emphasis" dir="auto">
-          Next: {{ next.name }}, {{ whenLabel(next) }}
+          {{ t("Next: {name}, {when}", { name: next.name, when: whenLabel(next) }) }}
         </span>
         <k-spacer />
         <!-- Says where the bar goes. It is part of the button: tapping it is tapping the bar. -->
         <k-chip class="events-card-chip" size="small" variant="text" data-test="events-calendar-chip">
           <k-icon start icon="mdi-calendar-month-outline" size="16" />
-          Calendar
+          {{ t("Calendar") }}
         </k-chip>
         <k-icon icon="mdi-chevron-right" class="events-card-chevron" />
       </button>
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { t } from "@/i18n";
 import { GetCalendarSettings, ListCalendarEvents } from "../../../wailsjs/go/main/App";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import {
@@ -60,14 +61,14 @@ const next = computed(
 );
 const countLabel = computed(() => {
   const n = soonCount.value;
-  if (!n) return `No events in the next ${COUNT_DAYS} days`;
-  return `${n} event${n === 1 ? "" : "s"} in the next ${COUNT_DAYS} days`;
+  if (!n) return t("No events in the next {days} days", { days: COUNT_DAYS });
+  return t(n === 1 ? "{n} event in the next {days} days" : "{n} events in the next {days} days", { n, days: COUNT_DAYS });
 });
 
 function whenLabel(e: CalendarEvent) {
-  if (e.start <= today) return "Now";
+  if (e.start <= today) return t("Now");
   const days = Math.round((startOfDay(e.start).getTime() - today.getTime()) / MS_DAY);
-  return days === 1 ? "Tomorrow" : `In ${days} days`;
+  return days === 1 ? t("Tomorrow") : t("In {days} days", { days });
 }
 
 let unsub: (() => void) | undefined;

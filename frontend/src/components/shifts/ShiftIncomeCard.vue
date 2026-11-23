@@ -1,7 +1,7 @@
 <template>
   <k-sheet class="shift-income-card shifts-card py-4 px-0" style="flex: 1; min-width: 0">
     <k-card-title class="shift-income-title text-body-1 font-weight-bold" data-test="income-title">
-      {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
+      {{ title || t("Shift Income") }}{{ shiftId ? ` (#${shiftId})` : "" }}
     </k-card-title>
     <!-- Everything between the title and the buttons scrolls on its own, so
          the buttons stay at the bottom of the card however long it gets. -->
@@ -32,14 +32,14 @@
         </k-list-item>
       </k-list>
       <div class="shift-total" data-test="income-total">
-        <span class="shift-total-label">Total collected</span>
+        <span class="shift-total-label">{{ t("Total collected") }}</span>
         <span class="shift-total-amount">{{ formatBalance(collectedTotal, "USD", currencies, roundingMode) }}</span>
       </div>
     </template>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
       <div class="shift-income-empty-message d-flex align-center justify-center">
         <k-icon icon="mdi-information-outline" size="18" class="me-1" />
-        {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
+        {{ shiftId ? t("No income found for the current shift.") : t("No open shift found.") }}
       </div>
     </div>
     <!-- Sold on account (not collected, so it's kept out of the income total
@@ -47,21 +47,21 @@
          that. Display only (see GetShiftTotals). -->
     <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-0 pt-2">
       <div v-if="onAccountTotal" class="spend-row text-medium-emphasis">
-        <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />On account, not collected</span>
+        <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />{{ t("On account, not collected") }}</span>
         <span>{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }}</span>
       </div>
       <div v-for="row in shiftExpenses" :key="`e-${row.id}`" class="spend-row">
-        <span class="text-truncate"><k-icon icon="mdi-receipt-text-outline" size="16" class="me-1" />{{ row.description || row.category || "Expense" }}</span>
+        <span class="text-truncate"><k-icon icon="mdi-receipt-text-outline" size="16" class="me-1" />{{ row.description || row.category || t("Expense") }}</span>
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
       <div v-for="row in shiftLoans" :key="`l-${row.id}`" class="spend-row">
-        <span class="text-truncate"><k-icon icon="mdi-hand-coin-outline" size="16" class="me-1" />{{ row.description || row.category || "Loan" }}</span>
+        <span class="text-truncate"><k-icon icon="mdi-hand-coin-outline" size="16" class="me-1" />{{ row.description || row.category || t("Loan") }}</span>
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
       <!-- Only when something came off; otherwise it just repeats the total. -->
       <div v-if="shiftExpenses.length || shiftLoans.length" class="d-flex justify-space-between align-center pt-2 mt-1 border-t" data-test="net-income">
         <!-- Same size as Total collected: it's the other number that matters. -->
-        <span class="shift-total-label">Net income</span>
+        <span class="shift-total-label">{{ t("Net income") }}</span>
         <span class="shift-total-amount" data-test="net-income-amount">{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
       </div>
     </div>
@@ -74,7 +74,7 @@
         variant="tonal"
         @click="replacementOpen = true"
       >
-        Swap balance
+        {{ t("Swap balance") }}
       </k-btn>
       <k-btn
         v-if="openingFloatEnabled"
@@ -83,21 +83,21 @@
         variant="tonal"
         @click="openingFloatOpen = true"
       >
-        Set opening cash
+        {{ t("Set opening cash") }}
       </k-btn>
       <div
         v-if="openingFloatEnabled && (openingFloatUsd || openingFloatLbp)"
         class="shift-income-opening text-caption text-medium-emphasis px-1"
       >
-        Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
+        {{ t("Opening amount: {usd} / {lbp} LBP", { usd: formatUsd((openingFloatUsd ?? 0) / 100), lbp: Math.round(openingFloatLbp ?? 0).toLocaleString() }) }}
       </div>
       <!-- Manager only: each asks for the manager password before opening. -->
       <div class="spend-buttons">
         <k-btn class="spend-button" variant="tonal" @click="openManagerPage('/expenses')">
-          <span class="spend-button-label"><k-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />Expenses</span>
+          <span class="spend-button-label"><k-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />{{ t("Expenses") }}</span>
         </k-btn>
         <k-btn class="spend-button" variant="tonal" @click="openManagerPage('/loans')">
-          <span class="spend-button-label"><k-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
+          <span class="spend-button-label"><k-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />{{ t("Loans") }}</span>
         </k-btn>
         <!-- On Account button, hidden for now. Put it back by removing this comment.
         <k-btn class="spend-button spend-button--wide" variant="tonal" @click="openManagerPage('/on-account')">
@@ -119,12 +119,12 @@
   <k-dialog v-model="managerDialog.show" max-width="380">
     <k-card class="manager-dialog">
       <k-card-text class="manager-dialog-body">
-        <h2 class="manager-dialog-title">Manager password</h2>
+        <h2 class="manager-dialog-title">{{ t("Manager password") }}</h2>
         <k-text-field
           v-model="managerDialog.password"
           autofocus
           class="manager-dialog-field"
-          placeholder="Manager password"
+          :placeholder="t('Manager password')"
           :type="managerDialog.reveal ? 'text' : 'password'"
           variant="outlined"
           density="comfortable"
@@ -133,14 +133,15 @@
           @click:append-inner="managerDialog.reveal = !managerDialog.reveal"
           @keyup.enter="confirmManager"
         />
-        <k-btn block color="primary" size="large" :loading="managerDialog.checking" @click="confirmManager">Open</k-btn>
-        <k-btn block variant="text" class="mt-1" @click="managerDialog.show = false">Cancel</k-btn>
+        <k-btn block color="primary" size="large" :loading="managerDialog.checking" @click="confirmManager">{{ t("Open") }}</k-btn>
+        <k-btn block variant="text" class="mt-1" @click="managerDialog.show = false">{{ t("Cancel") }}</k-btn>
       </k-card-text>
     </k-card>
   </k-dialog>
 </template>
 
 <script setup lang="ts">
+import { t } from "@/i18n";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { GetSpendSummary, VerifyManagerPassword } from "../../../wailsjs/go/main/App";
@@ -224,7 +225,7 @@ async function confirmManager() {
     grantManagerPass(managerDialog.path);
     void router.push(managerDialog.path);
   } catch (error) {
-    managerDialog.error = String(error).includes("password") ? "Wrong password" : String(error);
+    managerDialog.error = String(error).includes("password") ? t("Wrong password") : String(error);
   } finally {
     managerDialog.checking = false;
   }

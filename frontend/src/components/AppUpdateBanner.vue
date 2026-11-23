@@ -2,20 +2,20 @@
   <!-- An update is downloaded and waiting. -->
   <k-snackbar v-model="showReady" :timeout="-1" location="bottom" color="primary">
     <k-icon icon="mdi-update" class="me-2" />
-    GB Cloud {{ status.version }} is ready.
+    {{ t("GB Cloud {version} is ready.", { version: status.version ?? "" }) }}
     <template #actions>
-      <k-btn variant="text" @click="dismissed = true">Later</k-btn>
-      <k-btn variant="flat" @click="confirmInstall = true">Install now</k-btn>
+      <k-btn variant="text" @click="dismissed = true">{{ t("Later") }}</k-btn>
+      <k-btn variant="flat" @click="confirmInstall = true">{{ t("Install now") }}</k-btn>
     </template>
   </k-snackbar>
 
   <k-dialog v-model="confirmInstall" max-width="440">
-    <k-card title="Install the update?">
-      <k-card-text>GB Cloud will close and reopen in about 10 seconds. Finish the current sale first.</k-card-text>
+    <k-card :title="t('Install the update?')">
+      <k-card-text>{{ t("GB Cloud will close and reopen in about 10 seconds. Finish the current sale first.") }}</k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="confirmInstall = false">Cancel</k-btn>
-        <k-btn color="primary" variant="flat" @click="install">Install now</k-btn>
+        <k-btn variant="text" @click="confirmInstall = false">{{ t("Cancel") }}</k-btn>
+        <k-btn color="primary" variant="flat" @click="install">{{ t("Install now") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -23,12 +23,12 @@
   <!-- No shift open: install by itself unless the cashier says not now.
        (A forced update from central never gets here: it installs silently.) -->
   <k-dialog v-model="idlePrompt" max-width="440" persistent>
-    <k-card title="Installing an update">
-      <k-card-text>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</k-card-text>
+    <k-card :title="t('Installing an update')">
+      <k-card-text>{{ t("No shift is open, so GB Cloud {version} installs in {seconds} seconds.", { version: status.version ?? "", seconds: countdown }) }}</k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="cancelIdle">Not now</k-btn>
-        <k-btn color="primary" variant="flat" @click="install">Install now</k-btn>
+        <k-btn variant="text" @click="cancelIdle">{{ t("Not now") }}</k-btn>
+        <k-btn color="primary" variant="flat" @click="install">{{ t("Install now") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -44,9 +44,9 @@
   >
     <div class="d-flex flex-column align-center text-center">
       <k-progress-circular indeterminate color="primary" size="88" width="3" />
-      <div class="update-title mt-8">Updating GB Cloud</div>
-      <div v-if="status.version" class="update-version text-medium-emphasis mt-1">Version {{ status.version }}</div>
-      <div class="text-body-2 text-medium-emphasis mt-8">Back in a few seconds. Keep the computer on.</div>
+      <div class="update-title mt-8">{{ t("Updating GB Cloud") }}</div>
+      <div v-if="status.version" class="update-version text-medium-emphasis mt-1">{{ t("Version {version}", { version: status.version }) }}</div>
+      <div class="text-body-2 text-medium-emphasis mt-8">{{ t("Back in a few seconds. Keep the computer on.") }}</div>
     </div>
   </k-overlay>
 
@@ -56,7 +56,7 @@
       <k-card-text style="white-space: pre-wrap">{{ resultText }}</k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn color="primary" variant="flat" @click="resultDialog = false">OK</k-btn>
+        <k-btn color="primary" variant="flat" @click="resultDialog = false">{{ t("OK") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -74,6 +74,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { restoreSession, saveRoute } from "@/lib/resumeSession";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { t } from "@/i18n";
 
 // The cashier's side of remote updates (updater.go): a banner when one is
 // ready, a cancellable countdown while no shift is open, an "Updating…"
@@ -103,7 +104,7 @@ async function install() {
     await InstallAppUpdate();
   } catch (error) {
     installing.value = false;
-    resultTitle.value = "The update couldn't install";
+    resultTitle.value = t("The update couldn't install");
     resultText.value = error instanceof Error ? error.message : String(error);
     resultDialog.value = true;
   }
@@ -175,11 +176,11 @@ onMounted(async () => {
     // resultText.value = started.notes ? `What's new:\n${started.notes}` : "";
     // resultDialog.value = true;
   } else if (started.result === "rollback") {
-    resultTitle.value = `GB Cloud went back to ${started.to}`;
+    resultTitle.value = t("GB Cloud went back to {version}", { version: String(started.to) });
     resultDialog.value = true;
   } else if (started.result === "failed") {
-    resultTitle.value = "The update didn't work";
-    resultText.value = `${started.from ? `${started.to} didn't start, so ` : ""}GB Cloud went back to the previous version. Your data is safe.`;
+    resultTitle.value = t("The update didn't work");
+    resultText.value = (started.from ? t("{version} didn't start, so ", { version: String(started.to) }) : "") + t("GB Cloud went back to the previous version. Your data is safe.");
     resultDialog.value = true;
   }
 });

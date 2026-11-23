@@ -3,7 +3,7 @@
        the phone step back on screen while the dialog was still fading. -->
   <k-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 720 : 760" @after-leave="reset">
     <k-card v-if="step === 'phone'" class="client-phone-card">
-      <k-card-title v-if="!countryPickerOpen" class="font-weight-bold">Enter Phone Number</k-card-title>
+      <k-card-title v-if="!countryPickerOpen" class="font-weight-bold">{{ t("Enter Phone Number") }}</k-card-title>
       <k-card-text v-if="!countryPickerOpen" class="client-phone-layout">
         <div class="client-phone-form">
           <div
@@ -14,7 +14,7 @@
           </div>
           <div class="client-phone-numpad">
           <div class="client-phone-numpad-display">
-            <span class="client-phone-prefix" aria-label="Country code">+{{ selectedDialCode }}</span>
+            <span class="client-phone-prefix" :aria-label="t('Country code')">+{{ selectedDialCode }}</span>
             <input
               ref="phoneInput"
               class="client-phone-numpad-display-input"
@@ -23,7 +23,7 @@
               inputmode="tel"
               maxlength="15"
               autofocus
-              aria-label="Phone number"
+              :aria-label="t('Phone number')"
               @keydown.enter="lookupPhone"
               @keydown="preventPhoneLength"
               @beforeinput="preventPhoneLengthInput"
@@ -41,34 +41,34 @@
             :disabled="!phone.trim()"
             @click="lookupPhone"
           >
-            Continue
+            {{ t("Continue") }}
           </k-btn>
           <k-btn
             class="client-phone-action-button w-100 mt-5"
             variant="tonal"
             @click="selectAnonymous"
           >
-            Prefer not to say
+            {{ t("Prefer not to say") }}
           </k-btn>
         </div>
         <div class="client-phone-countries">
           <button
             type="button"
             class="client-phone-country-trigger mt-2 mb-3"
-            aria-label="Country: choose or search"
+            :aria-label="t('Country: choose or search')"
             aria-haspopup="dialog"
             :aria-expanded="countryPickerOpen"
             @click="countryPickerOpen = true"
           >
-            <span class="client-phone-country-trigger-label">Country</span>
+            <span class="client-phone-country-trigger-label">{{ t("Country") }}</span>
             <span class="country-flag">{{ selectedFlag }}</span>
             <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
             <span class="client-phone-country-trigger-search" aria-hidden="true">
               <k-icon icon="mdi-magnify" size="22" />
-              Search
+              {{ t("Search") }}
             </span>
           </button>
-          <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
+          <div class="client-phone-country-cards" role="listbox" :aria-label="t('Common countries')">
             <button
               v-for="country in pagedFrequentCountries"
               :key="country.code"
@@ -88,7 +88,7 @@
             <k-btn
               icon="mdi-chevron-left"
               variant="text"
-              aria-label="Previous countries"
+              :aria-label="t('Previous countries')"
               :disabled="countryPage === 0"
               @click="countryPage--"
             />
@@ -96,7 +96,7 @@
             <k-btn
               icon="mdi-chevron-right"
               variant="text"
-              aria-label="More countries"
+              :aria-label="t('More countries')"
               :disabled="countryPage === countryPageCount - 1"
               @click="countryPage++"
             />
@@ -107,15 +107,15 @@
       <!-- Every country as a card, replacing the phone step; tapping one
            picks it and goes back. Search is typed on the on-screen keyboard
            below, by country name or dial code. -->
-      <div v-else class="client-phone-picker" role="dialog" aria-label="Select country">
+      <div v-else class="client-phone-picker" role="dialog" :aria-label="t('Select country')">
         <div class="client-phone-picker-header">
-          <span class="text-h6 font-weight-bold">Select country</span>
-          <k-btn variant="tonal" size="large" @click="closeCountryPicker">Close</k-btn>
+          <span class="text-h6 font-weight-bold">{{ t("Select country") }}</span>
+          <k-btn variant="tonal" size="large" @click="closeCountryPicker">{{ t("Close") }}</k-btn>
         </div>
         <k-text-field
           :model-value="countrySearch"
           class="client-phone-picker-search"
-          placeholder="Search country or code"
+          :placeholder="t('Search country or code')"
           variant="outlined"
           density="comfortable"
           prepend-inner-icon="mdi-magnify"
@@ -138,7 +138,7 @@
             <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
           </button>
           <div v-if="pickerCountries.length === 0" class="client-phone-picker-empty text-medium-emphasis">
-            No country matches "{{ countrySearch }}"
+            {{ t('No country matches "{query}"', { query: countrySearch }) }}
           </div>
         </div>
         <InlineKeyboard v-model="countrySearch" class="client-phone-picker-keyboard" layout="code" :max-length="30" />
@@ -146,7 +146,7 @@
     </k-card>
 
     <k-card v-else-if="step === 'new'">
-      <k-card-title>New Client</k-card-title>
+      <k-card-title>{{ t("New Client") }}</k-card-title>
       <k-card-text>
         <PhoneField
           ref="newPhoneField"
@@ -162,7 +162,7 @@
         </PhoneField>
         <k-text-field
           v-model="newClient.name"
-          placeholder="Name"
+          :placeholder="t('Name')"
           variant="outlined"
           density="compact"
           maxlength="80"
@@ -176,14 +176,14 @@
         <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
       </k-card-text>
       <k-card-actions class="pa-4">
-        <k-btn variant="text" @click="step = 'phone'">Back</k-btn>
+        <k-btn variant="text" @click="step = 'phone'">{{ t("Back") }}</k-btn>
         <k-spacer />
         <k-btn
           variant="elevated"
           color="primary"
           :disabled="!newClient.name.trim()"
           @click="createClient"
-          >Save</k-btn
+          >{{ t("Save") }}</k-btn
         >
       </k-card-actions>
     </k-card>
@@ -200,6 +200,7 @@ import {
   type CountryCode,
 } from "libphonenumber-js/mobile";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
+import { t } from "@/i18n";
 import {
   anonymousClient,
   preventClientNameNumber,
@@ -318,8 +319,8 @@ const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.va
 const phoneError = computed(() =>
   phoneSubmitted.value && phone.value.trim() && !normalizePhone(phone.value)
     ? isLebanon(selectedCountry.value)
-      ? "Enter a valid Lebanese phone number"
-      : "Enter a valid mobile phone number"
+      ? t("Enter a valid Lebanese phone number")
+      : t("Enter a valid mobile phone number")
     : "",
 );
 
@@ -380,8 +381,8 @@ const phoneLengthHint = ref("");
 function blocksPhoneLength(value: string) {
   if (!exceedsPhoneLength(value)) return false;
   phoneLengthHint.value = isLebanon(selectedCountry.value)
-    ? "Lebanese numbers have 8 digits. For another country, tap Search."
-    : `That's the longest number for ${selectedCountryName.value}.`;
+    ? t("Lebanese numbers have 8 digits. For another country, tap Search.")
+    : t("That's the longest number for {country}.", { country: selectedCountryName.value });
   return true;
 }
 
@@ -535,8 +536,8 @@ async function createClient() {
   const phone = newClient.phone.startsWith("+") ? newClient.phone : normalizePhone(newClient.phone);
   if (!phone) {
     newPhoneError.value = isLebanon(selectedCountry.value)
-      ? "Enter a valid Lebanese phone number"
-      : "Enter a valid mobile phone number";
+      ? t("Enter a valid Lebanese phone number")
+      : t("Enter a valid mobile phone number");
     return;
   }
   try {

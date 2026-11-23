@@ -4,6 +4,7 @@ import { useResyncStore } from "@/stores/resync";
 import { useSyncStatus } from "@/composables/useSyncStatus";
 import { useLinkStatus } from "@/composables/useLinkStatus";
 import { describeLink } from "@/lib/linkStatus";
+import { t } from "@/i18n";
 
 // The internet and the live link to central, as two coloured icons. They sit
 // in the nav rail's Devices box with the scanner, printer, keyboard and mouse;
@@ -23,14 +24,14 @@ const summary = computed(() =>
       :icon="summary.internetIcon"
       size="20"
       :class="`link-dot link-dot--${summary.internetTone}`"
-      :title="summary.internetTone === 'ok' ? 'Internet: connected' : 'Internet: not connected'"
+      :title="summary.internetTone === 'ok' ? t('Internet: connected') : t('Internet: not connected')"
       data-test="sync-internet"
     />
     <k-icon
       :icon="summary.liveIcon"
       size="20"
       :class="`link-dot link-dot--${summary.liveTone}`"
-      :title="summary.liveTone === 'ok' ? 'Live link to central: connected' : 'Live link to central: not connected'"
+      :title="summary.liveTone === 'ok' ? t('Live link to central: connected') : t('Live link to central: not connected')"
       data-test="sync-live"
     />
   </span>

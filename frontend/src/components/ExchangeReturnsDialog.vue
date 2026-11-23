@@ -11,15 +11,15 @@
       <k-card-title class="d-flex align-center pa-4">
         <k-icon icon="mdi-swap-horizontal" class="me-2" />
         <div class="flex-grow-1">
-          <div class="text-subtitle-1 font-weight-bold">Returned items</div>
+          <div class="text-subtitle-1 font-weight-bold">{{ t("Returned items") }}</div>
           <div v-if="sale" class="text-caption text-medium-emphasis">
-            From {{ sale.invoiceCode }}
+            {{ t("From {code}", { code: sale.invoiceCode }) }}
           </div>
         </div>
       </k-card-title>
       <k-divider />
       <k-card-text class="exchange-returns-body pa-0">
-        <div v-if="loading" class="pa-6 text-center text-medium-emphasis">Loading the sale…</div>
+        <div v-if="loading" class="pa-6 text-center text-medium-emphasis">{{ t("Loading the sale…") }}</div>
         <div v-else-if="loadError" class="pa-6 text-center text-error" data-test="returns-error">
           {{ loadError }}
         </div>
@@ -34,10 +34,10 @@
           <div class="exchange-returns-text">
             <div class="text-body-2 font-weight-medium" dir="auto">{{ row.item.name }}</div>
             <div class="text-caption text-medium-emphasis">
-              {{ row.item.code }}{{ variant(row) }} · {{ formatCents(unitCents(row)) }} each ·
-              {{ row.available }} on the sale
+              {{ row.item.code }}{{ variant(row) }} · {{ t("{price} each", { price: formatCents(unitCents(row)) }) }} ·
+              {{ t("{available} on the sale", { available: row.available }) }}
               <span v-if="row.item.deal">
-                · {{ row.item.freeQty ? `${row.item.freeQty} free, ` : ""
+                · {{ row.item.freeQty ? t("{qty} free", { qty: row.item.freeQty }) + ", " : ""
                 }}{{ row.item.deal }}</span
               >
             </div>
@@ -47,7 +47,7 @@
               icon="mdi-minus"
               size="small"
               variant="tonal"
-              aria-label="Return one fewer"
+              :aria-label="t('Return one fewer')"
               :disabled="Boolean(problemFor(row, row.returned - 1))"
               @click="change(row, row.returned - 1)"
             />
@@ -56,20 +56,20 @@
               icon="mdi-plus"
               size="small"
               variant="tonal"
-              aria-label="Return one more"
+              :aria-label="t('Return one more')"
               :disabled="Boolean(problemFor(row, row.returned + 1))"
               @click="change(row, row.returned + 1)"
             />
           </div>
           <div class="exchange-returns-state text-caption" data-test="returned-state">
-            {{ row.returned > 0 ? "Returned" : "Not returned" }}
+            {{ row.returned > 0 ? t("Returned") : t("Not returned") }}
           </div>
         </div>
         <div
           v-if="!loading && !loadError && !rows.length"
           class="pa-6 text-center text-medium-emphasis"
         >
-          Nothing is left to return on this sale.
+          {{ t("Nothing is left to return on this sale.") }}
         </div>
       </k-card-text>
       <div
@@ -81,7 +81,7 @@
       </div>
       <k-card-actions class="pa-3">
         <k-spacer />
-        <k-btn variant="flat" color="primary" @click="emit('update:modelValue', false)">Done</k-btn>
+        <k-btn variant="flat" color="primary" @click="emit('update:modelValue', false)">{{ t("Done") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -89,6 +89,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { t } from "@/i18n";
 import { GetExchangeInvoiceByID } from "../../wailsjs/go/main/App";
 import { effectiveExchangePrice, mergeDealUnits, type ExchangeItem } from "@/lib/exchange";
 import { formatCents } from "@/lib/exchangeQuote";
@@ -136,7 +137,7 @@ async function load() {
     };
   } catch (e: any) {
     sale.value = null;
-    loadError.value = e?.toString() || "The sale couldn't be loaded.";
+    loadError.value = e?.toString() || t("The sale couldn't be loaded.");
   } finally {
     loading.value = false;
   }

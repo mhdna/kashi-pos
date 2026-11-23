@@ -3,11 +3,11 @@
     <k-card>
       <k-card-title class="d-flex align-center">
         <k-icon icon="mdi-account-credit-card-outline" class="me-2" />
-        Save sale on account
+        {{ t("Save sale on account") }}
       </k-card-title>
       <k-card-text>
         <div class="text-body-2 text-medium-emphasis mb-3">
-          Choose customer
+          {{ t("Choose customer") }}
         </div>
         <k-text-field
           v-model="search"
@@ -15,7 +15,7 @@
           clearable
           density="compact"
           hide-details
-          placeholder="Search customers"
+          :placeholder="t('Search customers')"
           prepend-inner-icon="mdi-magnify"
           variant="outlined"
         />
@@ -24,7 +24,7 @@
             v-for="client in filteredClients"
             :key="client.id"
             :title="client.name"
-            :subtitle="formatLebanesePhone(client.phone) || 'No phone number'"
+            :subtitle="formatLebanesePhone(client.phone) || t('No phone number')"
             prepend-icon="mdi-account-outline"
             @click="selectClient(client)"
           >
@@ -34,16 +34,16 @@
           </k-list-item>
         </k-list>
         <div v-else class="text-center text-medium-emphasis py-5">
-          No existing customer matches this search.
+          {{ t("No existing customer matches this search.") }}
         </div>
       </k-card-text>
       <k-divider />
       <k-card-actions>
         <k-btn prepend-icon="mdi-account-plus" color="primary" variant="tonal" @click="openNewClientDialog">
-          New customer
+          {{ t("New customer") }}
         </k-btn>
         <k-spacer />
-        <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
+        <k-btn variant="text" @click="dialog = false">{{ t("Cancel") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -52,6 +52,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, ref, watch } from "vue";
+import { t } from "@/i18n";
 import { SearchClients } from "../../wailsjs/go/main/App";
 import { toClient, type Client } from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";

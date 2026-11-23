@@ -8,7 +8,7 @@
         <k-text-field
           v-model="fromDate"
           type="date"
-          label="From"
+          :label="t('From')"
           variant="outlined"
           density="compact"
           hide-details
@@ -18,7 +18,7 @@
         <k-text-field
           v-model="toDate"
           type="date"
-          label="To"
+          :label="t('To')"
           variant="outlined"
           density="compact"
           hide-details
@@ -26,7 +26,7 @@
           @change="refresh"
         />
       </template>
-      <span v-else-if="report" class="text-body-2 text-medium-emphasis">This month</span>
+      <span v-else-if="report" class="text-body-2 text-medium-emphasis">{{ t("This month") }}</span>
       <k-btn
         v-if="unlocked"
         icon="mdi-refresh"
@@ -40,29 +40,29 @@
          opened; it's kept only while the page stays open. -->
     <div v-if="!unlocked" class="unlock">
       <k-card class="unlock-card" width="400" variant="text">
-        <h2 class="unlock-title">Manager password</h2>
+        <h2 class="unlock-title">{{ t("Manager password") }}</h2>
         <k-text-field
           v-model="password"
           autofocus
           density="comfortable"
           :error-messages="unlockError"
-          placeholder="Password"
+          :placeholder="t('Password')"
           type="password"
           variant="outlined"
           class="unlock-field"
           @keyup.enter="unlock"
         />
-        <k-btn block color="primary" size="large" :loading="loading" text="Open" @click="unlock" />
+        <k-btn block color="primary" size="large" :loading="loading" :text="t('Open')" @click="unlock" />
       </k-card>
     </div>
 
     <template v-else-if="report">
       <k-alert v-if="!visitorCounterOn" class="mb-4" density="compact" type="info" variant="tonal">
-        The people counter is off, so new visitors aren't being counted.
+        {{ t("The people counter is off, so new visitors aren't being counted.") }}
       </k-alert>
 
       <k-alert v-if="report.overall.days === 0" density="compact" type="info" variant="tonal">
-        No visitors were counted yet, so there's nothing to compare sales with.
+        {{ t("No visitors were counted yet, so there's nothing to compare sales with.") }}
       </k-alert>
 
       <template v-else>
@@ -74,11 +74,11 @@
             </k-progress-circular>
             <div>
               <div class="text-h5 font-weight-bold text-high-emphasis">
-                Buy rate
+                {{ t("Buy rate") }}
               </div>
               <div class="text-body-2 text-medium-emphasis mt-1">
-                {{ report.overall.invoices }} {{ plural(report.overall.invoices, "sale") }},
-                {{ report.overall.visitors }} {{ plural(report.overall.visitors, "visitor") }}
+                {{ report.overall.invoices }} {{ plural(report.overall.invoices, "sale", "sales") }},
+                {{ report.overall.visitors }} {{ plural(report.overall.visitors, "visitor", "visitors") }}
               </div>
             </div>
           </div>
@@ -94,7 +94,7 @@
         <!-- What a day with this many visitors should bring, at the rate of
              the days that were about as busy. -->
         <div class="estimate mb-6">
-          <span>If</span>
+          <span>{{ t("If") }}</span>
           <k-text-field
             v-model.number="estimateVisitors"
             class="estimate__input"
@@ -104,29 +104,29 @@
             type="number"
             variant="outlined"
           />
-          <span>people walk in, expect about</span>
-          <strong>{{ estimate.sales }} {{ plural(estimate.sales, "sale") }}</strong>
-          <span>and</span>
+          <span>{{ t("people walk in, expect about") }}</span>
+          <strong>{{ estimate.sales }} {{ plural(estimate.sales, "sale", "sales") }}</strong>
+          <span>{{ t("and") }}</span>
           <strong>{{ wholeMoney(estimate.revenue) }}</strong>
         </div>
       </template>
 
       <div class="d-flex align-center mb-2">
-        <span class="text-subtitle-1 font-weight-bold">Days</span>
+        <span class="text-subtitle-1 font-weight-bold">{{ t("Days") }}</span>
         <k-spacer />
         <span v-if="report.uncountedDays" class="text-caption text-medium-emphasis">
-          Days without visitors are excluded
+          {{ t("Days without visitors are excluded") }}
         </span>
       </div>
       <div class="days">
         <!-- Header and rows share one column grid, so every value sits
              under its label whatever the row's last cell holds. -->
         <div class="day day--head">
-          <div>Day</div>
-          <div class="day__stat">Visitors</div>
-          <div class="day__stat">Sales</div>
-          <div class="day__stat">Total</div>
-          <div class="day__rate">Buy rate</div>
+          <div>{{ t("Day") }}</div>
+          <div class="day__stat">{{ t("Visitors") }}</div>
+          <div class="day__stat">{{ t("Sales") }}</div>
+          <div class="day__stat">{{ t("Total") }}</div>
+          <div class="day__rate">{{ t("Buy rate") }}</div>
         </div>
         <div v-for="day in shownDays" :key="day.day" class="day">
           <div class="day__date">
@@ -140,11 +140,11 @@
             <span v-if="day.visitors" :class="day.invoices ? 'text-primary' : 'text-medium-emphasis'">
               {{ percent(day.invoices / day.visitors) }}
             </span>
-            <span v-else class="text-caption text-medium-emphasis">not counted</span>
+            <span v-else class="text-caption text-medium-emphasis">{{ t("not counted") }}</span>
           </div>
         </div>
         <div v-if="!shownDays.length" class="text-body-2 text-medium-emphasis pa-2">
-          Nothing yet.
+          {{ t("Nothing yet.") }}
         </div>
       </div>
     </template>
@@ -155,6 +155,7 @@
 import { computed, onMounted, ref } from "vue";
 import { GetConversionReport } from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
+import { t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 
@@ -210,8 +211,8 @@ function wholeMoney(cents: number) {
 function percent(rate: number) {
   return `${Math.round(Math.min(rate, 1) * 100)}%`;
 }
-function plural(n: number, word: string) {
-  return n === 1 ? word : `${word}s`;
+function plural(n: number, one: string, many: string) {
+  return n === 1 ? t(one) : t(many);
 }
 function dayLabel(day: string) {
   return new Date(`${day}T00:00:00`).toLocaleDateString(undefined, {
@@ -229,19 +230,19 @@ const tiles = computed(() => {
   if (!o) return [];
   return [
     {
-      label: "Visitors",
+      label: t("Visitors"),
       value: o.visitors.toLocaleString(),
     },
     {
-      label: "Sales",
+      label: t("Sales"),
       value: o.invoices.toLocaleString(),
     },
     {
-      label: "Average invoice",
+      label: t("Average invoice"),
       value: money(o.avgInvoice),
     },
     {
-      label: "Each visitor brings",
+      label: t("Each visitor brings"),
       value: money(o.revenuePerVisitor),
     },
   ];
@@ -266,7 +267,7 @@ async function unlock() {
     await load();
     unlocked.value = true;
   } catch (error) {
-    unlockError.value = String(error).includes("password") ? "Wrong password" : String(error);
+    unlockError.value = String(error).includes("password") ? t("Wrong password") : String(error);
   }
 }
 

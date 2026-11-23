@@ -8,7 +8,7 @@
         density="compact"
         hide-details
         inputmode="none"
-        :placeholder="codeOnly ? 'Enter a product code...' : 'Search products...'"
+        :placeholder="codeOnly ? t('Enter a product code...') : t('Search products...')"
         variant="outlined"
         autofocus
         @update:model-value="emit('update:modelValue', $event)"
@@ -20,8 +20,8 @@
         v-if="auth.isAdmin"
         class="product-layout-toggle"
         variant="tonal"
-        :aria-label="gridMode ? 'Show results as a list' : 'Show results in columns'"
-        :title="gridMode ? 'One per row' : 'Columns'"
+        :aria-label="gridMode ? t('Show results as a list') : t('Show results in columns')"
+        :title="gridMode ? t('One per row') : t('Columns')"
         @click="emit('update:gridMode', !gridMode)"
       >
         <k-icon :icon="gridMode ? 'mdi-view-agenda-outline' : 'mdi-view-grid-outline'" size="24" />
@@ -40,16 +40,17 @@
       class="product-search-close"
       color="error"
       variant="flat"
-      aria-label="Close product search"
+      :aria-label="t('Close product search')"
       @click="emit('close')"
     >
-      Close
+      {{ t("Close") }}
     </k-btn>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, watch } from "vue";
+import { t } from "@/i18n";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useTouchSelection } from "@/composables/useTouchSelection";

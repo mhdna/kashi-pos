@@ -1,13 +1,13 @@
 <template>
   <k-dialog :model-value="modelValue" max-width="380" @update:model-value="$emit('update:modelValue', $event)">
     <k-card>
-      <k-card-title>Set opening cash</k-card-title>
+      <k-card-title>{{ t("Set opening cash") }}</k-card-title>
       <k-card-text class="dialog-content">
-        <div class="text-caption text-medium-emphasis mb-1">Opening amount (USD)</div>
+        <div class="text-caption text-medium-emphasis mb-1">{{ t("Opening amount (USD)") }}</div>
         <k-text-field v-model.number="usd" placeholder="0.00" type="number" min="0" step="0.01" variant="outlined" density="compact" class="mb-2" />
-        <div class="text-caption text-medium-emphasis mb-1">Opening amount (LBP)</div>
+        <div class="text-caption text-medium-emphasis mb-1">{{ t("Opening amount (LBP)") }}</div>
         <k-text-field v-model.number="lbp" placeholder="0" type="number" min="0" step="1" variant="outlined" density="compact" class="mb-2" />
-        <div class="text-caption text-medium-emphasis mb-1">Manager password</div>
+        <div class="text-caption text-medium-emphasis mb-1">{{ t("Manager password") }}</div>
         <k-text-field
           v-model="password"
           placeholder="••••••••"
@@ -20,15 +20,15 @@
         />
         <div class="alert-container">
           <k-alert v-if="negative" type="warning" variant="tonal" density="compact" class="mb-2">
-            Opening amount cannot be negative — enter the actual cash amount in the drawer.
+            {{ t("Opening amount cannot be negative — enter the actual cash amount in the drawer.") }}
           </k-alert>
           <k-alert v-if="error" type="error" variant="tonal" density="compact">{{ error }}</k-alert>
         </div>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</k-btn>
-        <k-btn color="primary" :loading="saving" :disabled="negative" @click="save">Apply</k-btn>
+        <k-btn variant="text" @click="$emit('update:modelValue', false)">{{ t("Cancel") }}</k-btn>
+        <k-btn color="primary" :loading="saving" :disabled="negative" @click="save">{{ t("Apply") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -36,6 +36,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { t } from "@/i18n";
 import { ApplyOpeningFloatToCurrentShift } from "../../../wailsjs/go/main/App";
 
 const props = defineProps<{

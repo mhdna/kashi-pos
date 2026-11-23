@@ -14,7 +14,7 @@
       </div>
       <div class="attendance-toast__kind" :class="isIn ? 'attendance-toast__kind--in' : 'attendance-toast__kind--out'">
         <k-icon icon="mdi-account-clock" size="22" />
-        <span>{{ isIn ? "Check in" : "Check out" }}</span>
+        <span>{{ isIn ? t("Check in") : t("Check out") }}</span>
       </div>
     </div>
   </k-snackbar>
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
+import { t } from "@/i18n";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 interface Punch {

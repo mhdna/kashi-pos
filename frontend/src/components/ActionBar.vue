@@ -24,7 +24,7 @@
       >
         <div class="d-flex flex-column align-center">
           <k-icon icon="mdi-close-circle-outline" size="28" class="mb-1" />
-          Cancel
+          {{ t("Cancel") }}
         </div>
       </k-btn>
       <k-btn
@@ -32,7 +32,7 @@
         rounded="lg"
         variant="text"
         color="grey-darken-2"
-        aria-label="Invoice note"
+        :aria-label="t('Invoice note')"
         data-test="note-open"
         @click="$emit('note')"
       >
@@ -44,7 +44,7 @@
             class="mb-1"
             data-test="note-icon"
           />
-          Note
+          {{ t("Note") }}
         </div>
       </k-btn>
       <k-btn
@@ -57,7 +57,7 @@
       >
         <div class="d-flex flex-column align-center">
           <k-icon icon="mdi-pause" size="28" class="mb-1" />
-          Hold
+          {{ t("Hold") }}
         </div>
       </k-btn>
     </div>
@@ -80,29 +80,29 @@
 
   <k-dialog v-model="dialog" max-width="350">
     <k-card>
-      <k-card-title>Confirm {{ action === "hold" ? "hold" : "cancel" }}</k-card-title>
+      <k-card-title>{{ t("Confirm") }} {{ action === "hold" ? t("hold") : t("cancel") }}</k-card-title>
       <k-card-text>
-        <template v-if="action === 'hold'"> Save the current invoice to hold? </template>
+        <template v-if="action === 'hold'"> {{ t("Save the current invoice to hold?") }} </template>
         <template v-else>
           <template v-if="mode === 'exchange'">
-            Cancel the exchange?
+            {{ t("Cancel the exchange?") }}
           </template>
           <template v-else-if="mode === 'settlement'">
-            Cancel the settlement?
+            {{ t("Cancel the settlement?") }}
           </template>
           <template v-else>
-            Cancel the current invoice?
+            {{ t("Cancel the current invoice?") }}
           </template>
         </template>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
+        <k-btn variant="text" @click="dialog = false">{{ t("Cancel") }}</k-btn>
         <k-btn
           color="primary"
           variant="flat"
           @click="doConfirm"
-          >Confirm</k-btn
+          >{{ t("Confirm") }}</k-btn
         >
       </k-card-actions>
     </k-card>
@@ -111,6 +111,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { t } from "@/i18n";
 
 const emit = defineEmits<{ hold: []; void: []; cancelMode: []; checkout: []; note: [] }>();
 const props = defineProps<{
@@ -128,7 +129,7 @@ const mode = computed(() => props.mode ?? "sale");
 // held (it comes back as the same exchange); a settlement can't. Cancel is
 // available in all modes.
 const checkoutLabel = computed(() =>
-  mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
+  mode.value === "exchange" ? t("Exchange") : mode.value === "settlement" ? t("Change Settlement") : t("Check Out"),
 );
 const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "green-darken-3"));
 const checkoutButtonStyle = computed(() =>

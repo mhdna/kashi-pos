@@ -6,7 +6,7 @@
     :class="{ 'sp-grid--dense': dense }"
     :style="{ '--sp-columns': columns ?? 3 }"
     role="listbox"
-    aria-label="Salesman"
+    :aria-label="t('Salesman')"
   >
     <button
       v-if="defaultLabel"
@@ -40,6 +40,7 @@
 
 <script setup lang="ts">
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
+import { t } from "@/i18n";
 import { salespersonColor } from "@/lib/salespersonColor";
 
 defineProps<{

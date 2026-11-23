@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { t } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useResyncStore } from "@/stores/resync";
 import { useSyncStatus } from "@/composables/useSyncStatus";
@@ -59,7 +60,7 @@ function openSyncSettings() {
     :class="['sync-status', `sync-status--${shown.tone}`]"
     :title="shown.title"
     role="button"
-    :aria-label="`Sync: ${shown.word}`"
+    :aria-label="t('Sync: {word}', { word: shown.word })"
     data-test="sync-indicator"
     @click="open = true"
   >
@@ -109,9 +110,9 @@ function openSyncSettings() {
         </table>
       </k-card-text>
       <k-card-actions>
-        <k-btn v-if="auth.isAdmin" variant="text" data-test="sync-open-settings" @click="openSyncSettings">Sync settings</k-btn>
+        <k-btn v-if="auth.isAdmin" variant="text" data-test="sync-open-settings" @click="openSyncSettings">{{ t("Sync settings") }}</k-btn>
         <k-spacer />
-        <k-btn variant="text" @click="open = false">Close</k-btn>
+        <k-btn variant="text" @click="open = false">{{ t("Close") }}</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>

@@ -1,12 +1,12 @@
 <template>
   <k-dialog v-model="dialog" max-width="760">
     <k-card>
-      <k-card-title>Edit Client</k-card-title>
+      <k-card-title>{{ t("Edit Client") }}</k-card-title>
       <k-card-text>
         <PhoneField ref="phoneField" v-model="form.phone" class="mb-2" @focus="phoneActive = true" />
         <k-text-field
           v-model="form.name"
-          placeholder="Name"
+          :placeholder="t('Name')"
           variant="outlined"
           density="compact"
           maxlength="80"
@@ -21,7 +21,7 @@
         <div v-if="error" class="text-error text-caption mt-2">{{ error }}</div>
       </k-card-text>
       <k-card-actions class="pa-4">
-        <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
+        <k-btn variant="text" @click="dialog = false">{{ t("Cancel") }}</k-btn>
         <k-spacer />
         <k-btn
           variant="elevated"
@@ -30,7 +30,7 @@
           :disabled="!form.name.trim()"
           @click="save"
         >
-          Save
+          {{ t("Save") }}
         </k-btn>
       </k-card-actions>
     </k-card>
@@ -40,6 +40,7 @@
 <script lang="ts" setup>
 import { reactive, ref, watch } from "vue";
 import { UpdateClient } from "../../wailsjs/go/main/App";
+import { t } from "@/i18n";
 import {
   preventClientNameNumber,
   preventClientNameNumberInput,

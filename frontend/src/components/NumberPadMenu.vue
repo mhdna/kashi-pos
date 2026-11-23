@@ -20,7 +20,7 @@
         <button
           :ref="setActivatorRef"
           v-bind="keyboardMode ? {} : activatorProps"
-          :aria-label="ariaLabel"
+          :aria-label="ariaLabel ?? t('Open number pad')"
           :class="{
             'number-pad-activator--error': tone === 'error',
             'number-pad-activator--keyboard': keyboardMode,
@@ -81,7 +81,7 @@
           :class="{ 'number-pad-key--wide': !allowDecimal }"
           size="small"
           variant="tonal"
-          aria-label="Plus or minus"
+          :aria-label="t('Plus or minus')"
           data-test="number-pad-sign"
           @click="toggleNegative"
         >
@@ -109,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import { t } from "@/i18n";
 import {
   computed,
   inject,
@@ -159,7 +160,6 @@ const props = withDefaults(
     replaceOnOpen: true,
     prefix: "",
     suffix: "",
-    ariaLabel: "Open number pad",
     disabled: false,
     tone: "default",
     allowDecimal: false,
