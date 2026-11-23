@@ -21,17 +21,13 @@
   </k-dialog>
 
   <!-- No shift open: install by itself unless the cashier says not now.
-       Forced from central: install even mid-shift, and no "not now". -->
+       (A forced update from central never gets here: it installs silently.) -->
   <k-dialog v-model="idlePrompt" max-width="440" persistent>
-    <k-card :title="status.force ? 'A required update' : 'Installing an update'">
-      <k-card-text v-if="status.force">
-        GB Cloud {{ status.version }} installs in {{ countdown }} seconds. Finish the current sale now; GB Cloud
-        closes and reopens by itself.
-      </k-card-text>
-      <k-card-text v-else>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</k-card-text>
+    <k-card title="Installing an update">
+      <k-card-text>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</k-card-text>
       <k-card-actions>
         <k-spacer />
-        <k-btn v-if="!status.force" variant="text" @click="cancelIdle">Not now</k-btn>
+        <k-btn variant="text" @click="cancelIdle">Not now</k-btn>
         <k-btn color="primary" variant="flat" @click="install">Install now</k-btn>
       </k-card-actions>
     </k-card>
@@ -68,7 +64,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { ConfirmAppStarted, GetAppUpdateStatus, InstallAppUpdate, WaitUntilReady } from "../../wailsjs/go/main/App";
+import {
+  ConfirmAppStarted,
+  GetAppUpdateStatus,
+  InstallAppUpdate,
+  SaveResumeRoute,
+  TakeResumeSession,
+  WaitUntilReady,
+} from "../../wailsjs/go/main/App";
+import { restoreSession, saveRoute } from "@/lib/resumeSession";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 // The cashier's side of remote updates (updater.go): a banner when one is
@@ -84,7 +88,8 @@ const resultDialog = ref(false);
 const resultTitle = ref("");
 const resultText = ref("");
 const showReady = computed({
-  get: () => status.value.state === "ready" && status.value.supported && !dismissed.value && !installing.value,
+  // A forced update installs by itself with no notice, so nothing to offer.
+  get: () => status.value.state === "ready" && status.value.supported && !status.value.force && !dismissed.value && !installing.value,
   set: (v) => { if (!v) dismissed.value = true; },
 });
 let timer: ReturnType<typeof setInterval> | undefined;
@@ -109,15 +114,46 @@ function cancelIdle() {
   if (timer) clearInterval(timer);
 }
 
+// After a forced update's restart: sign the same role back in and return to
+// the screen we were on (the sale screen restores its own draft).
+async function resumeAfterUpdate() {
+  try {
+    const [{ default: router }, { useAuthStore }] = await Promise.all([import("@/router"), import("@/stores/auth")]);
+    const auth = useAuthStore();
+    await restoreSession({
+      take: TakeResumeSession,
+      isLoggedIn: () => auth.isLoggedIn,
+      setUser: (user) => (auth.currentUser = user),
+      go: (route) => router.replace(route),
+    });
+  } catch {
+    // No router or store (a bare test mount): nothing to resume.
+  }
+}
+
 onMounted(async () => {
   offs.push(EventsOn("app_update_state", (s: Record<string, any>) => {
     if (s.state === "ready" && status.value.version !== s.version) dismissed.value = false;
     status.value = s;
   }));
-  offs.push(EventsOn("app_update_installing", () => (installing.value = true)));
+  // A forced update is about to restart the till: say where we are, so it
+  // comes back to the same screen, signed in.
+  offs.push(EventsOn("app_update_save_state", async () => {
+    const { default: router } = await import("@/router");
+    await saveRoute({
+      flushDraft: () => window.dispatchEvent(new Event("pagehide")),
+      route: () => router.currentRoute.value.fullPath,
+      save: SaveResumeRoute,
+    });
+  }));
+  // A forced update restarts silently: no "Updating…" screen.
+  offs.push(EventsOn("app_update_installing", (s?: Record<string, any>) => {
+    if (s?.force) return;
+    installing.value = true;
+  }));
   offs.push(EventsOn("app_update_prompt", (s: Record<string, any>) => {
     status.value = s;
-    countdown.value = s.force ? 60 : 30;
+    countdown.value = 30;
     idlePrompt.value = true;
     timer = setInterval(() => {
       countdown.value -= 1;
@@ -130,6 +166,7 @@ onMounted(async () => {
   // update helper rolls back.
   if (ready.error) return;
   const started = await ConfirmAppStarted();
+  void resumeAfterUpdate();
   if (started.result === "update") {
     // The "updated to … / What's new" dialog is off for now; kept to turn
     // back on later. ConfirmAppStarted above must still run (it tells the

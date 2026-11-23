@@ -420,7 +420,7 @@ func targetBranches(baseURL, token string, releaseID int64, version, flavor, cho
 	ok("Sent %s to %d till(s):", version, len(ids))
 	fmt.Println(strings.Join(lines, "\n"))
 	if force {
-		warn("Forced: each till installs it as soon as it has it, after a one-minute countdown.")
+		warn("Forced: each till installs it the moment it has it, restarts with no notice and comes back where it was.")
 	}
 	dim("Central deletes the build from the server once they've all installed it. Follow them on the App Updates page.")
 	return nil

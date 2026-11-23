@@ -446,6 +446,7 @@ func (a *App) switchDatabase(path string, createIfMissing bool) error {
 func (a *App) failStartup(operation string, err error) {
 	a.startupErr = fmt.Errorf("%s: %w", operation, err)
 	log.Printf("backend startup failed: %v", a.startupErr)
+	a.markTrialUnhealthy(a.startupErr)
 	if a.conn != nil {
 		_ = a.conn.Close()
 		a.conn = nil

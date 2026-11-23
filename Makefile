@@ -141,8 +141,19 @@ export KASHI_URL KASHI_USER
 #   git tag v1.2.3 && make publish
 #   git tag v1.2.3 && make publish-all NOTES="what changed"
 # publish-all-force (and publish-compact-all-force) also makes them install it
-# right away, even mid-shift, after a one-minute countdown on the till.
+# the moment they have it, even mid-shift, with no notice on the till.
 #   git tag v1.2.3 && make publish-all-force NOTES="urgent fix"
+# force-publish / force-release are short names for the -all-force targets:
+#   make force-publish            publish-all-force (tag already made)
+#   make force-release NOTES=".." release-all-force (bump, then publish)
+# The -compact variants do the same for the compact build.
+FORCE_ALIASES = force-publish force-publish-compact force-release force-release-compact
+.PHONY: $(FORCE_ALIASES)
+force-publish: publish-all-force
+force-publish-compact: publish-compact-all-force
+force-release: release-all-force
+force-release-compact: release-compact-all-force
+
 .PHONY: update-keygen publish publish-compact publish-all publish-compact-all publish-all-force publish-compact-all-force
 update-keygen:
 	go run ./cmd/publish-release keygen

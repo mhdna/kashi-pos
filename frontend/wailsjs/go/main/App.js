@@ -838,6 +838,10 @@ export function RoundInvoice(arg1) {
   return window['go']['main']['App']['RoundInvoice'](arg1);
 }
 
+export function SaveResumeRoute(arg1) {
+  return window['go']['main']['App']['SaveResumeRoute'](arg1);
+}
+
 export function SearchClients(arg1, arg2) {
   return window['go']['main']['App']['SearchClients'](arg1, arg2);
 }
@@ -1092,6 +1096,10 @@ export function SyncAttendance(arg1) {
 
 export function SyncUnknownItemSession(arg1, arg2) {
   return window['go']['main']['App']['SyncUnknownItemSession'](arg1, arg2);
+}
+
+export function TakeResumeSession() {
+  return window['go']['main']['App']['TakeResumeSession']();
 }
 
 export function UnknownItemSessionStatus(arg1) {

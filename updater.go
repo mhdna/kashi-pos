@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"kashi-pos/internal/updatekey"
@@ -93,9 +94,18 @@ type updateHandoff struct {
 	FromVersion string `json:"from_version"`
 	ToVersion   string `json:"to_version"`
 	Notes       string `json:"notes"`
-	ExePath     string `json:"exe_path"`
-	ParentPID   int    `json:"parent_pid"`
+	// Force: a required update, installed with no dialog (installForced).
+	Force     bool   `json:"force"`
+	ExePath   string `json:"exe_path"`
+	ParentPID int    `json:"parent_pid"`
+	// RestoreDB and DBPath: set by a new version whose startup failed after it
+	// backed the database up to migrate it. The helper puts the backup back
+	// with the old version, so both match (restoreDatabaseBackup).
+	RestoreDB string `json:"restore_db,omitempty"`
+	DBPath    string `json:"db_path,omitempty"`
 	// Phase: "waiting" for the app to exit, "verifying" the new version,
+	// "unhealthy" when it says its startup failed (the helper rolls back at
+	// once),
 	// "healthy" once it confirmed, "done" after the helper finalized, or
 	// "rolled_back" when the old version had to be put back.
 	Phase     string    `json:"phase"`
@@ -121,6 +131,12 @@ type appUpdater struct {
 	// what ConfirmAppStarted tells the frontend.
 	started   map[string]any
 	confirmed bool
+	// sales counts checkouts in flight; a forced install waits for zero so
+	// the restart never lands in the middle of a sale (beginSale).
+	sales atomic.Int32
+	// routeCh receives the screen's route while a forced install saves where
+	// the cashier is (resume.go).
+	routeCh chan string
 }
 
 func updatesDir() (string, error) {
@@ -511,28 +527,99 @@ func (a *App) reportUpdateStatusNow(s updaterState) {
 	a.reportUpdateStatus(ctx, a.syncClient(ctx, "update"), s)
 }
 
+// quitDelay is how long the app stays up after starting the helper.
+func quitDelay(force bool) time.Duration {
+	if force {
+		return 300 * time.Millisecond
+	}
+	return 1500 * time.Millisecond
+}
+
+// installDecision says what the idle check does with a ready update.
+// prompt: ask the cashier (a countdown they can cancel) once no shift is open.
+// silent: a forced update installs by itself, no dialog, shift or not.
+func installDecision(s updaterState, idle, prompted, supported bool) (prompt, silent bool) {
+	if prompted || !supported || s.State != updateReady {
+		return false, false
+	}
+	if s.Force {
+		return false, true
+	}
+	return idle, false
+}
+
 // maybePromptIdleInstall offers to install a ready update once no shift is
 // open -- after close shift, or overnight once a shift auto-closes. The
 // frontend shows a countdown the cashier can cancel; it prompts again the
-// next time the till is idle. A forced update (App Updates' force) is
-// prompted for right away, shift or not, with a countdown that can't be
-// cancelled.
+// next time the till is idle. A forced update (App Updates' force) installs
+// right away with no prompt at all (installForced): the till restarts, signs
+// back in and returns to the screen it was on.
 func (a *App) maybePromptIdleInstall() {
 	s := a.updateStateSnapshot()
 	u := &a.updater
-	_, err := a.store.GetOpenShift(a.ctx)
-	idle := errors.Is(err, sql.ErrNoRows)
+	idle := false
+	if a.store != nil {
+		_, err := a.store.GetOpenShift(a.ctx)
+		idle = errors.Is(err, sql.ErrNoRows)
+	}
 	u.mu.Lock()
 	if !idle && !s.Force {
 		u.prompted = false
 	}
-	prompt := (idle || s.Force) && s.State == updateReady && !u.prompted && updateInstallSupported
-	if prompt {
+	prompt, silent := installDecision(s, idle, u.prompted, updateInstallSupported)
+	if prompt || silent {
 		u.prompted = true
 	}
 	u.mu.Unlock()
 	if prompt {
 		wailsruntime.EventsEmit(a.ctx, "app_update_prompt", a.GetAppUpdateStatus())
+	}
+	if silent {
+		go a.installForced()
+	}
+}
+
+// forcedInstallSaleWait is how long a forced install waits for a sale that
+// is being saved; a restart never cuts a checkout in half.
+const forcedInstallSaleWait = 10 * time.Second
+
+// beginSale marks a checkout as in flight; call the result when it ends.
+func (a *App) beginSale() func() {
+	a.updater.sales.Add(1)
+	return func() { a.updater.sales.Add(-1) }
+}
+
+// waitForQuietSales waits until no checkout is in flight, up to timeout, and
+// says whether it got there.
+func (a *App) waitForQuietSales(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for a.updater.sales.Load() > 0 {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return true
+}
+
+// installForced installs a forced update with no questions asked. If a sale
+// is stuck past the wait, or the install fails, it tries again at the next
+// idle check instead of cutting the sale off.
+func (a *App) installForced() {
+	if !a.waitForQuietSales(forcedInstallSaleWait) {
+		a.updater.mu.Lock()
+		a.updater.prompted = false
+		a.updater.mu.Unlock()
+		return
+	}
+	st := a.updateStateSnapshot()
+	a.saveResumeBeforeInstall(appVersion, st.Version)
+	if err := a.InstallAppUpdate(); err != nil {
+		log.Printf("app update: forced install: %v", err)
+		discardResume()
+		a.updater.mu.Lock()
+		a.updater.prompted = false
+		a.updater.mu.Unlock()
 	}
 }
 
@@ -544,7 +631,7 @@ func (a *App) InstallAppUpdate() error {
 		return errors.New("no update is ready to install")
 	}
 	return a.beginHandoff(updateHandoff{
-		Mode: "update", ReleaseID: s.ReleaseID, FromVersion: appVersion, ToVersion: s.Version, Notes: s.Notes,
+		Mode: "update", ReleaseID: s.ReleaseID, FromVersion: appVersion, ToVersion: s.Version, Notes: s.Notes, Force: s.Force,
 	}, s.StagedPath)
 }
 
@@ -609,8 +696,9 @@ func (a *App) beginHandoff(h updateHandoff, source string) error {
 	a.reportUpdateStatusNow(next)
 	wailsruntime.EventsEmit(a.ctx, "app_update_installing", a.GetAppUpdateStatus())
 	go func() {
-		// Let the frontend paint its "Updating…" screen first.
-		time.Sleep(1500 * time.Millisecond)
+		// A forced install is silent and quick; the others let the frontend
+		// paint its "Updating…" screen first.
+		time.Sleep(quitDelay(h.Force))
 		// The new version hides the taskbar again as it starts.
 		kioskKeepShellOff.Store(true)
 		wailsruntime.Quit(a.ctx)
@@ -751,14 +839,23 @@ func runUpdateHelper(handoffPath string, procs updateProcesses) int {
 	pid, err := procs.startPID(h.ExePath)
 	healthy := false
 	reason := ""
+	restoreDB, restoreDBPath := "", ""
 	if err != nil {
 		reason = "it couldn't be started: " + err.Error()
 	} else {
 		deadline := time.Now().Add(updateVerifyTimeout)
 		for time.Now().Before(deadline) {
-			if cur, err := loadHandoff(handoffPath); err == nil && cur.Phase == "healthy" {
-				healthy = true
-				break
+			if cur, err := loadHandoff(handoffPath); err == nil {
+				if cur.Phase == "healthy" {
+					healthy = true
+					break
+				}
+				if cur.Phase == "unhealthy" {
+					// It said so itself: no waiting out the clock.
+					restoreDB, restoreDBPath = cur.RestoreDB, cur.DBPath
+					reason = "it failed to start (" + cur.Detail + ")"
+					break
+				}
 			}
 			if !procs.alive(pid) {
 				reason = "it closed right after starting"
@@ -789,9 +886,71 @@ func runUpdateHelper(handoffPath string, procs updateProcesses) int {
 	if err := retryRename(pendingOldExePath(h.ExePath), h.ExePath); err != nil {
 		log.Printf("update helper: restore old version: %v", err)
 	}
+	// Only a version that said its startup failed can have left the database
+	// half-moved; it never opened it, so nothing was sold on it.
+	if restoreDB != "" {
+		if err := restoreDatabaseBackup(restoreDB, restoreDBPath); err != nil {
+			log.Printf("update helper: restore database: %v", err)
+		} else {
+			reason += "; the database went back to how it was before"
+		}
+	}
 	code := fail("The new version was rolled back because " + reason + ".")
 	_ = procs.start(h.ExePath)
 	return code
+}
+
+// restoreDatabaseBackup puts the pre-migration backup back as the database,
+// dropping the write-ahead files of the one it replaces. It copies beside the
+// database first, so a failure leaves the current file untouched.
+func restoreDatabaseBackup(backup, dbPath string) error {
+	if backup == "" || dbPath == "" {
+		return errors.New("no backup to restore")
+	}
+	if _, err := os.Stat(backup); err != nil {
+		return err
+	}
+	tmp := dbPath + ".restore"
+	_ = os.Remove(tmp)
+	if err := copyFile(backup, tmp); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	_ = os.Remove(dbPath + "-wal")
+	_ = os.Remove(dbPath + "-shm")
+	if err := retryRename(tmp, dbPath); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+// markTrialUnhealthy runs when startup fails. If this launch is a new version
+// on trial, it tells the helper straight away so the old version comes back
+// in seconds instead of after the two-minute wait. migrationBackup, when
+// this launch backed the database up, is put back with the old version.
+func (a *App) markTrialUnhealthy(startupErr error) {
+	dir, err := updatesDir()
+	if err != nil {
+		return
+	}
+	backup := currentMigrationBackup()
+	dbPath := ""
+	if backup != "" {
+		dbPath = a.dbPath
+	}
+	markUnhealthyAt(filepath.Join(dir, "handoff.json"), appVersion, startupErr.Error(), backup, dbPath)
+}
+
+// markUnhealthyAt flips the hand-off at path to "unhealthy" when it is a
+// trial of version still being verified; anything else is left alone.
+func markUnhealthyAt(path, version, detail, backup, dbPath string) bool {
+	h, err := loadHandoff(path)
+	if err != nil || h.Phase != "verifying" || h.ToVersion != version {
+		return false
+	}
+	h.Phase, h.Detail, h.RestoreDB, h.DBPath = "unhealthy", detail, backup, dbPath
+	return saveHandoff(path, h) == nil
 }
 
 // finalizeSwap makes the old executable the new "previous" once the new

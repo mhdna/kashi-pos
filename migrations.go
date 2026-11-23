@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -71,9 +72,16 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 			return err
 		}
 		if needsUpgrade {
-			if err := backupDatabase(databasePath); err != nil {
+			// Fold the write-ahead log into the file first, so the copy holds
+			// everything a till has sold (a rollback may put it back).
+			if _, err := conn.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+				log.Printf("checkpoint before backup: %v", err)
+			}
+			path, err := backupDatabase(databasePath)
+			if err != nil {
 				return err
 			}
+			setMigrationBackup(path)
 		}
 	}
 	if _, err := conn.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -566,13 +574,32 @@ func applyProductVariantMigration(ctx context.Context, conn *sql.DB, m migration
 	return tx.Commit()
 }
 
-func backupDatabase(databasePath string) error {
+func backupDatabase(databasePath string) (string, error) {
 	backupPath := fmt.Sprintf("%s.backup-%s", databasePath, time.Now().UTC().Format("20060102-150405"))
 	if err := copyFile(databasePath, backupPath); err != nil {
-		return fmt.Errorf("backup database before migration: %w", err)
+		return "", fmt.Errorf("backup database before migration: %w", err)
 	}
 	log.Printf("database backup created: %s", backupPath)
-	return nil
+	return backupPath, nil
+}
+
+// The backup this launch made before migrating, if it did: a failed update
+// puts it back (restoreDatabaseBackup).
+var (
+	migrationBackupMu   sync.Mutex
+	migrationBackupPath string
+)
+
+func setMigrationBackup(path string) {
+	migrationBackupMu.Lock()
+	migrationBackupPath = path
+	migrationBackupMu.Unlock()
+}
+
+func currentMigrationBackup() string {
+	migrationBackupMu.Lock()
+	defer migrationBackupMu.Unlock()
+	return migrationBackupPath
 }
 
 func copyFile(source, destination string) error {
