@@ -98,7 +98,14 @@ type updateHandoff struct {
 	Force     bool   `json:"force"`
 	ExePath   string `json:"exe_path"`
 	ParentPID int    `json:"parent_pid"`
+	// RestoreDB and DBPath: set by a new version whose startup failed after it
+	// backed the database up to migrate it. The helper puts the backup back
+	// with the old version, so both match (restoreDatabaseBackup).
+	RestoreDB string `json:"restore_db,omitempty"`
+	DBPath    string `json:"db_path,omitempty"`
 	// Phase: "waiting" for the app to exit, "verifying" the new version,
+	// "unhealthy" when it says its startup failed (the helper rolls back at
+	// once),
 	// "healthy" once it confirmed, "done" after the helper finalized, or
 	// "rolled_back" when the old version had to be put back.
 	Phase     string    `json:"phase"`
@@ -832,14 +839,23 @@ func runUpdateHelper(handoffPath string, procs updateProcesses) int {
 	pid, err := procs.startPID(h.ExePath)
 	healthy := false
 	reason := ""
+	restoreDB, restoreDBPath := "", ""
 	if err != nil {
 		reason = "it couldn't be started: " + err.Error()
 	} else {
 		deadline := time.Now().Add(updateVerifyTimeout)
 		for time.Now().Before(deadline) {
-			if cur, err := loadHandoff(handoffPath); err == nil && cur.Phase == "healthy" {
-				healthy = true
-				break
+			if cur, err := loadHandoff(handoffPath); err == nil {
+				if cur.Phase == "healthy" {
+					healthy = true
+					break
+				}
+				if cur.Phase == "unhealthy" {
+					// It said so itself: no waiting out the clock.
+					restoreDB, restoreDBPath = cur.RestoreDB, cur.DBPath
+					reason = "it failed to start (" + cur.Detail + ")"
+					break
+				}
 			}
 			if !procs.alive(pid) {
 				reason = "it closed right after starting"
@@ -870,9 +886,71 @@ func runUpdateHelper(handoffPath string, procs updateProcesses) int {
 	if err := retryRename(pendingOldExePath(h.ExePath), h.ExePath); err != nil {
 		log.Printf("update helper: restore old version: %v", err)
 	}
+	// Only a version that said its startup failed can have left the database
+	// half-moved; it never opened it, so nothing was sold on it.
+	if restoreDB != "" {
+		if err := restoreDatabaseBackup(restoreDB, restoreDBPath); err != nil {
+			log.Printf("update helper: restore database: %v", err)
+		} else {
+			reason += "; the database went back to how it was before"
+		}
+	}
 	code := fail("The new version was rolled back because " + reason + ".")
 	_ = procs.start(h.ExePath)
 	return code
+}
+
+// restoreDatabaseBackup puts the pre-migration backup back as the database,
+// dropping the write-ahead files of the one it replaces. It copies beside the
+// database first, so a failure leaves the current file untouched.
+func restoreDatabaseBackup(backup, dbPath string) error {
+	if backup == "" || dbPath == "" {
+		return errors.New("no backup to restore")
+	}
+	if _, err := os.Stat(backup); err != nil {
+		return err
+	}
+	tmp := dbPath + ".restore"
+	_ = os.Remove(tmp)
+	if err := copyFile(backup, tmp); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	_ = os.Remove(dbPath + "-wal")
+	_ = os.Remove(dbPath + "-shm")
+	if err := retryRename(tmp, dbPath); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+// markTrialUnhealthy runs when startup fails. If this launch is a new version
+// on trial, it tells the helper straight away so the old version comes back
+// in seconds instead of after the two-minute wait. migrationBackup, when
+// this launch backed the database up, is put back with the old version.
+func (a *App) markTrialUnhealthy(startupErr error) {
+	dir, err := updatesDir()
+	if err != nil {
+		return
+	}
+	backup := currentMigrationBackup()
+	dbPath := ""
+	if backup != "" {
+		dbPath = a.dbPath
+	}
+	markUnhealthyAt(filepath.Join(dir, "handoff.json"), appVersion, startupErr.Error(), backup, dbPath)
+}
+
+// markUnhealthyAt flips the hand-off at path to "unhealthy" when it is a
+// trial of version still being verified; anything else is left alone.
+func markUnhealthyAt(path, version, detail, backup, dbPath string) bool {
+	h, err := loadHandoff(path)
+	if err != nil || h.Phase != "verifying" || h.ToVersion != version {
+		return false
+	}
+	h.Phase, h.Detail, h.RestoreDB, h.DBPath = "unhealthy", detail, backup, dbPath
+	return saveHandoff(path, h) == nil
 }
 
 // finalizeSwap makes the old executable the new "previous" once the new
