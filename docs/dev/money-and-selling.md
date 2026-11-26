@@ -75,6 +75,12 @@ LBP amounts.
 - **central's live cart overrides** (`live_cart.go`) beat all of the above for
   the one sale they were made for: a price, a discount or no deal per line
   (an unknown item's deal choice too), or every deal off. See `sync.md`, Live cart.
+- `remember_item_discounts` (central's branch setting, off by default). Off: a
+  typed discount is never saved onto the product (`UpdateProductDiscount` does
+  nothing), and scanning the item again adds a piece to the same line at the
+  list discount, shown under the name when pieces differ. On: the discount is
+  saved on the product and the next piece copies the line's. Sales price from
+  the discount lists either way, never from the product row.
 
 ## Stock
 

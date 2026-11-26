@@ -56,6 +56,15 @@
                   <span v-if="item.size" class="invoice-item-size" data-test="line-size">{{ item.size }}</span>
                 </span>
               </span>
+              <!-- The pieces of one line discounted differently: each one's,
+                   as the discount field can only show one. -->
+              <span
+                v-if="mixedDiscounts(item)"
+                class="invoice-item-exchange-note text-caption text-medium-emphasis"
+                data-test="mixed-discounts"
+              >
+                {{ t("Discounts: {list}", { list: mixedDiscounts(item) }) }}
+              </span>
               <!-- A returned line in an exchange: how its credit came about
                    when it isn't its shelf price (lib/exchangeQuote.ts). -->
               <span
@@ -695,6 +704,9 @@ const props = defineProps<{
   dealToggleEnabled?: boolean;
   // With the toggle on, new lines start with their discount off.
   discountDefaultOff?: boolean;
+  // A typed discount is saved on its product and given to the next piece
+  // scanned (central's remember_item_discounts). Off: it stays on its line.
+  rememberDiscounts?: boolean;
 }>();
 const readonly = computed(() => props.readonly ?? false);
 const customDiscountsEnabled = computed(() => props.customDiscountsEnabled ?? false);
@@ -1132,6 +1144,21 @@ function removeItem(item: LineItem) {
   items.value = items.value.filter((i) => i !== item);
 }
 
+// Whether the cashier changed this line's discount, on the line or on any of
+// its units. A discount turned off or set by central isn't one.
+function isHandDiscounted(item: LineItem): boolean {
+  if (item.remote || item.discountOff || item.originalDiscount === undefined) return false;
+  const listed = Number(item.originalDiscount);
+  return [item.discount, ...(item.unitDiscounts ?? [])].some((d) => Number(d) !== listed);
+}
+
+// "25%, 10%" when a sold line's pieces have different discounts, else "".
+function mixedDiscounts(item: LineItem): string {
+  const units = (item.unitDiscounts ?? []).slice(0, Math.max(0, Math.trunc(item.qty)));
+  if (new Set(units.map(Number)).size < 2) return "";
+  return units.map((d) => `${Number(d)}%`).join(", ");
+}
+
 function addItem(item: LineItem) {
   // A locked line (e.g. a returned line in exchange mode) is never a merge
   // target - scanning the same product as a replacement must add a
@@ -1147,12 +1174,15 @@ function addItem(item: LineItem) {
           ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
           // A summer and a winter unit of one barcode are discounted
           // differently, so each option is its own line.
-          (i.saleOption ?? "") === (item.saleOption ?? ""),
+          (i.saleOption ?? "") === (item.saleOption ?? "")
       );
   if (existing) {
     ensureUnitPrices(existing);
     existing.unitPrices?.push(existing.price);
-    existing.unitDiscounts?.push(existing.discount);
+    // A typed discount stays on the pieces it was typed for: unless central
+    // says to remember it, this piece comes in at the list's.
+    const fresh = !props.rememberDiscounts && isHandDiscounted(existing);
+    existing.unitDiscounts?.push(fresh ? Number(item.discount || 0) : existing.discount);
     existing.qty++;
   } else {
     // The discount is what the active lists give the product right now (the
@@ -1461,6 +1491,8 @@ function persistDiscount(item: LineItem): Promise<boolean> {
     item.discount = Math.min(100, Math.max(0, Math.trunc(Number(item.discount) || 0)));
     return Promise.resolve(true);
   }
+  // Unless central says to remember them, a discount stays with this sale.
+  if (!props.rememberDiscounts) return Promise.resolve(true);
   // Only a discount the cashier typed into the discount field is remembered
   // for the product. Central's live-cart discount, a discount turned off, or
   // one that came from editing the price belongs to this sale alone, and with

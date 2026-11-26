@@ -91,7 +91,22 @@ const (
 	// other (invoiceDiscountsStacked), and the cashier can pick several.
 	// Off (the default): the biggest one takes over. Set from central.
 	dealsStackFlag = "deals_stack"
+	// A typed line discount is saved on its product and carried to the next
+	// piece scanned. Off by default: it stays on the line it was typed on.
+	rememberItemDiscountsFlag = "remember_item_discounts"
 )
+
+// SetRememberItemDiscounts follows central's remember_item_discounts.
+func (a *App) SetRememberItemDiscounts(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, rememberItemDiscountsFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
 
 // SetDealsStackEnabled lets a branch's invoice deals add up.
 func (a *App) SetDealsStackEnabled(enabled bool) error {
@@ -906,6 +921,9 @@ func (a *App) UpdateProductDiscount(code string, discount int64) error {
 	}
 	if discount < 0 || discount > 100 {
 		return fmt.Errorf("discount must be between 0 and 100")
+	}
+	if !a.flagEnabled(a.ctx, rememberItemDiscountsFlag) {
+		return nil
 	}
 	product, err := a.store.GetProductByCode(a.ctx, strings.TrimSpace(code))
 	if err != nil {

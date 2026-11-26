@@ -169,7 +169,7 @@ default-on ones.
 | `close_shift_requires_sync` | off | Can't close a shift with unsynced data. |
 | `count_opening_cash_on_close` | **on** | The close count includes the opening float. |
 | `custom_item_discounts`, `custom_item_prices`, `per_unit_item_prices` | off | Custom pricing at the till. |
-| `deal_toggle`, `discount_toggle`, `discount_toggle_default_off` | off | Salesperson can turn deals/discounts off on a line. |
+| `deal_toggle`, `discount_toggle`, `discount_toggle_default_off`, `remember_item_discounts` | off | Salesperson can turn deals/discounts off on a line; typed discounts are remembered. |
 | `hide_payment_method_currency` | off | Hide the currency next to payment methods. |
 | `invoice_keyboard_mode` | off | Invoice keyboard mode. |
 | `non_admin_month_nav_enabled` | off | Non-admins can browse months in the income chart. |

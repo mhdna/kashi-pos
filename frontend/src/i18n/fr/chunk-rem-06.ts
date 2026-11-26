@@ -457,6 +457,7 @@ export default {
 "Turning discounts off at the till enabled": "Désactivation des remises à la caisse activée",
 "Turning discounts off at the till disabled": "Désactivation des remises à la caisse désactivée",
 "Failed to update the discount toggle setting": "Échec de la mise à jour du réglage de désactivation des remises",
+"Discounts: {list}": "Remises : {list}",
 "Discounts start off enabled": "Remises désactivées par défaut activées",
 "Discounts start off disabled": "Remises désactivées par défaut désactivées",
 "Failed to update the discount default setting": "Échec de la mise à jour du réglage par défaut des remises",

@@ -39,6 +39,16 @@ func TestUpdateProductDiscountRequiresFeatureAndPersists(t *testing.T) {
 	if err := app.SetCustomItemDiscountsEnabled(true); err != nil {
 		t.Fatal(err)
 	}
+	// Allowed to type discounts, but not to remember them: nothing is saved.
+	if err := app.UpdateProductDiscount(product.Code, 25); err != nil {
+		t.Fatal(err)
+	}
+	if saved, err := app.store.GetProductByCode(app.ctx, product.Code); err != nil || saved.Discount != product.Discount {
+		t.Fatalf("discount = %d (%v), want it left at %d", saved.Discount, err, product.Discount)
+	}
+	if err := app.SetRememberItemDiscounts(true); err != nil {
+		t.Fatal(err)
+	}
 	if err := app.UpdateProductDiscount(product.Code, 25); err != nil {
 		t.Fatal(err)
 	}

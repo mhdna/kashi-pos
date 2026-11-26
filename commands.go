@@ -138,6 +138,7 @@ type updateSettingsCommandPayload struct {
 	DiscountToggle                *bool `json:"discount_toggle"`
 	DiscountToggleDefaultOff      *bool `json:"discount_toggle_default_off"`
 	DealsStack                    *bool `json:"deals_stack"`
+	RememberItemDiscounts         *bool `json:"remember_item_discounts"`
 	DealToggle                    *bool `json:"deal_toggle"`
 	InvoiceRatingsEnabled         *bool `json:"invoice_ratings_enabled"`
 	SoundsEnabled                 *bool `json:"sounds_enabled"`
@@ -346,6 +347,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.DiscountToggle, a.SetDiscountToggleEnabled},
 		{p.DiscountToggleDefaultOff, a.SetDiscountToggleDefaultOff},
 		{p.DealsStack, a.SetDealsStackEnabled},
+		{p.RememberItemDiscounts, a.SetRememberItemDiscounts},
 		{p.DealToggle, a.SetDealToggleEnabled},
 		{p.InvoiceRatingsEnabled, a.SetInvoiceRatingsEnabled},
 		{p.SoundsEnabled, a.SetSoundsEnabled},

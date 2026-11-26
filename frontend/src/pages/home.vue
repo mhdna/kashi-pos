@@ -180,6 +180,7 @@
           :discount-toggle-enabled="discountToggleEnabled && pageMode === 'sale'"
           :deal-toggle-enabled="dealToggleEnabled && pageMode === 'sale'"
           :discount-default-off="discountToggleDefaultOff"
+          :remember-discounts="rememberItemDiscounts"
           style="flex: 1 1 0; min-height: 0"
           @discount-error="showDiscountError"
         />
@@ -568,6 +569,8 @@ const priceEditRestricted = ref(false);
 // discount_toggle), and new lines can start with it off; deal_toggle does
 // the same for a line's deal chip.
 const discountToggleEnabled = ref(false);
+// A typed discount follows its product (central's remember_item_discounts).
+const rememberItemDiscounts = ref(false);
 // The branch lets invoice deals add up (central's deals_stack).
 const dealsStack = ref(false);
 const discountToggleDefaultOff = ref(false);
@@ -1908,6 +1911,7 @@ async function loadAppSettings() {
     priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
     discountToggleEnabled.value = Boolean(settings?.discountToggleEnabled);
     dealsStack.value = Boolean(settings?.dealsStack);
+    rememberItemDiscounts.value = Boolean(settings?.rememberItemDiscounts);
     discountToggleDefaultOff.value = Boolean(settings?.discountToggleDefaultOff);
     dealToggleEnabled.value = Boolean(settings?.dealToggleEnabled);
     unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
