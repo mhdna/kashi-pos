@@ -8,11 +8,14 @@
       {{ startupError }}
     </k-alert>
     <router-view v-else />
-    <AttendanceToast />
-    <WhatsAppToast />
-    <CashMachineToast />
-    <AppUpdateBanner />
-    <ClockWarning />
+    <!-- Cashier-only: the separate screen's hidden copy shows none of these. -->
+    <template v-if="!isVirtual">
+      <AttendanceToast />
+      <WhatsAppToast />
+      <CashMachineToast />
+      <AppUpdateBanner />
+      <ClockWarning />
+    </template>
   </k-app>
 </template>
 
@@ -28,6 +31,9 @@ import CashMachineToast from "@/components/CashMachineToast.vue";
 import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
 import ClockWarning from "@/components/ClockWarning.vue";
 import { startLiveViewWiring } from "@/lib/liveViewWiring";
+import { startVirtualSessionWiring } from "@/lib/virtualSession";
+import { startVirtualRecorder } from "@/lib/virtualRecorder";
+import { isVirtual } from "@/virtualBridge";
 import BranchSetup from "@/components/BranchSetup.vue";
 
 const theme = useTheme();
@@ -37,7 +43,14 @@ const databaseMissing = ref(false);
 const knownBranches = ref([]);
 onMounted(async () => {
 	EventsOn("admin:reload", () => window.location.reload());
-	startLiveViewWiring();
+	// The till's own window records for the mirror and manages the hidden copy;
+	// the copy only records itself.
+	if (isVirtual) {
+		startVirtualRecorder();
+	} else {
+		startLiveViewWiring();
+		startVirtualSessionWiring();
+	}
 	try {
     const result = await WaitUntilReady();
     startupError.value = result.error;

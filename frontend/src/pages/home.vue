@@ -461,6 +461,7 @@ import {
   GetLiveCartOverrides,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { isVirtual } from "@/virtualBridge";
 import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
@@ -817,7 +818,8 @@ function liveCartReport() {
 function sendLiveCart() {
   clearTimeout(liveReportTimer);
   liveReportTimer = undefined;
-  if (restoringDraft) return;
+  // The separate screen's cart is not the till's sale.
+  if (restoringDraft || isVirtual) return;
   ReportLiveCart(JSON.stringify(liveCartReport()))
     .then(() => syncLiveOverrides(false))
     .catch(() => {});
@@ -831,6 +833,7 @@ function scheduleLiveCart() {
 // Puts what central set for this sale on the cart (or takes it off), and
 // re-prices when anything changed. announce: central just sent it.
 async function syncLiveOverrides(announce: boolean) {
+  if (isVirtual) return;
   try {
     const o: any = await GetLiveCartOverrides();
     const mine = o?.sale_ref === saleRef.value;

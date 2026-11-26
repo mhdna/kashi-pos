@@ -1,3 +1,4 @@
+import { isVirtual } from "@/virtualBridge";
 import { GetSoundsEnabled } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import successUrl from "@/assets/sounds/success.mp3";
@@ -55,7 +56,8 @@ EventsOn("settings_changed", () => {
 });
 
 function play(url: string) {
-  if (!soundsEnabled) return;
+  // The separate screen is silent: its sounds would play on the till.
+  if (!soundsEnabled || isVirtual) return;
   const audio = new Audio(url);
   audio.play().catch(() => {});
 }

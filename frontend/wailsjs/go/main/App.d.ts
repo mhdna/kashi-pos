@@ -355,6 +355,11 @@ export function ListUsers():Promise<Array<Record<string, any>>>;
 export function LiveViewSend(arg1:string):Promise<boolean>;
 
 export function LiveViewStatus():Promise<main.LiveViewStatus>;
+export function LiveVirtualSend(arg1:string):Promise<boolean>;
+
+export function LiveVirtualStatus():Promise<main.LiveViewStatus>;
+
+export function LiveVirtualCall(arg1:string,arg2:string):Promise<string>;
 
 export function MovePrinterToPort(arg1:string,arg2:string):Promise<void>;
 

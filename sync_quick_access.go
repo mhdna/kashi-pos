@@ -112,10 +112,16 @@ func (a *App) GetQuickAccessSource() (QuickAccessSource, error) {
 // SetQuickAccessMode flips this register between its own list and central's.
 // Admin-only, like editing the cards' colours.
 func (a *App) SetQuickAccessMode(mode string) error {
+	return a.setQuickAccessModeAs(a.cashierCaller(), mode)
+}
+
+// setQuickAccessModeAs is SetQuickAccessMode for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) setQuickAccessModeAs(c caller, mode string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	if !a.currentUserIsAdmin() {
+	if !c.admin {
 		return fmt.Errorf("only an admin can change where Quick Access comes from")
 	}
 	if mode != quickAccessModeTill && mode != quickAccessModeKashi {

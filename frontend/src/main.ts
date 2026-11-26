@@ -4,6 +4,10 @@
  * Registers the UI kit (src/ui) and other plugins, then mounts the App.
  */
 
+// First, before anything reads window.go or the storage: in the separate
+// screen's hidden copy it routes Go calls, events and storage safely.
+import "./virtualBridge";
+
 // Composables
 import { createApp } from "vue";
 // Latin subsets only: the full weights also declare Cyrillic, Greek,

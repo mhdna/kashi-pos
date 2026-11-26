@@ -179,10 +179,16 @@ type branchExpenseFromCentralPayload struct {
 // The expense's shift stops (or starts again) taking it off the drawer's
 // expected cash; a shift already closed keeps the figures it closed with.
 func (a *App) SetExpenseFromCentral(id int64, fromCentral bool) (map[string]any, error) {
+	return a.setExpenseFromCentralAs(a.cashierCaller(), id, fromCentral)
+}
+
+// setExpenseFromCentralAs is SetExpenseFromCentral for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) setExpenseFromCentralAs(c caller, id int64, fromCentral bool) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	if !a.currentUserIsAdmin() {
+	if !c.admin {
 		return nil, fmt.Errorf("only an admin can change where an expense was paid from")
 	}
 	expense, err := a.store.GetExpense(a.ctx, id)

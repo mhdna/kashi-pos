@@ -39,6 +39,29 @@ Code: `live_view.go` (Go), `frontend/src/lib/liveView.ts`,
 - The till shows no banner or mark while watched or controlled (removed on request).
 - Control can be switched off mid-session (`live_view:mode`); the next message is dropped.
 
+## Separate screen
+
+A second, hidden copy of this app (`index.html?virtual=1` in an off-screen iframe,
+`virtualSession.ts`) that one admin drives from kashi while the cashier keeps
+selling. Go opens it on `live_virtual:start` (kashi `live_view_start` with
+`virtual:true`; needs the hello's `live_view_control`) and closes it on `live_virtual:stop`.
+
+- **Own sign-in in Go** (`live_virtual_call.go`): the copy cannot tell Go apart from
+  the cashier's window, so all its calls go through one binding, `LiveVirtualCall`,
+  which runs the same methods with the copy's own role and PIN lockout. The 11 gated
+  methods are split into `X` (cashier) and `xAs(caller, ...)`; a new gate without a
+  twin fails `TestGuardNoGateSkipsItsTwin`. Whole-till actions (switch branch,
+  restart, update, cash machine, live view, live cart) are refused there.
+- **Bridge** (`virtualBridge.ts`, first import in `main.ts`): in the copy only,
+  `window.go` is a proxy onto `LiveVirtualCall`, the runtime is the parent's
+  (events only), and `localStorage`/`sessionStorage` are prefixed `virtual:` so the
+  cashier's sale draft is never touched.
+- **Focus guard**: focus moving into the frame is handed back at once, so the
+  cashier's keyboard and barcode scanner never reach the copy.
+- The copy shows no toasts, banners or sounds, and never reports its cart to kashi.
+- Its own recorder streams on `/branch/live?mode=virtual` (`LiveVirtualSend`, always
+  with control). **Real hardware actions (printing) from the copy are real.**
+
 ## Privacy
 
 Password inputs are masked by rrweb; `img, video, canvas` are blocked (blank boxes
@@ -56,4 +79,7 @@ Actions are `{k:"click", l:label, at:ms}`.
 `live_view_test.go` (stand-in kashi: headers, streaming, control gating, 409, redial,
 silence, a stalled kashi never blocks `send`), `liveView.test.ts`,
 `liveViewControl.test.ts` (including a randomised typing model),
-`liveViewWiring.test.ts` (rrweb not loaded until start), `LiveViewBanner.test.ts`.
+`liveViewWiring.test.ts` (rrweb not loaded until start), `LiveViewBanner.test.ts`;
+separate screen: `live_virtual_call_test.go` (the reported case, randomised interleaved
+logins), `live_virtual_test.go`, `virtualBridge.test.ts`, `virtualSession.test.ts`,
+`virtualRecorder.test.ts`, `virtualGates.test.ts`.

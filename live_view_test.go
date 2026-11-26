@@ -17,6 +17,7 @@ import (
 // fakeKashi stands in for kashi's /branch/live: it records the headers the
 // till dialed with and every frame it sent, and lets a test push frames back.
 type fakeKashi struct {
+	uris []string // request paths of the stream connections, in order
 	*httptest.Server
 	status  atomic.Int32 // non-zero: refuse with this HTTP status
 	dials   atomic.Int32
@@ -45,6 +46,7 @@ func newFakeKashi(t *testing.T) *fakeKashi {
 		}
 		k.mu.Lock()
 		k.headers = r.Header.Clone()
+		k.uris = append(k.uris, r.URL.RequestURI())
 		k.conns = append(k.conns, c)
 		k.mu.Unlock()
 		if k.stall.Load() {
@@ -201,6 +203,10 @@ func TestLiveViewControlOnlyWhenAllowed(t *testing.T) {
 	click := `{"t":"click","id":7}`
 	_ = c.WriteMessage(websocket.TextMessage, []byte(click))
 	waitFor(t, "control event", func() bool { return ev.has(`live_view:control "{\"t\":\"click\",\"id\":7}"`) })
+	// The page's stamp (ts) reaches the till page intact: it is echoed back as the ack.
+	stamped := `{"t":"key","key":"5","ts":1700000000123}`
+	_ = c.WriteMessage(websocket.TextMessage, []byte(stamped))
+	waitFor(t, "stamped control", func() bool { return ev.has(`live_view:control "{\"t\":\"key\",\"key\":\"5\",\"ts\":1700000000123}"`) })
 	_ = c.WriteMessage(websocket.TextMessage, []byte(`{"t":"snapshot"}`))
 	waitFor(t, "snapshot event", func() bool { return ev.has("live_view:snapshot") })
 

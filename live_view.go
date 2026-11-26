@@ -35,7 +35,12 @@ const (
 // liveView is the till's side of one live session. The seams (dial, emit and
 // the timings) are fields so tests run it against a stand-in kashi.
 type liveView struct {
-	emit    func(name string, data ...any)
+	emit func(name string, data ...any)
+	// prefix names the events this session emits ("live_view" for the mirror,
+	// "live_virtual" for the separate screen); virtual sessions also need
+	// kashi to offer control and always run with it.
+	prefix  string
+	virtual bool
 	silence time.Duration
 	backoff time.Duration
 
@@ -52,8 +57,19 @@ type liveView struct {
 }
 
 func newLiveView(emit func(string, ...any)) *liveView {
-	return &liveView{emit: emit, silence: liveSilence, backoff: liveBackoffMin}
+	return &liveView{emit: emit, prefix: "live_view", silence: liveSilence, backoff: liveBackoffMin}
 }
+
+// newVirtualLiveView is the separate screen's session: its own events, and
+// only while kashi offers control (it is read and write).
+func newVirtualLiveView(emit func(string, ...any)) *liveView {
+	l := newLiveView(emit)
+	l.prefix, l.virtual = "live_virtual", true
+	return l
+}
+
+// event is an event name for this session, e.g. "live_view:start".
+func (l *liveView) event(name string) string { return l.prefix + ":" + name }
 
 // liveDial opens the stream and returns the HTTP status of a refusal (409:
 // nobody is watching any more).
@@ -73,6 +89,9 @@ func (l *liveView) setFeatures(features []string) {
 	l.offersControl = l.offersView && slices.Contains(features, "live_view_control")
 	l.control = l.control && l.offersControl
 	off := !l.offersView && l.active
+	if l.virtual && !l.offersControl && l.active {
+		off = true
+	}
 	l.mu.Unlock()
 	if off {
 		l.stop()
@@ -83,15 +102,18 @@ func (l *liveView) setFeatures(features []string) {
 // session is already running. Ignored unless kashi offers the feature.
 func (l *liveView) start(dial liveDial, control bool) {
 	l.mu.Lock()
-	if !l.offersView {
+	if !l.offersView || (l.virtual && !l.offersControl) {
 		l.mu.Unlock()
 		return
+	}
+	if l.virtual {
+		control = true
 	}
 	l.control = control && l.offersControl
 	if l.active {
 		c := l.control
 		l.mu.Unlock()
-		l.emit("live_view:mode", map[string]any{"control": c})
+		l.emit(l.event("mode"), map[string]any{"control": c})
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -115,7 +137,7 @@ func (l *liveView) stop() {
 	if conn != nil {
 		conn.Close()
 	}
-	l.emit("live_view:stop")
+	l.emit(l.event("stop"))
 }
 
 func (l *liveView) status() LiveViewStatus {
@@ -181,9 +203,9 @@ func (l *liveView) run(ctx context.Context, dial liveDial) {
 		// The UI starts recording only once the stream is up, so the first
 		// snapshot is not lost; after a redial it takes a fresh one.
 		if first {
-			l.emit("live_view:start", map[string]any{"control": control})
+			l.emit(l.event("start"), map[string]any{"control": control})
 		} else {
-			l.emit("live_view:snapshot")
+			l.emit(l.event("snapshot"))
 		}
 
 		if silent := l.serve(conn, out); silent {
@@ -250,19 +272,28 @@ func (l *liveView) fromKashi(data []byte) {
 	}
 	switch m.T {
 	case "snapshot":
-		l.emit("live_view:snapshot")
+		l.emit(l.event("snapshot"))
 	case "click", "input", "key":
 		l.mu.Lock()
 		allowed := l.active && l.control
 		l.mu.Unlock()
 		if allowed {
-			l.emit("live_view:control", string(data))
+			l.emit(l.event("control"), string(data))
 		}
 	}
 }
 
 // DialLive opens the stream to kashi with this till's branch credentials.
 func (c *centralClient) DialLive(ctx context.Context) (*websocket.Conn, int, error) {
+	return c.dialLive(ctx, "/branch/live")
+}
+
+// DialLiveVirtual opens the separate screen's own stream.
+func (c *centralClient) DialLiveVirtual(ctx context.Context) (*websocket.Conn, int, error) {
+	return c.dialLive(ctx, "/branch/live?mode=virtual")
+}
+
+func (c *centralClient) dialLive(ctx context.Context, path string) (*websocket.Conn, int, error) {
 	if !c.enabled() {
 		return nil, 0, errCentralSyncDisabled
 	}
@@ -274,7 +305,7 @@ func (c *centralClient) DialLive(ctx context.Context) (*websocket.Conn, int, err
 
 	dialer := *websocket.DefaultDialer
 	dialer.EnableCompression = true
-	conn, resp, err := dialer.DialContext(ctx, wsURL+"/branch/live", header)
+	conn, resp, err := dialer.DialContext(ctx, wsURL+path, header)
 	status := 0
 	if resp != nil {
 		status = resp.StatusCode
@@ -308,16 +339,54 @@ func (a *App) live() *liveView {
 	return a.liveStream
 }
 
+// LiveVirtualSend is LiveViewSend for the separate screen's own stream.
+func (a *App) LiveVirtualSend(batch string) bool {
+	return a.liveV().send(batch)
+}
+
+// LiveVirtualStatus tells a reloaded UI whether the separate screen is open.
+func (a *App) LiveVirtualStatus() LiveViewStatus {
+	return a.liveV().status()
+}
+
+// liveV is the separate screen's session, built on first use. Its sign-in
+// (live_virtual_call.go) starts and ends with the session.
+func (a *App) liveV() *liveView {
+	a.liveVOnce.Do(func() {
+		if a.liveVirtual == nil {
+			a.liveVirtual = newVirtualLiveView(func(name string, data ...any) {
+				switch name {
+				case "live_virtual:start":
+					a.setVirtualSession(true)
+				case "live_virtual:stop":
+					a.setVirtualSession(false)
+				}
+				a.emitAttendanceEvent(name, data...)
+			})
+		}
+	})
+	return a.liveVirtual
+}
+
 // handleLiveMessage applies kashi's live view messages; it reports whether
 // msg was one of them.
 func (a *App) handleLiveMessage(client *centralClient, msg wsMessage) bool {
 	switch msg.Type {
 	case "live_view_start":
-		a.live().start(client.DialLive, msg.Control)
+		if msg.Virtual {
+			a.liveV().start(client.DialLiveVirtual, true)
+		} else {
+			a.live().start(client.DialLive, msg.Control)
+		}
 	case "live_view_stop":
-		a.live().stop()
+		if msg.Virtual {
+			a.liveV().stop()
+		} else {
+			a.live().stop()
+		}
 	case "live_view_settings":
 		a.live().setFeatures(msg.Features)
+		a.liveV().setFeatures(msg.Features)
 	default:
 		return false
 	}

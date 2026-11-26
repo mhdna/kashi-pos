@@ -710,6 +710,18 @@ export function LiveViewStatus() {
   return window['go']['main']['App']['LiveViewStatus']();
 }
 
+export function LiveVirtualSend(arg1) {
+  return window['go']['main']['App']['LiveVirtualSend'](arg1);
+}
+
+export function LiveVirtualStatus() {
+  return window['go']['main']['App']['LiveVirtualStatus']();
+}
+
+export function LiveVirtualCall(arg1, arg2) {
+  return window['go']['main']['App']['LiveVirtualCall'](arg1, arg2);
+}
+
 export function MovePrinterToPort(arg1, arg2) {
   return window['go']['main']['App']['MovePrinterToPort'](arg1, arg2);
 }

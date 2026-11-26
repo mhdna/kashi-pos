@@ -72,10 +72,16 @@ func (a *App) returnItemsJSON(ctx context.Context, lines []returnLine) (string, 
 // both are stamped cancelled_at so sales statistics, here and in central,
 // leave them out. Admin only, like an admin return.
 func (a *App) CancelInvoice(invoiceID int64, reason string) error {
+	return a.cancelInvoiceAs(a.cashierCaller(), invoiceID, reason)
+}
+
+// cancelInvoiceAs is CancelInvoice for a given caller: the cashier's till screen, or the
+// separate screen's own sign-in (live_virtual_call.go).
+func (a *App) cancelInvoiceAs(c caller, invoiceID int64, reason string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	if !a.currentUserIsAdmin() {
+	if !c.admin {
 		return fmt.Errorf("only an admin can cancel an invoice")
 	}
 	reason = strings.TrimSpace(reason)
