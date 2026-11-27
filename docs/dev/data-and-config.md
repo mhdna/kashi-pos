@@ -170,6 +170,7 @@ default-on ones.
 | `count_opening_cash_on_close` | **on** | The close count includes the opening float. |
 | `custom_item_discounts`, `custom_item_prices`, `per_unit_item_prices` | off | Custom pricing at the till. |
 | `deal_toggle`, `discount_toggle`, `discount_toggle_default_off`, `remember_item_discounts` | off | Salesperson can turn deals/discounts off on a line; typed discounts are remembered. |
+| `till_language_english` | off | The till's screen language is French; on, English. Set by central's `till_language` branch setting (`fr`/`en`) or Settings > Behaviour > Language. Unrelated to kashi's own screen language. |
 | `hide_payment_method_currency` | off | Hide the currency next to payment methods. |
 | `invoice_keyboard_mode` | off | Invoice keyboard mode. |
 | `non_admin_month_nav_enabled` | off | Non-admins can browse months in the income chart. |

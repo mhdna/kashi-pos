@@ -47,32 +47,33 @@ type branchSettingsPayload struct {
 	SearchButtonEnabled bool `json:"search_button_enabled"`
 
 	// behaviour feature flags (feature_flags rows)
-	CustomItemDiscountsEnabled    bool `json:"custom_item_discounts_enabled"`
-	CustomItemPricesEnabled       bool `json:"custom_item_prices_enabled"`
-	PerUnitItemPricesEnabled      bool `json:"per_unit_item_prices_enabled"`
-	PriceChangeManualOverrideMode bool `json:"price_change_manual_override_mode"`
-	InvoiceKeyboardMode           bool `json:"invoice_keyboard_mode"`
-	ClientRequired                bool `json:"client_required"`
-	SalespersonPerInvoiceRequired bool `json:"salesperson_per_invoice_required"`
-	NonAdminMonthNavEnabled       bool `json:"non_admin_month_nav_enabled"`
-	OpeningFloatEnabled           bool `json:"opening_float_enabled"`
-	ShiftReportSignatures         bool `json:"shift_report_signatures"`
-	ShiftReportUppercaseHeader    bool `json:"shift_report_uppercase_header"`
-	CountOpeningCashOnClose       bool `json:"count_opening_cash_on_close"`
-	OverchangeConfirmation        bool `json:"overchange_confirmation"`
-	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
-	ScanByCodeEnabled             bool `json:"scan_by_code_enabled"`
-	VariantPickRequired           bool `json:"variant_pick_required"`
-	SyncVerbose                   bool `json:"sync_verbose"`
-	ProductSearchCodeOnly         bool `json:"product_search_code_only"`
-	PriceEditRestricted           bool `json:"price_edit_restricted"`
-	DiscountToggle                bool `json:"discount_toggle"`
-	DiscountToggleDefaultOff      bool `json:"discount_toggle_default_off"`
-	DealsStack                    bool `json:"deals_stack"`
-	RememberItemDiscounts         bool `json:"remember_item_discounts"`
-	DealToggle                    bool `json:"deal_toggle"`
-	InvoiceRatingsEnabled         bool `json:"invoice_ratings_enabled"`
-	SoundsEnabled                 bool `json:"sounds_enabled"`
+	CustomItemDiscountsEnabled    bool   `json:"custom_item_discounts_enabled"`
+	CustomItemPricesEnabled       bool   `json:"custom_item_prices_enabled"`
+	PerUnitItemPricesEnabled      bool   `json:"per_unit_item_prices_enabled"`
+	PriceChangeManualOverrideMode bool   `json:"price_change_manual_override_mode"`
+	InvoiceKeyboardMode           bool   `json:"invoice_keyboard_mode"`
+	ClientRequired                bool   `json:"client_required"`
+	SalespersonPerInvoiceRequired bool   `json:"salesperson_per_invoice_required"`
+	NonAdminMonthNavEnabled       bool   `json:"non_admin_month_nav_enabled"`
+	OpeningFloatEnabled           bool   `json:"opening_float_enabled"`
+	ShiftReportSignatures         bool   `json:"shift_report_signatures"`
+	ShiftReportUppercaseHeader    bool   `json:"shift_report_uppercase_header"`
+	CountOpeningCashOnClose       bool   `json:"count_opening_cash_on_close"`
+	OverchangeConfirmation        bool   `json:"overchange_confirmation"`
+	CloseShiftRequiresSync        bool   `json:"close_shift_requires_sync"`
+	ScanByCodeEnabled             bool   `json:"scan_by_code_enabled"`
+	VariantPickRequired           bool   `json:"variant_pick_required"`
+	SyncVerbose                   bool   `json:"sync_verbose"`
+	ProductSearchCodeOnly         bool   `json:"product_search_code_only"`
+	PriceEditRestricted           bool   `json:"price_edit_restricted"`
+	DiscountToggle                bool   `json:"discount_toggle"`
+	DiscountToggleDefaultOff      bool   `json:"discount_toggle_default_off"`
+	DealsStack                    bool   `json:"deals_stack"`
+	RememberItemDiscounts         bool   `json:"remember_item_discounts"`
+	TillLanguage                  string `json:"till_language"`
+	DealToggle                    bool   `json:"deal_toggle"`
+	InvoiceRatingsEnabled         bool   `json:"invoice_ratings_enabled"`
+	SoundsEnabled                 bool   `json:"sounds_enabled"`
 
 	// Device numbers typed in here for central's salespersons, keyed by central's
 	// salesperson id. Central adopts them for any salesperson it hasn't set one
@@ -299,6 +300,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		DiscountToggleDefaultOff:      a.flagEnabled(ctx, discountToggleDefaultOffFlag),
 		DealsStack:                    a.flagEnabled(ctx, dealsStackFlag),
 		RememberItemDiscounts:         a.flagEnabled(ctx, rememberItemDiscountsFlag),
+		TillLanguage:                  a.tillLanguage(),
 		DealToggle:                    a.flagEnabled(ctx, dealToggleFlag),
 		InvoiceRatingsEnabled:         a.flagEnabledDefaultOn(ctx, invoiceRatingsFlag),
 		SoundsEnabled:                 a.soundsEnabled(),

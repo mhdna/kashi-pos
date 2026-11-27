@@ -1058,6 +1058,10 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
+export function SetTillLanguage(arg1) {
+  return window['go']['main']['App']['SetTillLanguage'](arg1);
+}
+
 export function SetUnknownPicturesAtCheckout(arg1) {
   return window['go']['main']['App']['SetUnknownPicturesAtCheckout'](arg1);
 }

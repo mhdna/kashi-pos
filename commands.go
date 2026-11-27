@@ -139,13 +139,15 @@ type updateSettingsCommandPayload struct {
 	DiscountToggleDefaultOff      *bool `json:"discount_toggle_default_off"`
 	DealsStack                    *bool `json:"deals_stack"`
 	RememberItemDiscounts         *bool `json:"remember_item_discounts"`
-	DealToggle                    *bool `json:"deal_toggle"`
-	InvoiceRatingsEnabled         *bool `json:"invoice_ratings_enabled"`
-	SoundsEnabled                 *bool `json:"sounds_enabled"`
-	HidePaymentMethodCurrency     *bool `json:"hide_payment_method_currency"`
-	AutoAppendLbpZeros            *bool `json:"auto_append_lbp_zeros"`
-	AutoCloseStaleShifts          *bool `json:"auto_close_stale_shifts"`
-	VisitorCounterEnabled         *bool `json:"visitor_counter_enabled"`
+	// TillLanguage: "fr" | "en" (see SetTillLanguage).
+	TillLanguage              *string `json:"till_language"`
+	DealToggle                *bool   `json:"deal_toggle"`
+	InvoiceRatingsEnabled     *bool   `json:"invoice_ratings_enabled"`
+	SoundsEnabled             *bool   `json:"sounds_enabled"`
+	HidePaymentMethodCurrency *bool   `json:"hide_payment_method_currency"`
+	AutoAppendLbpZeros        *bool   `json:"auto_append_lbp_zeros"`
+	AutoCloseStaleShifts      *bool   `json:"auto_close_stale_shifts"`
+	VisitorCounterEnabled     *bool   `json:"visitor_counter_enabled"`
 
 	// Cash handling. MaxOverpaymentCents caps how much a payment may exceed
 	// the total; the default opening float is what a new shift starts with.
@@ -401,6 +403,13 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	if p.PriceEditCodes != nil {
 		if err := a.SetPriceEditCodes(*p.PriceEditCodes); err != nil {
 			return fmt.Errorf("update price edit codes: %w", err)
+		}
+	}
+
+	// An empty value is a central that has no choice to send.
+	if p.TillLanguage != nil && *p.TillLanguage != "" {
+		if err := a.SetTillLanguage(*p.TillLanguage); err != nil {
+			return fmt.Errorf("update till language: %w", err)
 		}
 	}
 

@@ -30,6 +30,7 @@ import WhatsAppToast from "@/components/WhatsAppToast.vue";
 import CashMachineToast from "@/components/CashMachineToast.vue";
 import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
 import ClockWarning from "@/components/ClockWarning.vue";
+import { startTillLanguage } from "@/lib/tillLanguage";
 import { startLiveViewWiring } from "@/lib/liveViewWiring";
 import { startVirtualSessionWiring } from "@/lib/virtualSession";
 import { startVirtualRecorder } from "@/lib/virtualRecorder";
@@ -65,6 +66,7 @@ onMounted(async () => {
     }
     if (startupError.value && !databaseMissing.value) return;
 
+    startTillLanguage();
     theme.change(result.theme === "dark" ? "dark" : "light");
     void startDisplayPrefsSync((next) => theme.change(next));
   } catch (error) {

@@ -742,6 +742,27 @@
             </k-card-text>
           </k-card>
 
+          <k-card v-show="panelMatches('behavior-language')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-translate" size="20" />
+              {{ t("Language") }}
+            </k-card-title>
+            <k-card-text>
+              <k-select
+                :model-value="form.tillLanguage"
+                :items="tillLanguages"
+                :loading="pricingSettingsSaving"
+                density="compact"
+                hide-details
+                :label="t('Till language')"
+                variant="outlined"
+                data-test="till-language"
+                @update:model-value="saveTillLanguage"
+              />
+              <div class="settings-note mt-1">{{ t("kashi can change it too.") }}</div>
+            </k-card-text>
+          </k-card>
+
           <k-card v-show="panelMatches('behavior-stock')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-package-variant-closed" size="20" />
@@ -1913,7 +1934,7 @@
 
 <script lang="ts" setup>
 import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from "vue";
-import { t } from "@/i18n";
+import { t, setLocale } from "@/i18n";
 import {
   GetAppSettings,
   GetDatabaseStatus,
@@ -1945,6 +1966,7 @@ import {
   SetDiscountToggleEnabled,
   SetDiscountToggleDefaultOff,
   SetDealToggleEnabled,
+  SetTillLanguage,
   SetOversellMode,
   SetPriceEditCodes,
   SetProductSearchHiddenFields,
@@ -2148,6 +2170,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-product-search": { tab: "behaviour", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide dialog in place calculator keyboard" },
   "behavior-scan-by-code": { tab: "behaviour", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
   "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
+  "behavior-language": { tab: "behaviour", title: "Language", keywords: "language french english francais langue" },
   "behavior-stock": { tab: "behaviour", title: "Selling beyond stock", keywords: "oversell stock allow warn block sell more than in stock negative" },
   "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder pictures qr phone checkout" },
   "behavior-discount-toggle": { tab: "behaviour", title: "Turn discounts or deals off at the till", keywords: "discount deal toggle turn off on remove salesman default off b2g1 percent" },
@@ -2288,6 +2311,7 @@ const form = reactive({
   discountToggleDefaultOff: false,
   dealToggleEnabled: false,
   oversellMode: "allow",
+  tillLanguage: "fr",
   productSearchHiddenFields: [] as string[],
   unknownProductBarcode: "",
   unknownPicturesAtCheckout: false,
@@ -2734,6 +2758,7 @@ async function loadSettings() {
         dealToggleEnabled: Boolean(s.dealToggleEnabled),
         priceEditCodes: String(s.priceEditCodes ?? "").split(",").join("\n"),
         oversellMode: String(s.oversellMode || "allow"),
+        tillLanguage: String(s.tillLanguage || "fr"),
         productSearchHiddenFields: String(s.productSearchHiddenFields ?? "").split(",").filter(Boolean),
         unknownProductBarcode: String(s.unknownProductBarcode ?? ""),
         unknownPicturesAtCheckout: Boolean(s.unknownPicturesAtCheckout),
@@ -3120,6 +3145,29 @@ async function savePriceEditCodes() {
     notify(t("Allowed price edit codes saved"));
   } catch {
     notify(t("Failed to save the allowed codes"), "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+// Each language is named in itself, so it can be found from either.
+const tillLanguages = [
+  { title: "Français", value: "fr" },
+  { title: "English", value: "en" },
+];
+
+async function saveTillLanguage(value: unknown) {
+  const language = value === "en" ? "en" : "fr";
+  const previous = form.tillLanguage;
+  form.tillLanguage = language;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetTillLanguage(language);
+    setLocale(language);
+    notify(t("Till language changed"));
+  } catch {
+    form.tillLanguage = previous;
+    notify(t("Failed to change the till language"), "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
