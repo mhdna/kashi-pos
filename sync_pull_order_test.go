@@ -41,7 +41,7 @@ func TestPullOrder(t *testing.T) {
 		}
 		seen[e] = true
 	}
-	if len(pullEntities) != 23 {
-		t.Fatalf("%d entities, want the 23 central serves", len(pullEntities))
+	if len(pullEntities) != 24 {
+		t.Fatalf("%d entities, want the 24 central serves", len(pullEntities))
 	}
 }

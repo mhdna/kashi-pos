@@ -47,9 +47,27 @@ func tableExists(t *testing.T, conn *sql.DB, table string) bool {
 // failed on 000149_invoice_discount_replaces_item_discounts ("UNIQUE
 // constraint failed: schema_migrations.version"). Also a till on v1.1.187,
 // whose 149 is the discount column, upgrading to a build with the openings.
+// undoMigrationsAfter150 takes out what later migrations added, so a database
+// built at today's version looks like one from before them (such a till never
+// ran them) and they can run again.
+func undoMigrationsAfter150(conn *sql.DB) error {
+	for _, stmt := range []string{
+		`DROP TABLE IF EXISTS client_sources`,
+		`ALTER TABLE clients DROP COLUMN source_uid`,
+	} {
+		if _, err := conn.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func TestMigrationsHealTheVersion149Clash(t *testing.T) {
 	for name, broken := range map[string]func(*sql.DB) error{
 		"149 recorded for exchange_openings": func(conn *sql.DB) error {
+			if err := undoMigrationsAfter150(conn); err != nil {
+				return err
+			}
 			if _, err := conn.Exec(`DELETE FROM schema_migrations WHERE version >= 149`); err != nil {
 				return err
 			}
@@ -60,6 +78,9 @@ func TestMigrationsHealTheVersion149Clash(t *testing.T) {
 			return err
 		},
 		"v1.1.187 till, 149 is the discount column": func(conn *sql.DB) error {
+			if err := undoMigrationsAfter150(conn); err != nil {
+				return err
+			}
 			if _, err := conn.Exec(`DELETE FROM schema_migrations WHERE version >= 150`); err != nil {
 				return err
 			}

@@ -172,6 +172,26 @@
           @keydown.enter="createClient"
           @focus="newPhoneActive = false"
         />
+        <div v-if="sources.length > 0" class="client-source mt-3" role="radiogroup" :aria-label="t('Where did they hear about us?')">
+          <div class="client-source-label text-body-2 font-weight-medium mb-2">{{ t("Where did they hear about us?") }}</div>
+          <div class="client-source-options">
+            <k-btn
+              v-for="option in sources"
+              :key="option.uid"
+              class="client-source-option"
+              :class="{ 'client-source-option--picked': option.uid === pickedSource }"
+              :color="option.uid === pickedSource ? 'primary' : undefined"
+              data-test="client-source-option"
+              role="radio"
+              :aria-checked="option.uid === pickedSource"
+              :prepend-icon="option.uid === pickedSource ? 'mdi-check' : undefined"
+              variant="outlined"
+              @click="pickedSource = toggleSource(pickedSource, option.uid)"
+            >
+              {{ t(option.name) }}
+            </k-btn>
+          </div>
+        </div>
         <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
         <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
       </k-card-text>
@@ -181,7 +201,8 @@
         <k-btn
           variant="elevated"
           color="primary"
-          :disabled="!newClient.name.trim()"
+          :disabled="!canSaveNewClient(newClient.name, sources, pickedSource)"
+          data-test="client-save"
           @click="createClient"
           >{{ t("Save") }}</k-btn
         >
@@ -199,7 +220,14 @@ import {
   validatePhoneNumberLength,
   type CountryCode,
 } from "libphonenumber-js/mobile";
-import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
+import { GetClientByPhone, CreateClient, GetClientSources } from "../../wailsjs/go/main/App";
+import {
+  canSaveNewClient,
+  sourceOptions,
+  sourceToSend,
+  toggleSource,
+  type ClientSourceOption,
+} from "@/lib/clientSource";
 import { t } from "@/i18n";
 import {
   anonymousClient,
@@ -233,6 +261,17 @@ const newClient = reactive({ name: "", phone: "" });
 const newPhoneField = ref<InstanceType<typeof PhoneField> | null>(null);
 const newPhoneActive = ref(false);
 const newPhoneError = ref("");
+// Where the new customer heard about us; loaded when the new step opens.
+const sources = ref<ClientSourceOption[]>([]);
+const pickedSource = ref("");
+
+async function loadSources() {
+  try {
+    sources.value = sourceOptions(await GetClientSources());
+  } catch {
+    sources.value = [];
+  }
+}
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
 // Left out of the country lists altogether.
 const hiddenCountryCodes: string[] = ["IL"];
@@ -527,12 +566,14 @@ async function lookupPhone() {
     newClient.name = "";
     newPhoneError.value = "";
     newPhoneActive.value = false;
+    pickedSource.value = "";
+    void loadSources();
     step.value = "new";
   }
 }
 
 async function createClient() {
-  if (!newClient.name.trim()) return;
+  if (!canSaveNewClient(newClient.name, sources.value, pickedSource.value)) return;
   const phone = newClient.phone.startsWith("+") ? newClient.phone : normalizePhone(newClient.phone);
   if (!phone) {
     newPhoneError.value = isLebanon(selectedCountry.value)
@@ -541,7 +582,7 @@ async function createClient() {
     return;
   }
   try {
-    const c = await CreateClient(capitalizeName(newClient.name), phone);
+    const c = await CreateClient(capitalizeName(newClient.name), phone, sourceToSend(sources.value, pickedSource.value));
     emit("select", toClient(c));
   } catch {
     emit("select", toClient({ id: 0, name: capitalizeName(newClient.name), phone }));
@@ -574,10 +615,23 @@ function reset() {
   newClient.phone = "";
   newPhoneError.value = "";
   newPhoneActive.value = false;
+  pickedSource.value = "";
 }
 </script>
 
 <style scoped>
+.client-source-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.client-source-option {
+  min-height: 48px;
+  font-size: 1rem;
+}
+.client-source-option--picked {
+  border-width: 2px;
+}
 .country-flag {
   display: inline-block;
   margin-inline-end: 6px;

@@ -66,7 +66,9 @@ func (a *App) SearchClients(search string, selectedID int64) ([]map[string]any, 
 	return result, nil
 }
 
-func (a *App) CreateClient(name, phone string) (map[string]any, error) {
+// CreateClient adds a customer at the till. sourceUID is where they heard
+// about the shop (GetClientSources), "" when not asked.
+func (a *App) CreateClient(name, phone, sourceUID string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -86,6 +88,14 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 		if err != nil {
 			return err
 		}
+		source, err := knownClientSource(a.ctx, q, sourceUID)
+		if err != nil || source == "" {
+			return err
+		}
+		if err := q.SetClientSourceUID(a.ctx, db.SetClientSourceUIDParams{SourceUid: source, ID: client.ID}); err != nil {
+			return err
+		}
+		client.SourceUid = source
 		return nil
 	})
 	if err != nil {

@@ -78,7 +78,7 @@ export function CountProductsForSearch(arg1:string):Promise<number>;
 
 export function CreateBranch(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
 
-export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
+export function CreateClient(arg1:string,arg2:string,arg3:string):Promise<Record<string, any>>;
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
 
@@ -155,6 +155,8 @@ export function GetCashierPIN():Promise<string>;
 export function GetClientAccountDetails(arg1:number):Promise<Record<string, any>>;
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
+
+export function GetClientSources():Promise<Array<main.ClientSource>>;
 
 export function GetClientProfile(arg1:number):Promise<Record<string, any>>;
 

@@ -683,7 +683,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // clients comes after them.
 var pullEntities = []string{
 	"currencies", "cashbox_accounts", "branches", "salespersons", "branch_users",
-	"invoice_discounts", "calendar_settings", "referral_program",
+	"invoice_discounts", "calendar_settings", "referral_program", "client_sources",
 	"expense_categories", "loan_categories", "coupon_types",
 	"products", "price_lists", "discount_lists", "quick_access", "branch_stock",
 	"clients", "referral_rewards", "coupons", "branch_targets",
@@ -896,6 +896,7 @@ var wholeSetEntities = map[string]struct{}{
 	"calendar_settings":  {},
 	"expense_categories": {},
 	"loan_categories":    {},
+	"client_sources":     {},
 }
 
 // wholeSetSnapshot reads the local table a whole-set entity is applied to,
@@ -927,6 +928,8 @@ func wholeSetSnapshot(ctx context.Context, q *db.Queries, entity string) (snapsh
 			cats = append(cats, [4]any{r.Name, r.IsActive, r.Icon, r.Color})
 		}
 		snapshot, err = cats, lErr
+	case "client_sources":
+		snapshot, err = q.ListClientSources(ctx)
 	case "calendar_events":
 		snapshot, err = q.ListCalendarEvents(ctx)
 	case "calendar_settings":
@@ -1018,6 +1021,18 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 			if err := applySyncedInvoiceDiscount(ctx, q, item); err != nil {
 				return fmt.Errorf("apply invoice discount %s: %w", item.Name, err)
 			}
+		}
+	case "client_sources":
+		// An answer without a list is not "central has none": keep ours.
+		if t := strings.TrimSpace(string(raw)); t == "" || t == "null" {
+			return nil
+		}
+		var items []syncedClientSource
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		if err := applySyncedClientSources(ctx, q, items); err != nil {
+			return fmt.Errorf("apply client sources: %w", err)
 		}
 	case "referral_program":
 		var items []syncedReferralProgram

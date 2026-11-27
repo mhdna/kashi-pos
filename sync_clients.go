@@ -201,6 +201,9 @@ type branchClientPayload struct {
 	// ReferralCode is the client's code; central keeps a new client's code
 	// from the till (made offline at their first sale), else its own.
 	ReferralCode string `json:"referral_code,omitempty"`
+	// SourceUID is where the customer heard about the shop (client_sources);
+	// central keeps the first answer a customer gets.
+	SourceUID string `json:"source_uid,omitempty"`
 }
 
 // queueBranchClientSync upserts the single sync_outbox row for one client,
@@ -224,6 +227,7 @@ func queueBranchClientSync(ctx context.Context, q *db.Queries, centralAPIURL str
 		Phone:          client.Phone,
 		UID:            client.Uid.String,
 		ReferralCode:   client.ReferralCode,
+		SourceUID:      client.SourceUid,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal client sync payload: %w", err)
