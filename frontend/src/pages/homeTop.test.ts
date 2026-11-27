@@ -19,6 +19,12 @@ describe("sale page barcode field", () => {
     expect(er).toBeGreaterThan(eg); // red stays red
   });
 
+  it("offers no language button (disabled, kept as a comment)", () => {
+    const live = source.replace(/<!--[\s\S]*?-->/g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(live).toMatch(/<ToggleTheme \/>/);
+    expect(live).not.toMatch(/ToggleLanguage|toggle-language/);
+  });
+
   it("the top of the page has no tinted background behind it", () => {
     const items = readFileSync(resolve(process.cwd(), "src/components/InvoiceItems.vue"), "utf8");
     expect(source).not.toMatch(/--top-tint|\.home-top/);

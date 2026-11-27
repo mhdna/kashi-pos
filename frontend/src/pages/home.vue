@@ -16,7 +16,7 @@
             </div>
             <div class="d-flex flex-column align-end">
               <div class="d-flex align-center ga-1">
-                <ToggleLanguage />
+                <!-- <ToggleLanguage /> -->
                 <ToggleTheme />
                 <div
                   class="required-assignees d-flex align-center ga-1"
@@ -492,7 +492,7 @@ import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { printReturnReceipts, productSearchInPlace, quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
-import ToggleLanguage from "@/components/ToggleLanguage.vue";
+// import ToggleLanguage from "@/components/ToggleLanguage.vue";
 import ToggleTheme from "@/components/ToggleTheme.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { formatUsd } from "@/lib/format";
