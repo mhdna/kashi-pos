@@ -545,4 +545,8 @@ export default {
 "Failed to save user": "Échec de l'enregistrement de l'utilisateur",
 "User deleted": "Utilisateur supprimé",
 "Failed to delete user": "Échec de la suppression de l'utilisateur",
+  "Till language": "Langue de la caisse",
+  "kashi can change it too.": "kashi peut aussi la modifier.",
+  "Till language changed": "Langue de la caisse modifiée",
+  "Failed to change the till language": "Impossible de changer la langue de la caisse",
 };

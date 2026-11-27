@@ -527,6 +527,8 @@ export function SetSyncVerboseEnabled(arg1:boolean):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 
+export function SetTillLanguage(arg1:string):Promise<void>;
+
 export function SetUnknownPicturesAtCheckout(arg1:boolean):Promise<void>;
 
 export function SetUnknownProductBarcode(arg1:string):Promise<void>;

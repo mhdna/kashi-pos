@@ -1028,6 +1028,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	result["discountToggleEnabled"] = a.flagEnabled(a.ctx, discountToggleFlag)
 	result["discountToggleDefaultOff"] = a.flagEnabled(a.ctx, discountToggleDefaultOffFlag)
 	result["dealsStack"] = a.flagEnabled(a.ctx, dealsStackFlag)
+	result["tillLanguage"] = a.tillLanguage()
 	result["rememberItemDiscounts"] = a.flagEnabled(a.ctx, rememberItemDiscountsFlag)
 	result["dealToggleEnabled"] = a.flagEnabled(a.ctx, dealToggleFlag)
 	result["invoiceRatingsEnabled"] = a.flagEnabledDefaultOn(a.ctx, invoiceRatingsFlag)
