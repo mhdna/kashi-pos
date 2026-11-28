@@ -9,6 +9,7 @@ const read = (p: string) => readFileSync(resolve(__dirname, p), "utf8");
 const page = read("conversion.vue");
 const shift = read("../components/shifts/ShiftIncomeCard.vue");
 const nav = read("../components/NavDrawer.vue");
+const icons = read("../lib/icons.ts");
 
 describe("manager password screens", () => {
   it("the Stats page unlock is the centred Manager password form, no lock", () => {
@@ -68,10 +69,19 @@ describe("unlock screen", () => {
 });
 
 describe("stats tiles and estimate", () => {
-  it("have no icons and square corners", () => {
+  it("each tile has its own coloured icon, with no tint behind it", () => {
     const tiles = page.slice(page.indexOf('<div class="tiles'), page.indexOf("<!-- What a day"));
-    expect(tiles).not.toMatch(/<k-icon/);
-    expect(page).not.toMatch(/mdi-walk|icon: "mdi-/);
+    expect(tiles).toMatch(/<k-icon :icon="tile.icon" :color="tile.color"/);
+    expect(tiles).not.toMatch(/k-avatar|variant="tonal"/);
+    const list = page.slice(page.indexOf("const tiles = computed"), page.indexOf("async function load"));
+    expect(list.match(/icon: "mdi-[a-z-]+",\s*color: "(blue|green|orange|purple)"/g)).toHaveLength(4);
+    for (const icon of ["mdi-account-group", "mdi-cart-outline", "mdi-receipt-text-outline", "mdi-cash-multiple"]) {
+      expect(icons, icon).toContain(`"${icon}":`);
+    }
+  });
+
+  it("the estimate has no icon, and nothing has rounded corners", () => {
+    expect(page).not.toMatch(/mdi-walk/);
     expect(page).not.toMatch(/\.(tile|estimate) \{[^}]*border-radius/);
   });
 });

@@ -86,8 +86,11 @@
 
         <div class="tiles mb-4">
           <div v-for="tile in tiles" :key="tile.label" class="tile">
-            <div class="tile__value">{{ tile.value }}</div>
-            <div class="tile__label">{{ tile.label }}</div>
+            <k-icon :icon="tile.icon" :color="tile.color" size="28" />
+            <div>
+              <div class="tile__value">{{ tile.value }}</div>
+              <div class="tile__label">{{ tile.label }}</div>
+            </div>
           </div>
         </div>
 
@@ -232,18 +235,26 @@ const tiles = computed(() => {
     {
       label: t("Visitors"),
       value: o.visitors.toLocaleString(),
+      icon: "mdi-account-group",
+      color: "blue",
     },
     {
       label: t("Sales"),
       value: o.invoices.toLocaleString(),
+      icon: "mdi-cart-outline",
+      color: "green",
     },
     {
       label: t("Average invoice"),
       value: money(o.avgInvoice),
+      icon: "mdi-receipt-text-outline",
+      color: "orange",
     },
     {
       label: t("Each visitor brings"),
       value: money(o.revenuePerVisitor),
+      icon: "mdi-cash-multiple",
+      color: "purple",
     },
   ];
 });
@@ -355,7 +366,12 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
 }
+/* Each tile has its own coloured icon beside the number, with no tint
+   behind it. */
 .tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 14px 16px;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
