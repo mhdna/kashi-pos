@@ -180,14 +180,21 @@
               :key="option.uid"
               class="client-source-option"
               :class="{ 'client-source-option--picked': option.uid === pickedSource }"
-              :color="option.uid === pickedSource ? 'primary' : undefined"
+              :color="sourceLook(option).color"
+              :style="{ '--source-ring': sourceLook(option).color }"
               data-test="client-source-option"
               role="radio"
               :aria-checked="option.uid === pickedSource"
-              :prepend-icon="option.uid === pickedSource ? 'mdi-check' : undefined"
-              variant="outlined"
+              :append-icon="option.uid === pickedSource ? 'mdi-check' : undefined"
+              variant="flat"
               @click="pickedSource = toggleSource(pickedSource, option.uid)"
             >
+              <k-icon
+                class="client-source-icon"
+                data-test="client-source-icon"
+                :icon="sourceLook(option).icon"
+                size="22"
+              />
               {{ t(option.name) }}
             </k-btn>
           </div>
@@ -223,6 +230,7 @@ import {
 import { GetClientByPhone, CreateClient, GetClientSources } from "../../wailsjs/go/main/App";
 import {
   canSaveNewClient,
+  sourceLook,
   sourceOptions,
   sourceToSend,
   toggleSource,
@@ -629,8 +637,14 @@ function reset() {
   min-height: 48px;
   font-size: 1rem;
 }
+.client-source-icon {
+  margin-inline-end: 8px;
+}
+/* Each option is filled in its colour; the picked one gets a ring in the
+   same colour around it, and a check. */
 .client-source-option--picked {
-  border-width: 2px;
+  outline: 3px solid var(--source-ring);
+  outline-offset: 2px;
 }
 .country-flag {
   display: inline-block;

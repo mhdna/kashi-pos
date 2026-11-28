@@ -15,6 +15,9 @@ vi.mock("@/lib/sound", () => ({ playClickSound: vi.fn(), playDtmfSound: vi.fn() 
 
 import { CreateClient, GetClientByPhone, GetClientSources } from "../../wailsjs/go/main/App";
 import ClientDialog from "./ClientDialog.vue";
+import { sourceLook, sourceOptions } from "@/lib/clientSource";
+import { iconPathFor } from "@/lib/icons";
+
 
 let wrapper: VueWrapper | null = null;
 afterEach(() => {
@@ -84,6 +87,24 @@ describe("ClientDialog: where did they hear about us", () => {
     save().click();
     await flushPromises();
     expect(CreateClient).toHaveBeenCalledWith("Ali", "+96170456789", fixture[1]!.uid);
+  });
+
+  it("each option is filled in its colour with its icon, and the picked one is ringed", async () => {
+    await newCustomerStep(fixture);
+    const looks = sourceOptions(fixture).map(sourceLook);
+    options().forEach((o, i) => {
+      const icon = o.querySelector<HTMLElement>('[data-test="client-source-icon"]')!;
+      expect(icon.querySelector("path")!.getAttribute("d")).toBe(iconPathFor(looks[i]!.icon));
+      expect(o.style.getPropertyValue("--k-c")).toBe(looks[i]!.color);
+      expect(o.style.getPropertyValue("--k-on")).toBe("#fff");
+      expect(o.classList.contains("client-source-option--picked")).toBe(false);
+    });
+    option(2).click();
+    await flushPromises();
+    expect(option(2).getAttribute("aria-checked")).toBe("true");
+    expect(option(2).classList.contains("client-source-option--picked")).toBe(true);
+    expect(option(2).style.getPropertyValue("--source-ring")).toBe(looks[2]!.color);
+    expect(options().filter((o) => o.classList.contains("client-source-option--picked"))).toHaveLength(1);
   });
 
   it("with no options from central it doesn't ask, and saves with the name alone", async () => {

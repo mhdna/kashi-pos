@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./testdata/client_sources.json";
-import { canSaveNewClient, sourceOptions, sourceToSend, toggleSource } from "./clientSource";
+import { canSaveNewClient, defaultSourceLook, sourceLook, sourceOptions, sourceToSend, toggleSource } from "./clientSource";
+import { iconPathFor } from "./icons";
 
 const options = sourceOptions(fixture);
 
@@ -63,6 +64,37 @@ describe("client source", () => {
       const listed = list.some((o) => o.uid === picked);
       expect(canSaveNewClient("Name", list, picked)).toBe(list.length === 0 || listed);
       expect(sourceToSend(list, picked)).toBe(listed ? picked : "");
+    }
+  });
+});
+
+describe("client source look", () => {
+  it("each starting option has its own registered icon and colour", () => {
+    const looks = options.map(sourceLook);
+    expect(new Set(looks.map((l) => l.icon)).size).toBe(options.length);
+    expect(new Set(looks.map((l) => l.color)).size).toBe(options.length);
+    for (const l of looks) {
+      expect(l).not.toEqual(defaultSourceLook);
+      expect(iconPathFor(l.icon)).toBeTruthy();
+      expect(l.color).toMatch(/^#[0-9A-F]{6}$/);
+    }
+  });
+
+  it("a starting option keeps its look when central renames it", () => {
+    for (const o of options) expect(sourceLook({ ...o, name: "Renamed" })).toEqual(sourceLook(o));
+  });
+
+  it("an option added in kashi is recognised by name, in English or French", () => {
+    const cases: [string, string][] = [
+      ["Instagram", "mdi-instagram"], ["  FACEBOOK ", "mdi-facebook"], ["WhatsApp", "mdi-whatsapp"],
+      ["Réseaux sociaux", "mdi-share-variant"], ["Text message", "mdi-message-text"],
+      ["Un ami", "mdi-account-heart"], ["Family", "mdi-account-heart"], ["Passing by", "mdi-walk"],
+      ["Autre", "mdi-dots-horizontal-circle-outline"], ["Radio", "mdi-bullhorn"], ["Billboard", "mdi-bullhorn"],
+    ];
+    for (const [name, icon] of cases) {
+      const look = sourceLook({ uid: "0b7e1f7c-3a2d-4f55-9d0c-6a1f2b3c4d5e", name });
+      expect(look.icon, name).toBe(icon);
+      expect(iconPathFor(look.icon), name).toBeTruthy();
     }
   });
 });
