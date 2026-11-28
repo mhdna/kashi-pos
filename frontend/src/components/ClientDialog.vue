@@ -149,18 +149,29 @@
       <k-card-title>{{ t("New Client") }}</k-card-title>
       <k-card-text class="new-client-layout">
         <div class="new-client-main">
-        <PhoneField
-          ref="newPhoneField"
-          v-model="newClient.phone"
-          class="mb-2"
-          :error-messages="newPhoneError"
-          @focus="newPhoneActive = true"
+        <!-- Tapping the number pops a keypad up under it, like the quantity
+             pad; the letter keyboard below stays for the name. -->
+        <PhonePadMenu
+          v-model:open="newPhonePadOpen"
+          :title="t('Phone number')"
+          :display="newPhoneDisplay"
+          @press="newPhoneField?.press($event)"
         >
-          <template #prepend>
-            <span class="country-flag country-flag--new-client">{{ selectedFlag }}</span>
-            <span>+{{ selectedDialCode }}</span>
+          <template #activator="{ props: padProps }">
+            <PhoneField
+              ref="newPhoneField"
+              v-model="newClient.phone"
+              v-bind="padProps"
+              class="mb-2"
+              :error-messages="newPhoneError"
+            >
+              <template #prepend>
+                <span class="country-flag country-flag--new-client">{{ selectedFlag }}</span>
+                <span>+{{ selectedDialCode }}</span>
+              </template>
+            </PhoneField>
           </template>
-        </PhoneField>
+        </PhonePadMenu>
         <k-text-field
           v-model="newClient.name"
           :placeholder="t('Name')"
@@ -171,10 +182,8 @@
           @keydown="preventClientNameNumber"
           @beforeinput="preventClientNameNumberInput"
           @keydown.enter="createClient"
-          @focus="newPhoneActive = false"
         />
-        <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
-        <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
+        <InlineKeyboard v-model="newClient.name" class="client-name-keyboard mt-3" />
         </div>
         <div v-if="sources.length > 0" class="client-source" role="radiogroup" :aria-label="t('Where did they hear about us?')">
           <div class="client-source-label text-body-2 font-weight-medium mb-2">{{ t("Where did they hear about us?") }}</div>
@@ -246,11 +255,12 @@ import {
   toClient,
   type Client,
 } from "@/lib/client";
-import { localLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
+import { formatLebanesePhone, localLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
 import { playClickSound, playDtmfSound } from "@/lib/sound";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import PhoneField from "@/components/PhoneField.vue";
 import PhonePad from "@/components/PhonePad.vue";
+import PhonePadMenu from "@/components/PhonePadMenu.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 
@@ -269,7 +279,14 @@ const selectedCountry = ref<CountryCode>("LB");
 // new-client step; createClient puts the country code back.
 const newClient = reactive({ name: "", phone: "" });
 const newPhoneField = ref<InstanceType<typeof PhoneField> | null>(null);
-const newPhoneActive = ref(false);
+const newPhonePadOpen = ref(false);
+// The number as the popup keypad shows it: "+961 (78) 255-566".
+const newPhoneDisplay = computed(() => {
+  const digits = newClient.phone.replace(/\D/g, "");
+  if (!digits) return "";
+  if (newClient.phone.trim().startsWith("+")) return `+${digits}`;
+  return `+${selectedDialCode.value} ${isLebanon(selectedCountry.value) ? formatLebanesePhone(digits) : digits}`;
+});
 const newPhoneError = ref("");
 // Where the new customer heard about us; loaded when the new step opens.
 const sources = ref<ClientSourceOption[]>([]);
@@ -580,7 +597,7 @@ async function lookupPhone() {
     newClient.phone = p.startsWith("+961") ? localLebanesePhone(p) : p.startsWith(dial) ? p.slice(dial.length) : p;
     newClient.name = "";
     newPhoneError.value = "";
-    newPhoneActive.value = false;
+    newPhonePadOpen.value = false;
     pickedSource.value = "";
     void loadSources();
     step.value = "new";
@@ -629,7 +646,7 @@ function reset() {
   newClient.name = "";
   newClient.phone = "";
   newPhoneError.value = "";
-  newPhoneActive.value = false;
+  newPhonePadOpen.value = false;
   pickedSource.value = "";
 }
 </script>
