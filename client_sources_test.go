@@ -13,15 +13,12 @@ import (
 	"time"
 )
 
-// Central's starting options (kashi migrations 000260 and 000261), under the
+// Central's starting options (kashi migrations 000260 to 000262), under the
 // same uids.
 var centralSeedSources = []ClientSource{
 	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000001", Name: "Social media"},
 	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000003", Name: "A friend or family"},
 	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000004", Name: "Walking by"},
-	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000006", Name: "Google Maps"},
-	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000007", Name: "WhatsApp"},
-	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000008", Name: "An ad or flyer"},
 }
 
 func mustSources(t *testing.T, app *App) []ClientSource {
@@ -46,7 +43,7 @@ func TestClientSourcesSeededLikeCentral(t *testing.T) {
 func TestCreateClientKeepsWhereTheyHeard(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, "https://central.test")
 	ctx := context.Background()
-	sms := centralSeedSources[4].UID
+	sms := centralSeedSources[2].UID
 
 	created, err := app.CreateClient("Maya", "70456789", sms)
 	if err != nil {
@@ -116,7 +113,8 @@ func TestApplySyncedClientSources(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, "")
 	ctx := context.Background()
 	q := store.Queries
-	friend := centralSeedSources[2].UID
+	friend := centralSeedSources[2].UID // left out of central's list below
+	hiddenUID := "11111111-aaaa-4bbb-8ccc-000000000003"
 	c, err := app.CreateClient("Rami", "70111222", friend)
 	if err != nil {
 		t.Fatal(err)
@@ -125,7 +123,7 @@ func TestApplySyncedClientSources(t *testing.T) {
 	err = applySyncedClientSources(ctx, q, []syncedClientSource{
 		{UID: centralSeedSources[1].UID, Name: "Text message", SortOrder: 1, IsActive: true},
 		{UID: centralSeedSources[0].UID, Name: "Instagram", SortOrder: 2, IsActive: true},
-		{UID: centralSeedSources[4].UID, Name: "Other", SortOrder: 3, IsActive: false},
+		{UID: hiddenUID, Name: "Other", SortOrder: 3, IsActive: false},
 		{UID: "0b7e1f7c-3a2d-4f55-9d0c-6a1f2b3c4d5e", Name: " Radio ", SortOrder: 4, IsActive: true},
 		{UID: "", Name: "No uid", IsActive: true},
 		{UID: "11111111-2222-4333-8444-555555555555", Name: "  ", IsActive: true},
@@ -150,8 +148,8 @@ func TestApplySyncedClientSources(t *testing.T) {
 		t.Fatalf("removed option cleared the customer's answer: %q", kept.SourceUid)
 	}
 	// A hidden option is no answer for a new customer.
-	got, _ := app.CreateClient("Lea", "70111333", centralSeedSources[4].UID)
-	if hidden, _ := store.GetClientByID(ctx, got["id"].(int64)); hidden.SourceUid != centralSeedSources[4].UID {
+	got, _ := app.CreateClient("Lea", "70111333", hiddenUID)
+	if hidden, _ := store.GetClientByID(ctx, got["id"].(int64)); hidden.SourceUid != hiddenUID {
 		// Hidden still exists locally; the form never offers it, but a
 		// form opened before the sync may still send it, and that's kept.
 		t.Fatalf("hidden option dropped: %q", hidden.SourceUid)

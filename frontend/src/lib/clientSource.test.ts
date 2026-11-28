@@ -7,7 +7,7 @@ const options = sourceOptions(fixture);
 
 describe("client source", () => {
   it("the till's real list: central's starting options, in order", () => {
-    expect(options.map((o) => o.name)).toEqual(["Social media", "A friend or family", "Walking by", "Google Maps", "WhatsApp", "An ad or flyer"]);
+    expect(options.map((o) => o.name)).toEqual(["Social media", "A friend or family", "Walking by"]);
   });
 
   it("drops blanks and repeats, keeps the order", () => {

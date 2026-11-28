@@ -56,9 +56,6 @@ const byUID: Record<string, SourceLook> = {
   "6f1c2a00-5e1d-4c7a-9b00-000000000001": look.social,
   "6f1c2a00-5e1d-4c7a-9b00-000000000003": look.friend,
   "6f1c2a00-5e1d-4c7a-9b00-000000000004": look.walking,
-  "6f1c2a00-5e1d-4c7a-9b00-000000000006": look.maps,
-  "6f1c2a00-5e1d-4c7a-9b00-000000000007": look.whatsapp,
-  "6f1c2a00-5e1d-4c7a-9b00-000000000008": look.ad,
 };
 
 const byName: [RegExp, SourceLook][] = [

@@ -141,7 +141,7 @@ func (f *feed) handler(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 	if body == "" && entity == "client_sources" {
 		// What central serves: the options the till seeded.
-		body = `[{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000001","name":"Social media","sort_order":1,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000003","name":"A friend or family","sort_order":3,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000004","name":"Walking by","sort_order":4,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000006","name":"Google Maps","sort_order":6,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000007","name":"WhatsApp","sort_order":7,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000008","name":"An ad or flyer","sort_order":8,"is_active":true}]`
+		body = `[{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000001","name":"Social media","sort_order":1,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000003","name":"A friend or family","sort_order":3,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000004","name":"Walking by","sort_order":4,"is_active":true}]`
 	}
 	if body == "" {
 		body = "[]"
