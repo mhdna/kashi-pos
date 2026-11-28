@@ -159,7 +159,7 @@ offline branch can close with the ==admin password and a reason==
   starts the cursor from central's clock, read before it.
 - `client_sources` are the answers to "where did they hear about us?", asked on
   the New Client step (`client_sources.go`, `lib/clientSource.ts`). Save waits
-  for an answer unless central offers none. Migration 000151 seeds central's
+  for an answer unless central offers none. Migrations 000151 and 000152 seed central's
   starting options under ==the same fixed uids== so a till asks before its first
   sync; hidden ones are stored but not offered; an answer without a list keeps
   the till's. The pick is `clients.source_uid`, sent as `source_uid` with the

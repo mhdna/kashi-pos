@@ -36,29 +36,45 @@ export function canSaveNewClient(name: string, options: ClientSourceOption[], pi
 
 // Each option's icon and colour. Central's starting options have fixed uids;
 // one added in kashi is recognised by name (English or French), otherwise it
-// gets a megaphone in grey.
+// gets a grey tag.
 export type SourceLook = { icon: string; color: string };
 
+const look = {
+  social: { icon: "mdi-share-variant", color: "#8E24AA" },
+  friend: { icon: "mdi-account-heart", color: "#E53935" },
+  walking: { icon: "mdi-walk", color: "#EF6C00" },
+  maps: { icon: "mdi-google-maps", color: "#1A73E8" },
+  whatsapp: { icon: "mdi-whatsapp", color: "#25A244" },
+  ad: { icon: "mdi-bullhorn", color: "#6D4C41" },
+  instagram: { icon: "mdi-instagram", color: "#C13584" },
+  facebook: { icon: "mdi-facebook", color: "#3B5998" },
+  sms: { icon: "mdi-message-text", color: "#00838F" },
+  other: { icon: "mdi-dots-horizontal-circle-outline", color: "#757575" },
+} satisfies Record<string, SourceLook>;
+
 const byUID: Record<string, SourceLook> = {
-  "6f1c2a00-5e1d-4c7a-9b00-000000000001": { icon: "mdi-share-variant", color: "#8E24AA" },
-  "6f1c2a00-5e1d-4c7a-9b00-000000000002": { icon: "mdi-message-text", color: "#1E88E5" },
-  "6f1c2a00-5e1d-4c7a-9b00-000000000003": { icon: "mdi-account-heart", color: "#E53935" },
-  "6f1c2a00-5e1d-4c7a-9b00-000000000004": { icon: "mdi-walk", color: "#43A047" },
-  "6f1c2a00-5e1d-4c7a-9b00-000000000005": { icon: "mdi-dots-horizontal-circle-outline", color: "#757575" },
+  "6f1c2a00-5e1d-4c7a-9b00-000000000001": look.social,
+  "6f1c2a00-5e1d-4c7a-9b00-000000000003": look.friend,
+  "6f1c2a00-5e1d-4c7a-9b00-000000000004": look.walking,
+  "6f1c2a00-5e1d-4c7a-9b00-000000000006": look.maps,
+  "6f1c2a00-5e1d-4c7a-9b00-000000000007": look.whatsapp,
+  "6f1c2a00-5e1d-4c7a-9b00-000000000008": look.ad,
 };
 
 const byName: [RegExp, SourceLook][] = [
-  [/instagram|insta\b/, { icon: "mdi-instagram", color: "#C13584" }],
-  [/facebook|\bfb\b/, { icon: "mdi-facebook", color: "#1877F2" }],
-  [/whats ?app/, { icon: "mdi-whatsapp", color: "#25A244" }],
-  [/social|réseaux|reseaux/, byUID["6f1c2a00-5e1d-4c7a-9b00-000000000001"]!],
-  [/\bsms\b|text|message/, byUID["6f1c2a00-5e1d-4c7a-9b00-000000000002"]!],
-  [/friend|ami|family|famille|bouche/, byUID["6f1c2a00-5e1d-4c7a-9b00-000000000003"]!],
-  [/walk|passing|passage|street|rue/, byUID["6f1c2a00-5e1d-4c7a-9b00-000000000004"]!],
-  [/^other$|^autre$/, byUID["6f1c2a00-5e1d-4c7a-9b00-000000000005"]!],
+  [/instagram|insta\b/, look.instagram],
+  [/facebook|\bfb\b/, look.facebook],
+  [/whats ?app/, look.whatsapp],
+  [/google|maps?\b|carte/, look.maps],
+  [/social|réseaux|reseaux/, look.social],
+  [/\bsms\b|text|message/, look.sms],
+  [/friend|ami|family|famille|bouche/, look.friend],
+  [/walk|passing|passage|street|rue/, look.walking],
+  [/\bads?\b|flyer|poster|affiche|pub|billboard|panneau/, look.ad],
+  [/^other$|^autre$/, look.other],
 ];
 
-export const defaultSourceLook: SourceLook = { icon: "mdi-bullhorn", color: "#616161" };
+export const defaultSourceLook: SourceLook = { icon: "mdi-tag-outline", color: "#616161" };
 
 export function sourceLook(option: ClientSourceOption): SourceLook {
   const known = byUID[option.uid];

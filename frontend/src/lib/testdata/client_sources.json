@@ -4,19 +4,23 @@
     "name": "Social media"
   },
   {
-    "uid": "6f1c2a00-5e1d-4c7a-9b00-000000000002",
-    "name": "SMS"
-  },
-  {
     "uid": "6f1c2a00-5e1d-4c7a-9b00-000000000003",
-    "name": "A friend"
+    "name": "A friend or family"
   },
   {
     "uid": "6f1c2a00-5e1d-4c7a-9b00-000000000004",
     "name": "Walking by"
   },
   {
-    "uid": "6f1c2a00-5e1d-4c7a-9b00-000000000005",
-    "name": "Other"
+    "uid": "6f1c2a00-5e1d-4c7a-9b00-000000000006",
+    "name": "Google Maps"
+  },
+  {
+    "uid": "6f1c2a00-5e1d-4c7a-9b00-000000000007",
+    "name": "WhatsApp"
+  },
+  {
+    "uid": "6f1c2a00-5e1d-4c7a-9b00-000000000008",
+    "name": "An ad or flyer"
   }
 ]

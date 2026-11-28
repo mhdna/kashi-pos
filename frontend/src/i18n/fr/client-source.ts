@@ -6,5 +6,9 @@ export default {
   "SMS": "SMS",
   "A friend": "Un ami",
   "Walking by": "En passant",
+  "A friend or family": "Un ami ou la famille",
+  "Google Maps": "Google Maps",
+  "WhatsApp": "WhatsApp",
+  "An ad or flyer": "Une pub ou un flyer",
   "Other": "Autre",
 };

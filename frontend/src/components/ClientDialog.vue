@@ -1,7 +1,7 @@
 <template>
   <!-- Reset only once the close animation is over: resetting on close put
        the phone step back on screen while the dialog was still fading. -->
-  <k-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 720 : 760" @after-leave="reset">
+  <k-dialog v-model="dialog" :max-width="dialogWidth" @after-leave="reset">
     <k-card v-if="step === 'phone'" class="client-phone-card">
       <k-card-title v-if="!countryPickerOpen" class="font-weight-bold">{{ t("Enter Phone Number") }}</k-card-title>
       <k-card-text v-if="!countryPickerOpen" class="client-phone-layout">
@@ -147,7 +147,8 @@
 
     <k-card v-else-if="step === 'new'">
       <k-card-title>{{ t("New Client") }}</k-card-title>
-      <k-card-text>
+      <k-card-text class="new-client-layout">
+        <div class="new-client-main">
         <PhoneField
           ref="newPhoneField"
           v-model="newClient.phone"
@@ -172,7 +173,10 @@
           @keydown.enter="createClient"
           @focus="newPhoneActive = false"
         />
-        <div v-if="sources.length > 0" class="client-source mt-3" role="radiogroup" :aria-label="t('Where did they hear about us?')">
+        <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
+        <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
+        </div>
+        <div v-if="sources.length > 0" class="client-source" role="radiogroup" :aria-label="t('Where did they hear about us?')">
           <div class="client-source-label text-body-2 font-weight-medium mb-2">{{ t("Where did they hear about us?") }}</div>
           <div class="client-source-options">
             <k-btn
@@ -199,8 +203,6 @@
             </k-btn>
           </div>
         </div>
-        <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
-        <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
       </k-card-text>
       <k-card-actions class="pa-4">
         <k-btn variant="text" @click="step = 'phone'">{{ t("Back") }}</k-btn>
@@ -272,6 +274,11 @@ const newPhoneError = ref("");
 // Where the new customer heard about us; loaded when the new step opens.
 const sources = ref<ClientSourceOption[]>([]);
 const pickedSource = ref("");
+// The new-client step widens to fit the options in a column on its right.
+const dialogWidth = computed(() => {
+  if (step.value === "phone" && !countryPickerOpen.value) return 720;
+  return step.value === "new" && sources.value.length > 0 ? 1000 : 760;
+});
 
 async function loadSources() {
   try {
@@ -628,14 +635,38 @@ function reset() {
 </script>
 
 <style scoped>
+/* Phone, name and keyboard on the left; the options in a column on the
+   right, beside them. */
+.new-client-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.new-client-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.client-source {
+  flex: 0 0 230px;
+}
+@media (max-width: 700px) {
+  .new-client-layout {
+    flex-direction: column-reverse;
+  }
+  .client-source {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
 .client-source-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 .client-source-option {
-  min-height: 48px;
+  min-height: 52px;
   font-size: 1rem;
+  justify-content: flex-start;
 }
 .client-source-icon {
   margin-inline-end: 8px;

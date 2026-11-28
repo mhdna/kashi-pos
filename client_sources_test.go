@@ -13,13 +13,15 @@ import (
 	"time"
 )
 
-// Central's starting options (kashi migration 000260), under the same uids.
+// Central's starting options (kashi migrations 000260 and 000261), under the
+// same uids.
 var centralSeedSources = []ClientSource{
 	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000001", Name: "Social media"},
-	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000002", Name: "SMS"},
-	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000003", Name: "A friend"},
+	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000003", Name: "A friend or family"},
 	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000004", Name: "Walking by"},
-	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000005", Name: "Other"},
+	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000006", Name: "Google Maps"},
+	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000007", Name: "WhatsApp"},
+	{UID: "6f1c2a00-5e1d-4c7a-9b00-000000000008", Name: "An ad or flyer"},
 }
 
 func mustSources(t *testing.T, app *App) []ClientSource {
@@ -44,7 +46,7 @@ func TestClientSourcesSeededLikeCentral(t *testing.T) {
 func TestCreateClientKeepsWhereTheyHeard(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, "https://central.test")
 	ctx := context.Background()
-	sms := centralSeedSources[1].UID
+	sms := centralSeedSources[4].UID
 
 	created, err := app.CreateClient("Maya", "70456789", sms)
 	if err != nil {
