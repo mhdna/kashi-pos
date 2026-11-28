@@ -123,6 +123,20 @@ export namespace main {
 	        this.hasMore = source["hasMore"];
 	    }
 	}
+	export class ClientSource {
+	    uid: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ClientSource(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uid = source["uid"];
+	        this.name = source["name"];
+	    }
+	}
 	export class ClockStatus {
 	    checked: boolean;
 	    zone: string;

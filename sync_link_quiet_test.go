@@ -139,6 +139,10 @@ func (f *feed) handler(w http.ResponseWriter, r *http.Request) {
 		f.showing = append(f.showing, s.Label)
 	}
 	f.mu.Unlock()
+	if body == "" && entity == "client_sources" {
+		// What central serves: the options the till seeded.
+		body = `[{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000001","name":"Social media","sort_order":1,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000002","name":"SMS","sort_order":2,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000003","name":"A friend","sort_order":3,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000004","name":"Walking by","sort_order":4,"is_active":true},{"uid":"6f1c2a00-5e1d-4c7a-9b00-000000000005","name":"Other","sort_order":5,"is_active":true}]`
+	}
 	if body == "" {
 		body = "[]"
 	}

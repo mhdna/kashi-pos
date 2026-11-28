@@ -47,6 +47,7 @@ type Querier interface {
 	// Anything that makes a client part of history: invoices, coupons, account
 	// entries. Such a client is deactivated, never deleted.
 	ClientIsReferenced(ctx context.Context, id int64) (int64, error)
+	ClientSourceExists(ctx context.Context, uid string) (int64, error)
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
@@ -197,6 +198,7 @@ type Querier interface {
 	// A sale's settlement changed away from On Account before anything was paid
 	// back (client_account_payments would go with it: ON DELETE CASCADE).
 	DeleteClientAccountEntryByInvoiceID(ctx context.Context, invoiceID int64) error
+	DeleteClientSource(ctx context.Context, uid string) error
 	DeleteCoupon(ctx context.Context, code string) error
 	DeleteCouponType(ctx context.Context, id int64) error
 	DeleteDiscountListByUID(ctx context.Context, uid sql.NullString) error
@@ -385,6 +387,7 @@ type Querier interface {
 	// is deactivated rather than deleted, so this is the list the checkout
 	// calculator and the settings screen read.
 	ListActiveCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
+	ListActiveClientSources(ctx context.Context) ([]ClientSource, error)
 	ListActiveClients(ctx context.Context) ([]Client, error)
 	// See ListActivePriceListItems for why this is ordered by is_default DESC.
 	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
@@ -459,6 +462,7 @@ type Querier interface {
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error)
+	ListClientSources(ctx context.Context) ([]ClientSource, error)
 	// Completeness check: every local client's uid and the central version last
 	// applied to it.
 	ListClientSyncVersions(ctx context.Context) ([]ListClientSyncVersionsRow, error)
@@ -709,6 +713,7 @@ type Querier interface {
 	SetClientActive(ctx context.Context, arg SetClientActiveParams) error
 	SetClientReferralCode(ctx context.Context, arg SetClientReferralCodeParams) error
 	SetClientRemoteUpdatedAt(ctx context.Context, arg SetClientRemoteUpdatedAtParams) error
+	SetClientSourceUID(ctx context.Context, arg SetClientSourceUIDParams) error
 	// Adopt central's uid for a local client (pull match, or central answering a
 	// push with the canonical uid of an existing client with the same phone).
 	SetClientUID(ctx context.Context, arg SetClientUIDParams) error
@@ -869,6 +874,7 @@ type Querier interface {
 	UpsertBranchStock(ctx context.Context, arg UpsertBranchStockParams) error
 	UpsertBranchTarget(ctx context.Context, arg UpsertBranchTargetParams) error
 	UpsertCalendarEvent(ctx context.Context, arg UpsertCalendarEventParams) error
+	UpsertClientSource(ctx context.Context, arg UpsertClientSourceParams) error
 	UpsertCouponTypeByCentralID(ctx context.Context, arg UpsertCouponTypeByCentralIDParams) (CouponType, error)
 	// Deals arrive with the lists naming them (sync_pull_lists.go); a deal two
 	// lists share is the same row.

@@ -624,6 +624,7 @@ var entityLabels = map[string]string{
 	"transfer_requests": "Transfers", "incoming_transfer_requests": "Incoming transfers",
 	"branch_stock": "Stock", "quick_access": "Quick access", "invoice_discounts": "Invoice discounts", "referral_program": "Referral rules", "referral_rewards": "Referral rewards",
 	"calendar_events": "Calendar events", "calendar_settings": "Calendar settings",
+	"client_sources": "Customer sources",
 }
 
 func entityLabel(entity string) string {

@@ -154,8 +154,8 @@ export function CreateBranch(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateBranch'](arg1, arg2, arg3, arg4);
 }
 
-export function CreateClient(arg1, arg2) {
-  return window['go']['main']['App']['CreateClient'](arg1, arg2);
+export function CreateClient(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateClient'](arg1, arg2, arg3);
 }
 
 export function CreateCoupon(arg1, arg2, arg3) {
@@ -308,6 +308,10 @@ export function GetClientAccountDetails(arg1) {
 
 export function GetClientByPhone(arg1) {
   return window['go']['main']['App']['GetClientByPhone'](arg1);
+}
+
+export function GetClientSources() {
+  return window['go']['main']['App']['GetClientSources']();
 }
 
 export function GetClientProfile(arg1) {

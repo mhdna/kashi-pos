@@ -187,6 +187,7 @@ type Client struct {
 	Uid                sql.NullString `json:"uid"`
 	RemoteUpdatedAt    sql.NullString `json:"remoteUpdatedAt"`
 	ReferralCode       string         `json:"referralCode"`
+	SourceUid          string         `json:"sourceUid"`
 }
 
 type ClientAccountEntry struct {
@@ -212,6 +213,13 @@ type ClientAccountPayment struct {
 	ShiftID   int64  `json:"shiftId"`
 	Amount    int64  `json:"amount"`
 	CreatedAt string `json:"createdAt"`
+}
+
+type ClientSource struct {
+	Uid       string `json:"uid"`
+	Name      string `json:"name"`
+	SortOrder int64  `json:"sortOrder"`
+	IsActive  int64  `json:"isActive"`
 }
 
 type Coupon struct {
@@ -304,6 +312,14 @@ type ExchangeDealAdjustment struct {
 	DealUid        string `json:"dealUid"`
 	Forfeited      int64  `json:"forfeited"`
 	Clawback       int64  `json:"clawback"`
+}
+
+type ExchangeOpening struct {
+	InvoiceID int64  `json:"invoiceId"`
+	OpenUntil string `json:"openUntil"`
+	OpenedBy  string `json:"openedBy"`
+	Reason    string `json:"reason"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type Expense struct {

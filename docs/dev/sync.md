@@ -130,7 +130,7 @@ offline branch can close with the ==admin password and a reason==
   expense_categories, loan_categories, coupon_types, coupons, branches,
   transfer_requests, incoming_transfer_requests, branch_stock, quick_access,
   invoice_discounts, calendar_events, calendar_settings, referral_program,
-  referral_rewards.
+  client_sources, referral_rewards.
 - Each follows central's `updated_at` cursor (`sync_cursors`), which ==only
   advances after a whole successful walk==, in the last page's transaction. So every apply must be
   idempotent: a failure mid-walk re-applies the same pages next time. One
@@ -138,7 +138,7 @@ offline branch can close with the ==admin password and a reason==
 - Products and clients come in ==pages of 500==, each page its own transaction,
   so a first pull of a big catalogue isn't one long write lock.
 - **Whole-set entities** (currencies, cashbox accounts, branches, quick access,
-  calendar events and settings, expense and loan categories) always ask with an
+  calendar events and settings, expense and loan categories, client sources) always ask with an
   empty cursor and arrive complete; ==what central didn't send is retired==. Only a real difference in the
   local table counts as "changed", so open pages don't reload every 15 s.
 - Price and discount lists arrive **whole** (the list with all its items), and
@@ -157,6 +157,13 @@ offline branch can close with the ==admin password and a reason==
   copied database, a new register) ==doesn't re-download them==:
   `seedCursorFromLocalCatalog` runs the completeness check for that entity and
   starts the cursor from central's clock, read before it.
+- `client_sources` are the answers to "where did they hear about us?", asked on
+  the New Client step (`client_sources.go`, `lib/clientSource.ts`). Save waits
+  for an answer unless central offers none. Migration 000151 seeds central's
+  starting options under ==the same fixed uids== so a till asks before its first
+  sync; hidden ones are stored but not offered; an answer without a list keeps
+  the till's. The pick is `clients.source_uid`, sent as `source_uid` with the
+  client, and central keeps the first answer.
 - After an entity changed, the screen gets `sync_applied:<entity>`.
 - A price or discount list central switches off keeps its row here, off and
   emptied, because sold lines point at it. Deleting one with sales fails and
