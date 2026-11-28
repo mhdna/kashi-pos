@@ -1,4 +1,4 @@
-// Till language: French by default, English on request. English text is the
+// Till language: English by default, French on request. English text is the
 // key and FR holds its French, so a screen is converted by wrapping its text in
 // t("...") and an untranslated string simply shows in English.
 // {placeholders} must stay as they are.
@@ -15,7 +15,7 @@ function initial(): Locale {
   } catch {
     // Storage blocked: use the default.
   }
-  return "fr";
+  return "en";
 }
 
 export const locale = ref<Locale>(initial());
@@ -26,7 +26,7 @@ function apply() {
 apply();
 
 export function setLocale(value: string) {
-  locale.value = value === "en" ? "en" : "fr";
+  locale.value = value === "fr" ? "fr" : "en";
   try {
     localStorage.setItem(KEY, locale.value);
   } catch {

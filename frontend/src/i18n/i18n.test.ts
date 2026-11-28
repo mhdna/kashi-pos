@@ -21,23 +21,31 @@ async function fresh (saved?: string) {
 describe('i18n', () => {
   beforeEach(stubStorage)
 
-  it('defaults to French', async () => {
+  it('defaults to English', async () => {
     const m = await fresh()
-    expect(m.locale.value).toBe('fr')
-    expect(m.t('Language')).toBe('Langue')
-    expect(document.documentElement.lang).toBe('fr')
+    expect(m.locale.value).toBe('en')
+    expect(m.t('Language')).toBe('Language')
+    expect(document.documentElement.lang).toBe('en')
   })
 
-  it('toggles to English, remembers it, and a reload keeps it', async () => {
+  it('switches to French, remembers it, and a reload keeps it', async () => {
     const m = await fresh()
-    m.setLocale('en')
-    expect(m.t('Language')).toBe('Language')
-    expect(store.locale).toBe('en')
-    expect((await fresh('en')).locale.value).toBe('en')
+    m.setLocale('fr')
+    expect(m.t('Language')).toBe('Langue')
+    expect(store.locale).toBe('fr')
+    expect((await fresh('fr')).locale.value).toBe('fr')
+  })
+
+  it('shows English for anything but French', async () => {
+    const m = await fresh()
+    for (const [value, want] of [['fr', 'fr'], ['de', 'en'], ['', 'en'], ['fr', 'fr'], ['EN', 'en']]) {
+      m.setLocale(value)
+      expect(m.locale.value).toBe(want)
+    }
   })
 
   it('ignores a bad saved value', async () => {
-    expect((await fresh('de')).locale.value).toBe('fr')
+    expect((await fresh('de')).locale.value).toBe('en')
   })
 
   it('shows English for untranslated text and fills placeholders', async () => {

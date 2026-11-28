@@ -2311,7 +2311,7 @@ const form = reactive({
   discountToggleDefaultOff: false,
   dealToggleEnabled: false,
   oversellMode: "allow",
-  tillLanguage: "fr",
+  tillLanguage: "en",
   productSearchHiddenFields: [] as string[],
   unknownProductBarcode: "",
   unknownPicturesAtCheckout: false,
@@ -2758,7 +2758,7 @@ async function loadSettings() {
         dealToggleEnabled: Boolean(s.dealToggleEnabled),
         priceEditCodes: String(s.priceEditCodes ?? "").split(",").join("\n"),
         oversellMode: String(s.oversellMode || "allow"),
-        tillLanguage: String(s.tillLanguage || "fr"),
+        tillLanguage: String(s.tillLanguage || "en"),
         productSearchHiddenFields: String(s.productSearchHiddenFields ?? "").split(",").filter(Boolean),
         unknownProductBarcode: String(s.unknownProductBarcode ?? ""),
         unknownPicturesAtCheckout: Boolean(s.unknownPicturesAtCheckout),
@@ -3157,7 +3157,7 @@ const tillLanguages = [
 ];
 
 async function saveTillLanguage(value: unknown) {
-  const language = value === "en" ? "en" : "fr";
+  const language = value === "fr" ? "fr" : "en";
   const previous = form.tillLanguage;
   form.tillLanguage = language;
   pricingSettingsSaving.value = true;

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// A till is French until told otherwise; central's command and Settings both
+// A till is English until told otherwise; central's command and Settings both
 // change it, and anything else leaves it alone.
 func TestTillLanguage(t *testing.T) {
 	app, _, _, _, _ := newExchangeReplacementPricingFixture(t)
@@ -20,8 +20,12 @@ func TestTillLanguage(t *testing.T) {
 			t.Fatalf("language = %v, want %v", settings["tillLanguage"], want)
 		}
 	}
-	check("fr")
+	check("en")
 	for _, tc := range []struct{ payload, want string }{
+		{`{"till_language":"fr"}`, "fr"},
+		{`{}`, "fr"},
+		{`{"till_language":null}`, "fr"},
+		{`{"till_language":""}`, "fr"},
 		{`{"till_language":"en"}`, "en"},
 		{`{}`, "en"},
 		{`{"till_language":null}`, "en"},

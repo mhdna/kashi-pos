@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-// The till's screen language, "fr" (the default) or "en". Set from central
+// The till's screen language, "en" (the default) or "fr". Set from central
 // per branch or from Settings on the till; kashi's own screen language is
-// unrelated. Stored as one flag so a till never set stays French.
+// unrelated. Stored as one flag, on until set, so a till never set is English.
 const (
 	tillLanguageEnglishFlag = "till_language_english"
 	tillLanguageFrench      = "fr"
@@ -15,7 +15,7 @@ const (
 )
 
 func (a *App) tillLanguage() string {
-	if a.flagEnabled(a.ctx, tillLanguageEnglishFlag) {
+	if a.flagEnabledDefaultOn(a.ctx, tillLanguageEnglishFlag) {
 		return tillLanguageEnglish
 	}
 	return tillLanguageFrench
