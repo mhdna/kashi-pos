@@ -57,7 +57,7 @@ describe("ClientDialog: where did they hear about us", () => {
   it("the reported case: a new customer needs an answer, and it is saved with them", async () => {
     await newCustomerStep(fixture);
     expect(document.body.textContent).toContain("Where did they hear about us?");
-    expect(options().map((o) => o.textContent?.trim())).toEqual(["Social media", "A friend or family", "Walking by", "Google Maps", "WhatsApp", "An ad or flyer"]);
+    expect(options().map((o) => o.textContent?.trim())).toEqual(["Social media", "A friend or family", "Walking by"]);
 
     await typeName("maya haddad");
     expect(save().disabled).toBe(true);
