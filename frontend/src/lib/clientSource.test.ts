@@ -7,7 +7,7 @@ const options = sourceOptions(fixture);
 
 describe("client source", () => {
   it("the till's real list: central's starting options, in order", () => {
-    expect(options.map((o) => o.name)).toEqual(["Social media", "SMS", "A friend", "Walking by", "Other"]);
+    expect(options.map((o) => o.name)).toEqual(["Social media", "A friend or family", "Walking by", "Google Maps", "WhatsApp", "An ad or flyer"]);
   });
 
   it("drops blanks and repeats, keeps the order", () => {
@@ -89,7 +89,8 @@ describe("client source look", () => {
       ["Instagram", "mdi-instagram"], ["  FACEBOOK ", "mdi-facebook"], ["WhatsApp", "mdi-whatsapp"],
       ["Réseaux sociaux", "mdi-share-variant"], ["Text message", "mdi-message-text"],
       ["Un ami", "mdi-account-heart"], ["Family", "mdi-account-heart"], ["Passing by", "mdi-walk"],
-      ["Autre", "mdi-dots-horizontal-circle-outline"], ["Radio", "mdi-bullhorn"], ["Billboard", "mdi-bullhorn"],
+      ["Autre", "mdi-dots-horizontal-circle-outline"], ["Billboard", "mdi-bullhorn"], ["Une affiche", "mdi-bullhorn"],
+      ["Google", "mdi-google-maps"], ["SMS", "mdi-message-text"], ["Radio", "mdi-tag-outline"], ["TV", "mdi-tag-outline"],
     ];
     for (const [name, icon] of cases) {
       const look = sourceLook({ uid: "0b7e1f7c-3a2d-4f55-9d0c-6a1f2b3c4d5e", name });

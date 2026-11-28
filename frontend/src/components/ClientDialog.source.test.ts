@@ -57,7 +57,7 @@ describe("ClientDialog: where did they hear about us", () => {
   it("the reported case: a new customer needs an answer, and it is saved with them", async () => {
     await newCustomerStep(fixture);
     expect(document.body.textContent).toContain("Where did they hear about us?");
-    expect(options().map((o) => o.textContent?.trim())).toEqual(["Social media", "SMS", "A friend", "Walking by", "Other"]);
+    expect(options().map((o) => o.textContent?.trim())).toEqual(["Social media", "A friend or family", "Walking by", "Google Maps", "WhatsApp", "An ad or flyer"]);
 
     await typeName("maya haddad");
     expect(save().disabled).toBe(true);
@@ -105,6 +105,17 @@ describe("ClientDialog: where did they hear about us", () => {
     expect(option(2).classList.contains("client-source-option--picked")).toBe(true);
     expect(option(2).style.getPropertyValue("--source-ring")).toBe(looks[2]!.color);
     expect(options().filter((o) => o.classList.contains("client-source-option--picked"))).toHaveLength(1);
+  });
+
+  it("the options stand in a column on the right, beside the fields and keyboard", async () => {
+    await newCustomerStep(fixture);
+    const layout = q(".new-client-layout")!;
+    const [main, side] = Array.from(layout.children) as HTMLElement[];
+    expect(main!.classList.contains("new-client-main")).toBe(true);
+    expect(main!.querySelector(".client-name-keyboard")).not.toBeNull();
+    expect(main!.querySelector('[data-test="client-source-option"]')).toBeNull();
+    expect(side!.getAttribute("role")).toBe("radiogroup");
+    expect(side!.querySelectorAll('[data-test="client-source-option"]')).toHaveLength(fixture.length);
   });
 
   it("with no options from central it doesn't ask, and saves with the name alone", async () => {
