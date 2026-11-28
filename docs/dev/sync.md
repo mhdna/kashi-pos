@@ -158,8 +158,10 @@ offline branch can close with the ==admin password and a reason==
   `seedCursorFromLocalCatalog` runs the completeness check for that entity and
   starts the cursor from central's clock, read before it.
 - `client_sources` are the answers to "where did they hear about us?", asked on
-  the New Client step (`client_sources.go`, `lib/clientSource.ts`). Save waits
-  for an answer unless central offers none. Migrations 000151 to 000153 seed central's
+  the one-form client dialog beside the phone keypad (`client_sources.go`,
+  `lib/clientSource.ts`, `lib/clientForm.ts`). The number is looked up as soon
+  as it is whole and valid: a known client shows with Continue, an unknown one
+  needs a name. Save waits for an answer unless central offers none. Migrations 000151 to 000153 seed central's
   starting options under ==the same fixed uids== so a till asks before its first
   sync; hidden ones are stored but not offered; an answer without a list keeps
   the till's. The pick is `clients.source_uid`, sent as `source_uid` with the
