@@ -1,6 +1,8 @@
-// The new-customer question, "where did they hear about us?", and central's
-// starting answers (others show as central names them).
+// The client form: the found client, the new-customer question "where did
+// they hear about us?", and central's starting answers (others show as
+// central names them).
 export default {
+  "Existing client": "Client existant",
   "Where did they hear about us?": "Comment nous a-t-il connus ?",
   "Social media": "Réseaux sociaux",
   "SMS": "SMS",
