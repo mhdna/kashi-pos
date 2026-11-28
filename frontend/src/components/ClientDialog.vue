@@ -1,16 +1,60 @@
 <template>
   <!-- Reset only once the close animation is over: resetting on close put
-       the form back to empty while the dialog was still fading. -->
+       the phone step back on screen while the dialog was still fading. -->
   <k-dialog v-model="dialog" :max-width="dialogWidth" @after-leave="reset">
-    <k-card class="client-phone-card">
-      <k-card-title v-if="!countryPickerOpen" class="font-weight-bold">{{ t("Client") }}</k-card-title>
-      <!-- One form: the phone number on the left; on the right, the client
-           the number found, or the name and where they heard about us. -->
-      <k-card-text v-if="!countryPickerOpen" class="client-form">
-        <div class="client-form-phone">
+    <k-card v-if="step === 'phone'" class="client-phone-card">
+      <k-card-title v-if="!countryPickerOpen" class="font-weight-bold">{{ t("Enter Phone Number") }}</k-card-title>
+      <k-card-text v-if="!countryPickerOpen" class="client-phone-layout">
+        <div class="client-phone-form">
+          <div
+            class="client-phone-error text-error text-caption text-center"
+            :class="{ 'client-phone-error--hidden': !phoneError && !phoneLengthHint }"
+          >
+            {{ phoneError || phoneLengthHint || " " }}
+          </div>
+          <div class="client-phone-numpad">
+          <div class="client-phone-numpad-display">
+            <span class="client-phone-prefix" :aria-label="t('Country code')">+{{ selectedDialCode }}</span>
+            <input
+              ref="phoneInput"
+              class="client-phone-numpad-display-input"
+              :value="phone"
+              placeholder="0"
+              inputmode="tel"
+              maxlength="15"
+              autofocus
+              :aria-label="t('Phone number')"
+              @keydown.enter="lookupPhone"
+              @keydown="preventPhoneLength"
+              @beforeinput="preventPhoneLengthInput"
+              @keydown.backspace="removePhoneAtCursor"
+              @keydown.delete="removePhoneAtCursor($event, 'forward')"
+              @input="handlePhoneInput"
+            />
+          </div>
+          <PhonePad class="client-phone-pad" :show-arrows="false" @press="pressPhoneKey" />
+          </div>
+          <k-btn
+            class="client-phone-action-button w-100 mt-3"
+            variant="elevated"
+            color="primary"
+            :disabled="!phone.trim()"
+            @click="lookupPhone"
+          >
+            {{ t("Continue") }}
+          </k-btn>
+          <k-btn
+            class="client-phone-action-button w-100 mt-5"
+            variant="tonal"
+            @click="selectAnonymous"
+          >
+            {{ t("Prefer not to say") }}
+          </k-btn>
+        </div>
+        <div class="client-phone-countries">
           <button
             type="button"
-            class="client-phone-country-trigger mt-2"
+            class="client-phone-country-trigger mt-2 mb-3"
             :aria-label="t('Country: choose or search')"
             aria-haspopup="dialog"
             :aria-expanded="countryPickerOpen"
@@ -24,107 +68,43 @@
               {{ t("Search") }}
             </span>
           </button>
-          <div
-            class="client-phone-error text-error text-caption text-center"
-            :class="{ 'client-phone-error--hidden': !phoneError && !phoneLengthHint }"
-          >
-            {{ phoneError || phoneLengthHint || " " }}
-          </div>
-          <div class="client-phone-numpad">
-            <div class="client-phone-numpad-display">
-              <span class="client-phone-prefix" :aria-label="t('Country code')">+{{ selectedDialCode }}</span>
-              <input
-                ref="phoneInput"
-                class="client-phone-numpad-display-input"
-                :value="phone"
-                placeholder="0"
-                inputmode="tel"
-                maxlength="15"
-                autofocus
-                :aria-label="t('Phone number')"
-                @keydown.enter="enterOnPhone"
-                @keydown="preventPhoneLength"
-                @beforeinput="preventPhoneLengthInput"
-                @keydown.backspace="removePhoneAtCursor"
-                @keydown.delete="removePhoneAtCursor($event, 'forward')"
-                @input="handlePhoneInput"
-              />
-            </div>
-            <PhonePad class="client-phone-pad" :show-arrows="false" @press="pressPhoneKey" />
-          </div>
-        </div>
-
-        <div class="client-form-details">
-          <div v-if="foundClient" class="client-found" data-test="client-found">
-            <div class="text-body-2 text-medium-emphasis">{{ t("Existing client") }}</div>
-            <div class="client-found-name">{{ foundClient.name }}</div>
-          </div>
-          <template v-else>
-            <k-text-field
-              ref="nameField"
-              v-model="newClient.name"
-              :placeholder="t('Name')"
-              variant="outlined"
-              density="compact"
-              maxlength="80"
-              hide-details
-              @keydown="preventClientNameNumber"
-              @beforeinput="preventClientNameNumberInput"
-              @keydown.enter="submit"
-            />
-            <InlineKeyboard v-model="newClient.name" class="client-name-keyboard mt-3" />
-            <div
-              v-if="sources.length > 0"
-              class="client-source mt-4"
-              role="radiogroup"
-              :aria-label="t('Where did they hear about us?')"
+          <div class="client-phone-country-cards" role="listbox" :aria-label="t('Common countries')">
+            <button
+              v-for="country in pagedFrequentCountries"
+              :key="country.code"
+              type="button"
+              role="option"
+              class="client-phone-country-card"
+              :class="{ 'client-phone-country-card--active': country.code === selectedCountry }"
+              :aria-selected="country.code === selectedCountry"
+              @click="selectedCountry = country.code"
             >
-              <div class="client-source-label text-body-2 font-weight-medium mb-2">{{ t("Where did they hear about us?") }}</div>
-              <div class="client-source-options">
-                <k-btn
-                  v-for="option in sources"
-                  :key="option.uid"
-                  class="client-source-option"
-                  :class="{ 'client-source-option--picked': option.uid === pickedSource }"
-                  :color="sourceLook(option).color"
-                  :style="{ '--source-ring': sourceLook(option).color }"
-                  data-test="client-source-option"
-                  role="radio"
-                  :aria-checked="option.uid === pickedSource"
-                  :append-icon="option.uid === pickedSource ? 'mdi-check' : undefined"
-                  variant="flat"
-                  @click="pickedSource = toggleSource(pickedSource, option.uid)"
-                >
-                  <k-icon
-                    class="client-source-icon"
-                    data-test="client-source-icon"
-                    :icon="sourceLook(option).icon"
-                    size="22"
-                  />
-                  {{ t(option.name) }}
-                </k-btn>
-              </div>
-            </div>
-          </template>
-          <div class="client-form-actions">
-            <k-btn class="client-phone-action-button" variant="tonal" @click="selectAnonymous">
-              {{ t("Prefer not to say") }}
-            </k-btn>
+              <span class="country-flag">{{ country.flag }}</span>
+              <span class="client-phone-country-card-name">{{ country.name }}</span>
+              <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
+            </button>
+          </div>
+          <div class="client-phone-country-pager">
             <k-btn
-              class="client-phone-action-button"
-              variant="elevated"
-              color="primary"
-              :disabled="!canSubmitClientForm(lookup, newClient.name, sources, pickedSource)"
-              data-test="client-save"
-              @click="submit"
-            >
-              {{ t(clientFormButton(lookup)) }}
-            </k-btn>
+              icon="mdi-chevron-left"
+              variant="text"
+              :aria-label="t('Previous countries')"
+              :disabled="countryPage === 0"
+              @click="countryPage--"
+            />
+            <span class="text-medium-emphasis">{{ countryPage + 1 }} / {{ countryPageCount }}</span>
+            <k-btn
+              icon="mdi-chevron-right"
+              variant="text"
+              :aria-label="t('More countries')"
+              :disabled="countryPage === countryPageCount - 1"
+              @click="countryPage++"
+            />
           </div>
         </div>
       </k-card-text>
 
-      <!-- Every country as a card, replacing the form; tapping one
+      <!-- Every country as a card, replacing the phone step; tapping one
            picks it and goes back. Search is typed on the on-screen keyboard
            below, by country name or dial code. -->
       <div v-else class="client-phone-picker" role="dialog" :aria-label="t('Select country')">
@@ -164,6 +144,79 @@
         <InlineKeyboard v-model="countrySearch" class="client-phone-picker-keyboard" layout="code" :max-length="30" />
       </div>
     </k-card>
+
+    <k-card v-else-if="step === 'new'">
+      <k-card-title>{{ t("New Client") }}</k-card-title>
+      <k-card-text class="new-client-layout">
+        <div class="new-client-main">
+        <PhoneField
+          ref="newPhoneField"
+          v-model="newClient.phone"
+          class="mb-2"
+          :error-messages="newPhoneError"
+          @focus="newPhoneActive = true"
+        >
+          <template #prepend>
+            <span class="country-flag country-flag--new-client">{{ selectedFlag }}</span>
+            <span>+{{ selectedDialCode }}</span>
+          </template>
+        </PhoneField>
+        <k-text-field
+          v-model="newClient.name"
+          :placeholder="t('Name')"
+          variant="outlined"
+          density="compact"
+          maxlength="80"
+          autofocus
+          @keydown="preventClientNameNumber"
+          @beforeinput="preventClientNameNumberInput"
+          @keydown.enter="createClient"
+          @focus="newPhoneActive = false"
+        />
+        <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
+        <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
+        </div>
+        <div v-if="sources.length > 0" class="client-source" role="radiogroup" :aria-label="t('Where did they hear about us?')">
+          <div class="client-source-label text-body-2 font-weight-medium mb-2">{{ t("Where did they hear about us?") }}</div>
+          <div class="client-source-options">
+            <k-btn
+              v-for="option in sources"
+              :key="option.uid"
+              class="client-source-option"
+              :class="{ 'client-source-option--picked': option.uid === pickedSource }"
+              :color="sourceLook(option).color"
+              :style="{ '--source-ring': sourceLook(option).color }"
+              data-test="client-source-option"
+              role="radio"
+              :aria-checked="option.uid === pickedSource"
+              :append-icon="option.uid === pickedSource ? 'mdi-check' : undefined"
+              variant="flat"
+              @click="pickedSource = toggleSource(pickedSource, option.uid)"
+            >
+              <k-icon
+                class="client-source-icon"
+                data-test="client-source-icon"
+                :icon="sourceLook(option).icon"
+                size="22"
+              />
+              {{ t(option.name) }}
+            </k-btn>
+          </div>
+        </div>
+      </k-card-text>
+      <k-card-actions class="pa-4">
+        <k-btn variant="text" @click="step = 'phone'">{{ t("Back") }}</k-btn>
+        <k-spacer />
+        <k-btn
+          variant="elevated"
+          color="primary"
+          :disabled="!canSaveNewClient(newClient.name, sources, pickedSource)"
+          data-test="client-save"
+          @click="createClient"
+          >{{ t("Save") }}</k-btn
+        >
+      </k-card-actions>
+    </k-card>
   </k-dialog>
 </template>
 
@@ -185,7 +238,6 @@ import {
   toggleSource,
   type ClientSourceOption,
 } from "@/lib/clientSource";
-import { canSubmitClientForm, clientFormButton, type ClientLookup } from "@/lib/clientForm";
 import { t } from "@/i18n";
 import {
   anonymousClient,
@@ -194,9 +246,10 @@ import {
   toClient,
   type Client,
 } from "@/lib/client";
-import { normalizeLebanesePhone } from "@/lib/phone";
+import { localLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
 import { playClickSound, playDtmfSound } from "@/lib/sound";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import PhoneField from "@/components/PhoneField.vue";
 import PhonePad from "@/components/PhonePad.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
@@ -207,20 +260,25 @@ watch(dialog, (v) => {
   dialogOpen.value = v;
 });
 
+const step = ref<"phone" | "new">("phone");
 const phone = ref("");
 const phoneInput = ref<HTMLInputElement | null>(null);
 const phoneSubmitted = ref(false);
 const selectedCountry = ref<CountryCode>("LB");
-const newClient = reactive({ name: "" });
-const nameField = ref<{ focus?: () => void } | null>(null);
-// Where the new customer heard about us; loaded when the dialog opens.
+// newClient.phone is the number after the country code, as edited on the
+// new-client step; createClient puts the country code back.
+const newClient = reactive({ name: "", phone: "" });
+const newPhoneField = ref<InstanceType<typeof PhoneField> | null>(null);
+const newPhoneActive = ref(false);
+const newPhoneError = ref("");
+// Where the new customer heard about us; loaded when the new step opens.
 const sources = ref<ClientSourceOption[]>([]);
 const pickedSource = ref("");
-// The client the number belongs to, once a whole valid number is typed.
-const lookup = ref<ClientLookup>("none");
-const foundClient = ref<Client | null>(null);
-// The form is wide enough for the keypad beside the name keyboard.
-const dialogWidth = computed(() => (countryPickerOpen.value ? 760 : 1100));
+// The new-client step widens to fit the options in a column on its right.
+const dialogWidth = computed(() => {
+  if (step.value === "phone" && !countryPickerOpen.value) return 720;
+  return step.value === "new" && sources.value.length > 0 ? 1000 : 760;
+});
 
 async function loadSources() {
   try {
@@ -254,6 +312,14 @@ const frequentCountryCodes: CountryCode[] = [
 const frequentCountries = frequentCountryCodes
   .map((code) => countries.find((country) => country.code === code))
   .filter((country): country is (typeof countries)[number] => !!country);
+// Beside the numpad, twelve at a time with arrows to page through, so opening
+// the dialog draws a handful of cards rather than the whole list.
+const countryPageSize = 12;
+const countryPageCount = Math.ceil(frequentCountries.length / countryPageSize);
+const countryPage = ref(0);
+const pagedFrequentCountries = computed(() =>
+  frequentCountries.slice(countryPage.value * countryPageSize, (countryPage.value + 1) * countryPageSize),
+);
 // The full picker lists the common countries first, then everyone else A-Z.
 const allPickerCountries = [
   ...frequentCountries,
@@ -312,43 +378,18 @@ const phoneError = computed(() =>
     : "",
 );
 
-watch(
-  dialog,
-  (open) => {
-    if (!open) return;
-    void loadSources();
-    void nextTick(() => phoneInput.value?.focus());
-  },
-  { immediate: true },
-);
+watch([dialog, step], ([open, currentStep]) => {
+  if (!open || currentStep !== "phone") return;
+  void nextTick(() => phoneInput.value?.focus());
+});
 
-// Each change of number or country looks the number up again once it is a
-// whole valid one; an answer for an older number is dropped.
-let lookupSeq = 0;
-let pendingLookup: Promise<void> | null = null;
+watch(() => newClient.phone, () => {
+  newPhoneError.value = "";
+});
+
 watch([phone, selectedCountry], () => {
   phoneSubmitted.value = false;
   phoneLengthHint.value = "";
-  foundClient.value = null;
-  const seq = ++lookupSeq;
-  const p = normalizePhone(phone.value);
-  if (!p) {
-    lookup.value = "none";
-    pendingLookup = null;
-    return;
-  }
-  lookup.value = "checking";
-  pendingLookup = (async () => {
-    let found: Client | null = null;
-    try {
-      found = toClient(await GetClientByPhone(p));
-    } catch {
-      found = null;
-    }
-    if (seq !== lookupSeq) return;
-    foundClient.value = found;
-    lookup.value = found ? "found" : "new";
-  })();
 });
 
 function flagForCountry(code: string) {
@@ -526,32 +567,40 @@ function restorePhoneCaret(digitIndex: number) {
   });
 }
 
-// Enter on the number: a known client is picked, otherwise on to the name.
-async function enterOnPhone() {
-  phoneSubmitted.value = true;
-  if (!normalizePhone(phone.value)) return;
-  if (pendingLookup) await pendingLookup;
-  if (lookup.value === "found") await submit();
-  else nameField.value?.focus?.();
-}
-
-async function submit() {
+async function lookupPhone() {
   phoneSubmitted.value = true;
   const p = normalizePhone(phone.value);
   if (!p) return;
-  if (pendingLookup) await pendingLookup;
-  if (lookup.value === "found" && foundClient.value) {
-    emit("select", foundClient.value);
+  try {
+    const c = await GetClientByPhone(p);
+    emit("select", toClient(c));
     dialog.value = false;
+  } catch {
+    const dial = `+${selectedDialCode.value}`;
+    newClient.phone = p.startsWith("+961") ? localLebanesePhone(p) : p.startsWith(dial) ? p.slice(dial.length) : p;
+    newClient.name = "";
+    newPhoneError.value = "";
+    newPhoneActive.value = false;
+    pickedSource.value = "";
+    void loadSources();
+    step.value = "new";
+  }
+}
+
+async function createClient() {
+  if (!canSaveNewClient(newClient.name, sources.value, pickedSource.value)) return;
+  const phone = newClient.phone.startsWith("+") ? newClient.phone : normalizePhone(newClient.phone);
+  if (!phone) {
+    newPhoneError.value = isLebanon(selectedCountry.value)
+      ? t("Enter a valid Lebanese phone number")
+      : t("Enter a valid mobile phone number");
     return;
   }
-  if (!canSubmitClientForm(lookup.value, newClient.name, sources.value, pickedSource.value)) return;
-  const name = capitalizeName(newClient.name);
   try {
-    const c = await CreateClient(name, p, sourceToSend(sources.value, pickedSource.value));
+    const c = await CreateClient(capitalizeName(newClient.name), phone, sourceToSend(sources.value, pickedSource.value));
     emit("select", toClient(c));
   } catch {
-    emit("select", toClient({ id: 0, name, phone: p }));
+    emit("select", toClient({ id: 0, name: capitalizeName(newClient.name), phone }));
   }
   dialog.value = false;
 }
@@ -571,67 +620,53 @@ function selectAnonymous() {
 }
 
 function reset() {
+  step.value = "phone";
   phone.value = "";
   phoneSubmitted.value = false;
   selectedCountry.value = "LB";
+  countryPage.value = 0;
   closeCountryPicker();
   newClient.name = "";
+  newClient.phone = "";
+  newPhoneError.value = "";
+  newPhoneActive.value = false;
   pickedSource.value = "";
 }
 </script>
 
 <style scoped>
-/* The keypad column on the left; the found client, or the name, keyboard
-   and options, on the right, with the buttons at its foot. */
-.client-form {
-  align-items: stretch;
+/* Phone, name and keyboard on the left; the options in a column on the
+   right, beside them. */
+.new-client-layout {
   display: flex;
-  gap: 28px;
+  gap: 20px;
+  align-items: flex-start;
 }
-.client-form-phone {
-  flex: 0 0 340px;
-  min-width: 0;
-}
-.client-form-details {
-  display: flex;
+.new-client-main {
   flex: 1 1 auto;
-  flex-direction: column;
   min-width: 0;
 }
-.client-found {
-  padding-top: 8px;
+.client-source {
+  flex: 0 0 230px;
 }
-.client-found-name {
-  font-size: var(--kashi-font-size-2xl);
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-.client-form-actions {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr 2fr;
-  margin-top: auto;
-  padding-top: 16px;
-}
-@media (max-width: 900px) {
-  .client-form {
-    flex-direction: column;
+@media (max-width: 700px) {
+  .new-client-layout {
+    flex-direction: column-reverse;
   }
-  .client-form-phone {
+  .client-source {
     flex-basis: auto;
+    width: 100%;
   }
 }
-/* The options side by side, wrapping when there are many. */
 .client-source-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 .client-source-option {
-  flex: 1 1 0;
   min-height: 52px;
-  min-width: 150px;
   font-size: 1rem;
+  justify-content: flex-start;
 }
 .client-source-icon {
   margin-inline-end: 8px;
@@ -649,6 +684,13 @@ function reset() {
   /* WebKit (the macOS webview) lets a colour-font flag leak its colour into the
      text drawn after it; painting the flag in its own box stops that. */
   contain: paint;
+}
+
+.client-phone-layout {
+  align-items: stretch;
+  display: flex;
+  gap: 24px;
+  justify-content: center;
 }
 
 .client-phone-card {
@@ -754,6 +796,36 @@ function reset() {
   padding: 2px;
 }
 
+.client-phone-countries {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  /* On the left of the numpad, though it follows it in the markup. */
+  order: -1;
+}
+
+.client-phone-country-cards {
+  align-content: start;
+  display: grid;
+  flex: 1 1 0;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Basis 0 keeps the list out of the dialog's height: the numpad column
+     sets that, and the list scrolls inside it. */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.client-phone-country-pager {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
 .client-phone-country-card {
   align-items: center;
   background: transparent;
@@ -773,6 +845,11 @@ function reset() {
 .client-phone-country-trigger .country-flag {
   font-size: 1.9rem;
   margin-inline-end: 0;
+}
+
+.country-flag.country-flag--new-client {
+  font-size: 2rem;
+  margin-inline-end: 10px;
 }
 
 .client-phone-country-card:hover {
@@ -796,6 +873,12 @@ function reset() {
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
   opacity: 0.65;
+}
+
+.client-phone-form {
+  width: 100%;
+  min-width: 0;
+  max-width: 280px;
 }
 
 .client-phone-numpad {
@@ -863,4 +946,22 @@ function reset() {
   visibility: hidden;
 }
 
+@media (max-width: 600px) {
+  .client-phone-layout {
+    flex-direction: column;
+  }
+
+  .client-phone-countries {
+    order: 0;
+  }
+
+  .client-phone-country-cards {
+    flex: 0 0 auto;
+    max-height: 320px;
+  }
+
+  .client-phone-numpad {
+    justify-self: center;
+  }
+}
 </style>

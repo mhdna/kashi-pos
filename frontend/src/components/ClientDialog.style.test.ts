@@ -1,5 +1,6 @@
 // The phone number screen stays neutral: the country Search button and the
-// keypad's C are grey like the other keys.
+// keypad's C are grey like the other keys, and the country page arrows have no
+// background.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -14,6 +15,12 @@ describe("phone number screen colours", () => {
     expect(css).not.toMatch(/#00796b/i);
     expect(css).toMatch(/background: transparent/);
     expect(css).toMatch(/color: rgb\(var\(--k-theme-on-surface\)\)/);
+  });
+
+  it("the page arrows are text buttons with no background", () => {
+    const pager = dialog.slice(dialog.indexOf('<div class="client-phone-country-pager">'), dialog.indexOf("</div>", dialog.indexOf('<div class="client-phone-country-pager">')));
+    expect(pager).not.toMatch(/variant="tonal"/);
+    expect(pager.match(/variant="text"/g)).toHaveLength(2);
   });
 
   it("the country cards are square, with no rounded corners", () => {
