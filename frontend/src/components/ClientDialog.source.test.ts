@@ -138,3 +138,49 @@ describe("ClientDialog: where did they hear about us", () => {
     expect(CreateClient).toHaveBeenCalledWith("Nour", "+96170456789", "");
   });
 });
+
+describe("ClientDialog: the new client's number pops up a keypad", () => {
+  const phoneField = () =>
+    qa("input").find((i) => (i as HTMLInputElement).placeholder === "Phone Number") as HTMLInputElement;
+  const pad = () => q('[data-test="phone-pad-menu"]');
+  const key = (k: string) => q(`[data-test="phone-pad-menu-key-${k}"]`)!;
+  const tap = async (el: Element) => {
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+  };
+  const letterKeyboard = () => q(".client-name-keyboard");
+
+  it("the reported case: tapping the number opens a popup pad and the letter keyboard stays", async () => {
+    await newCustomerStep(fixture);
+    expect(letterKeyboard()).not.toBeNull();
+    expect(pad()).toBeNull();
+    await tap(phoneField());
+    expect(pad()).not.toBeNull();
+    expect(q('[data-test="phone-pad-menu"] .phone-pad-menu-title')!.textContent).toBe("Phone number");
+    expect(letterKeyboard()).not.toBeNull();
+    // No inline keypad takes the keyboard's place any more.
+    expect(q(".new-client-main .phone-pad")).toBeNull();
+  });
+
+  it("the pad's keys edit the number, shown formatted, and Done closes it", async () => {
+    await newCustomerStep(fixture);
+    await tap(phoneField());
+    expect(q('[data-test="phone-pad-menu-display"]')!.textContent).toBe("+961 (70) 456-789");
+    await tap(key("back"));
+    await tap(key("1"));
+    expect(q('[data-test="phone-pad-menu-display"]')!.textContent).toBe("+961 (70) 456-781");
+    await tap(key("clear"));
+    expect(q('[data-test="phone-pad-menu-display"]')!.textContent).toBe("0");
+    for (const d of "78255566") await tap(key(d));
+    expect(phoneField().value).toBe("(78) 255-566");
+    await tap(q('[data-test="phone-pad-menu-done"]')!);
+    expect(pad()).toBeNull();
+
+    await typeName("lina");
+    option(0).click();
+    await flushPromises();
+    save().click();
+    await flushPromises();
+    expect(CreateClient).toHaveBeenCalledWith("Lina", "+96178255566", fixture[0]!.uid);
+  });
+});
